@@ -1,18 +1,12 @@
 ﻿using MediatR;
 using nin.Application.Common.Interfaces;
-using nin.Domain.Entities;
 
 namespace nin.Application.Products.Queries.GetProducts;
 
-public class GetProductsQueryHandler : IRequestHandler<GetProductsQuery, List<Product>>
+public class GetProductsQueryHandler(IProductRepository productRepository)
+    : IRequestHandler<GetProductsQuery, IEnumerable<ProductResult>>
 {
-    IProductRepository _productRepository;
-
-    public GetProductsQueryHandler(IProductRepository productRepository)
-    {
-        _productRepository = productRepository;
-    }
-    public async Task<List<Product>> Handle(GetProductsQuery request, CancellationToken cancellationToken)
+    public async Task<IEnumerable<ProductResult>> Handle(GetProductsQuery request, CancellationToken cancellationToken)
     {
         // return await Task.FromResult(new List<Product>
         // {
@@ -20,6 +14,12 @@ public class GetProductsQueryHandler : IRequestHandler<GetProductsQuery, List<Pr
         //     new Product("Mouse", 25)
         // });
 
-        return await _productRepository.GetAllProductsAsync();
+        var list = await productRepository.GetAllProductsAsync();
+        return list.Select(a => new ProductResult
+        {
+            Id = a.Id,
+            Name = a.Name,
+            Price = a.Price,
+        }).ToArray();
     }
 }

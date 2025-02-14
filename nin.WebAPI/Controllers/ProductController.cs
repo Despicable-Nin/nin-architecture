@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using nin.Application.Products.Commands.CreateProduct;
 using nin.Application.Products.Queries.GetProducts;
 
 namespace nin.WebAPI.Controllers
@@ -14,6 +15,12 @@ namespace nin.WebAPI.Controllers
         public async Task<IActionResult> GetProducts()
         {
             return Ok(await mediator.Send(new GetProductsQuery()));
+        }
+        
+        [HttpPost]
+        public async Task<IActionResult> AddProduct([FromBody] CreateProductCommand command )
+        {
+            return Ok(await mediator.Send(command));
         }
 
     }

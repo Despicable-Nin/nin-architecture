@@ -3,7 +3,7 @@
 namespace nin.Application.Products.Queries.GetProducts;
 
 
-public record GetProductsQuery() : IRequest<List<ProductResult>>;
+public record GetProductsQuery() : IRequest<IEnumerable<ProductResult>>;
 
 public record ProductResult
 {

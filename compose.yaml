@@ -1,0 +1,24 @@
+﻿services:
+  nin-archictecture:
+    image: nin-archictecture
+    build:
+      context: .
+      dockerfile: nin-archictecture/Dockerfile
+
+  nin.application:
+    image: nin.application
+    build:
+      context: .
+      dockerfile: nin.Application/Dockerfile
+
+  nin.infrastructure:
+    image: nin.infrastructure
+    build:
+      context: .
+      dockerfile: nin.Infrastructure/Dockerfile
+
+  nin.webapi:
+    image: nin.webapi
+    build:
+      context: .
+      dockerfile: nin.WebAPI/Dockerfile

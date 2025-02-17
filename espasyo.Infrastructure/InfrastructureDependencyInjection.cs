@@ -2,6 +2,7 @@
 using espasyo.Infrastructure.Data;
 using espasyo.Infrastructure.Data.Interceptors;
 using espasyo.Infrastructure.Data.Repositories;
+using espasyo.Infrastructure.Geocoding;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
@@ -17,13 +18,16 @@ public static class InfrastructureDependencyInjection
         
         services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
         {
-            options.AddInterceptors(serviceProvider.GetService<ISaveChangesInterceptor>());
+            options.AddInterceptors(serviceProvider.GetService<ISaveChangesInterceptor>() ?? throw new InvalidOperationException("ISaveChangesInterceptor is not implemented."));
             options.UseSqlServer(connectionString);
         });
 
 
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IIncidentRepository, IncidentRepository>();
+        services.AddTransient<IGeocodeService, AddressGeocodeService>();
+
+        services.AddHttpClient<AddressGeocodeService>();
 
         return services;
     }

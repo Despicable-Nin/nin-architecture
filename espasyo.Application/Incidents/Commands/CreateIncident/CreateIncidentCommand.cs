@@ -1,6 +1,7 @@
 ﻿using espasyo.Application.Common.Interfaces;
 using espasyo.Domain.Entities;
 using espasyo.Domain.Enums;
+using espasyo.Domain.Events;
 using MediatR;
 
 namespace espasyo.Application.Incidents.Commands.CreateIncident;
@@ -37,8 +38,11 @@ public class CreateIncidentCommandHandler(
             request.TimeStamp
         );
 
-        await incidentRepository.CreateIncidentAsync(incident);
-
-        return incident.Id;
+        var id = await incidentRepository.CreateIncidentAsync(incident);
+        if (!id.HasValue) return Guid.Empty;
+        
+        logger.LogInformation($"Incident with id {id.Value} created");
+        incident.AddDomainEvent(new IncidentCreatedEvent(incident.CaseId, incident.Address));
+        return id.Value;
     }
 }

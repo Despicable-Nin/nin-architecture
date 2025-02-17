@@ -4,7 +4,7 @@ namespace espasyo.Infrastructure.Geocoding;
 
 public class AddressGeocodeService(HttpClient httpClient, ILogger<AddressGeocodeService> logger) : IGeocodeService
 {
-    public async Task<(double? Latitude, double? Longitude)> GetLatLongAsync(string address)
+    public async Task<(double Latitude, double Longitude)> GetLatLongAsync(string address)
     {
         httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("espasyo-WebAPI/1.0");
         var requestUrl =

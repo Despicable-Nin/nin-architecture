@@ -11,5 +11,13 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         builder.ToTable("Incident");
         builder.HasKey(x => x.Id);
         builder.HasIndex(x => x.CaseId).IsUnique();
+        
+        builder.Property("_latitude")
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .HasColumnName("Latitude");
+        
+        builder.Property("_longitude")
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .HasColumnName("Longitude");
     }
 }

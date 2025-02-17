@@ -41,7 +41,7 @@ public class GetPaginatedListQueryHandler(IIncidentRepository repository) : IReq
                 CaseId = x.CaseId,
                 Address = x.Address,
                 Severity = (int)x.Severity,
-                SeverityText = x.ToString(),
+                SeverityText = x.Severity.ToString(),
                 Motive = (int)x.Motive,
                 MotiveText = x.Motive.ToString(),
                 PoliceDistrict = (int)x.PoliceDistrict,

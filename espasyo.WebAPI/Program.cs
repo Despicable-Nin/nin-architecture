@@ -30,4 +30,11 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+app.UseCors(policy =>
+{
+    policy.AllowAnyHeader();
+    policy.AllowAnyMethod();
+    policy.AllowAnyOrigin();
+});
+
 await app.RunAsync();

@@ -3,10 +3,10 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace espasyo.Domain.Common
 {
-    public abstract class BaseEntity<T>
+    public abstract class BaseEntity
     {
-        public T Id { get; protected set; }
-        private readonly List<BaseEvent> _domainEvents = new();
+        public Guid Id { get; protected set; }
+        private readonly List<BaseEvent> _domainEvents = [];
 
         [NotMapped]
         public IReadOnlyCollection<BaseEvent> DomainEvents => _domainEvents.AsReadOnly();

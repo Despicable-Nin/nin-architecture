@@ -4,7 +4,7 @@ using espasyo.Domain.Enums;
 namespace espasyo.Domain.Entities
 {
 
-    public class Incident : BaseEntity<Guid>
+    public class Incident : BaseEntity
     {
 
         private float? _latitude;

@@ -13,6 +13,7 @@ public static class InfrastructureDependencyInjection
             options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
 
         services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IIncidentRepository, IncidentRepository>();
 
         return services;
     }

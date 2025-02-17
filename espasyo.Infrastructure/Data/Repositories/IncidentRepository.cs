@@ -1,6 +1,7 @@
 ﻿using espasyo.Application.Common.Interfaces;
 using espasyo.Domain.Entities;
 using espasyo.Domain.Enums;
+using espasyo.Domain.Events;
 using Microsoft.EntityFrameworkCore;
 
 namespace espasyo.Infrastructure.Data.Repositories;
@@ -18,9 +19,9 @@ public class IncidentRepository(ApplicationDbContext context) : IIncidentReposit
         return (await context.Incidents.OrderByDescending(x => x.TimeStamp).Skip((pageNumber - 1) * pageSize).Take(pageSize).ToArrayAsync(), count);
     }
 
-    public Task<Incident?> GetIncidentByCaseIdAsync(string caseId)
+    public async Task<Incident?> GetIncidentByCaseIdAsync(string caseId)
     {
-        throw new NotImplementedException();
+        return await context.Incidents.FirstOrDefaultAsync(x => x.CaseId == caseId);
     }
 
     public Task<Incident?> GetIncidentByIdAsync(Guid id)
@@ -28,20 +29,16 @@ public class IncidentRepository(ApplicationDbContext context) : IIncidentReposit
         throw new NotImplementedException();
     }
 
-    public async Task<Guid?> CreateIncidentAsync(Incident incident)
+    public Task<Incident> CreateIncidentAsync(Incident incident)
     {
-        Guid? incidentId = null;
-        try
-        {
-            context.Incidents.Add(incident);
-            await context.SaveChangesAsync();
-           incidentId = incident.Id;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine(ex.Message);
-        }
-        return incidentId;
+        if(incident == null) throw new ArgumentNullException(nameof(incident));
+        incident.AddDomainEvent(new IncidentCreatedEvent(incident.CaseId, incident.Address));
+        return Task.FromResult(context.Incidents.Add(incident).Entity);
+    }
+    
+    public async Task<Incident?> UpdateIncidentAsync(Incident incident)
+    {
+        return context.Incidents.Update(incident).Entity;
     }
 
     public Dictionary<int, string> GetCrimeTypes()
@@ -77,5 +74,20 @@ public class IncidentRepository(ApplicationDbContext context) : IIncidentReposit
         return Enum.GetValues(typeof(WeatherConditionEnum))
             .Cast<WeatherConditionEnum>()
             .ToDictionary(e => (int)e, e => e.ToString());
+    }
+
+    public void Dispose()
+    {
+        context.Dispose();
+    }
+
+    public async Task<int> SaveChangesAsync()
+    {
+        return await context.SaveChangesAsync(default);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await context.DisposeAsync();
     }
 }

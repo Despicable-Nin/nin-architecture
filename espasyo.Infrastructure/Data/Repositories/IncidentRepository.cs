@@ -28,11 +28,20 @@ public class IncidentRepository(ApplicationDbContext context) : IIncidentReposit
         throw new NotImplementedException();
     }
 
-    public async Task<Guid> CreateIncidentAsync(Incident incident)
+    public async Task<Guid?> CreateIncidentAsync(Incident incident)
     {
-         context.Incidents.Add(incident);
-         await context.SaveChangesAsync();
-         return incident.Id;
+        Guid? incidentId = null;
+        try
+        {
+            context.Incidents.Add(incident);
+            await context.SaveChangesAsync();
+           incidentId = incident.Id;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+        return incidentId;
     }
 
     public Dictionary<int, string> GetCrimeTypes()

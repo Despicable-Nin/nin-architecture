@@ -22,7 +22,7 @@ namespace nin.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("nin.Domain.Entities.Product", b =>
+            modelBuilder.Entity("espasyo.Domain.Entities.Product", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()

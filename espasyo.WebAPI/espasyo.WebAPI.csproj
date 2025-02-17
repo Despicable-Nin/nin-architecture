@@ -26,8 +26,8 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\nin.Application\nin.Application.csproj" />
-      <ProjectReference Include="..\nin.Infrastructure\nin.Infrastructure.csproj" />
+      <ProjectReference Include="..\espasyo.Application\espasyo.Application.csproj" />
+      <ProjectReference Include="..\espasyo.Infrastructure\espasyo.Infrastructure.csproj" />
     </ItemGroup>
 
 </Project>

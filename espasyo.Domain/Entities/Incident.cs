@@ -1,9 +1,10 @@
-﻿using espasyo.Domain.Enums;
+﻿using espasyo.Domain.Common;
+using espasyo.Domain.Enums;
 
 namespace espasyo.Domain.Entities
 {
 
-    public class Incident
+    public class Incident : BaseEntity<Guid>
     {
 
         private float? _latitude;
@@ -25,7 +26,6 @@ namespace espasyo.Domain.Entities
             TimeStamp = timeStamp;
         }
 
-        public Guid Id { get; protected set; }
         public string? CaseId { get; private set; }
         public string? Address { get; private set; }
         

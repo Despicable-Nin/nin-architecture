@@ -2,5 +2,5 @@
 
 public interface IGeocodeService
 {
-    Task<(double? Latitude, double? Longitude)> GetLatLongAsync(string address);
+    Task<(double Latitude, double Longitude)> GetLatLongAsync(string address);
 }

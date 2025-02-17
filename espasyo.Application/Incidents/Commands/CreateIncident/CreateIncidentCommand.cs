@@ -27,7 +27,7 @@ public class CreateIncidentCommandHandler(
 {
     public async Task<Guid> Handle(CreateIncidentCommand request, CancellationToken cancellationToken)
     {
-        var incident = new Incident(request.CaseId,
+        Incident incident = new (request.CaseId,
             request.Address,
             (SeverityEnum)request.Severity,
             (CrimeTypeEnum)request.CrimeType,
@@ -37,12 +37,11 @@ public class CreateIncidentCommandHandler(
             request.OtherMotive,
             request.TimeStamp
         );
-
-        var id = await incidentRepository.CreateIncidentAsync(incident);
-        if (!id.HasValue) return Guid.Empty;
         
-        logger.LogInformation($"Incident with id {id.Value} created");
-        incident.AddDomainEvent(new IncidentCreatedEvent(incident.CaseId, incident.Address));
-        return id.Value;
+        var created = await incidentRepository.CreateIncidentAsync(incident);
+        
+        if(created == null) throw new Exception("Error creating incident");
+
+        return created.Id;
     }
 }

@@ -1,6 +1,6 @@
 ﻿using MediatR;
 
-namespace nin.Application.Products.Queries.GetProducts;
+namespace espasyo.Application.Products.Queries.GetProducts;
 
 
 public record GetProductsQuery() : IRequest<IEnumerable<ProductResult>>;

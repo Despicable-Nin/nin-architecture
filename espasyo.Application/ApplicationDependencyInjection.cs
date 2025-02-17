@@ -1,7 +1,7 @@
-﻿using MediatR;
-using nin.Application.Products.Queries.GetProducts;
+﻿using espasyo.Application.Products.Queries.GetProducts;
+using MediatR;
 
-namespace nin.Application;
+namespace espasyo.Application;
 
 public static class ApplicationDependencyInjection
 {

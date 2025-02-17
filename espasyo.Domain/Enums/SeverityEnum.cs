@@ -1,4 +1,4 @@
-﻿namespace espasyo_domain.AggregatesModel.IncidentAggregate
+﻿namespace espasyo.Domain.Enums
 {
     public enum SeverityEnum
     {

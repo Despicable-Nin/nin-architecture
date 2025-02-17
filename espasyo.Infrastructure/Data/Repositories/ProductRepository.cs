@@ -1,8 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
-using nin.Application.Common.Interfaces;
-using nin.Domain.Entities;
+﻿using espasyo.Application.Common.Interfaces;
+using espasyo.Domain.Entities;
+using Microsoft.EntityFrameworkCore;
 
-namespace nin.Infrastructure.Data.Repositories;
+namespace espasyo.Infrastructure.Data.Repositories;
 
 public class ProductRepository(ApplicationDbContext context) : IProductRepository
 {

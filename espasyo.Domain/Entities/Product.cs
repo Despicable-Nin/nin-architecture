@@ -1,4 +1,4 @@
-﻿namespace nin.Domain.Entities;
+﻿namespace espasyo.Domain.Entities;
 
 public class Product(string name, decimal price)
 {

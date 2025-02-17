@@ -1,6 +1,6 @@
-﻿using nin.Domain.Entities;
+﻿using espasyo.Domain.Entities;
 
-namespace nin.Application.Common.Interfaces;
+namespace espasyo.Application.Common.Interfaces;
 
 public interface IProductRepository
 {

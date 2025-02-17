@@ -1,9 +1,9 @@
+using espasyo.Application.Products.Commands.CreateProduct;
+using espasyo.Application.Products.Queries.GetProducts;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using nin.Application.Products.Commands.CreateProduct;
-using nin.Application.Products.Queries.GetProducts;
 
-namespace nin.WebAPI.Controllers
+namespace espasyo.WebAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]

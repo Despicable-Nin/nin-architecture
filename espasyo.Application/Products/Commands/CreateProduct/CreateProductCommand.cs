@@ -1,8 +1,8 @@
-﻿using MediatR;
-using nin.Application.Common.Interfaces;
-using nin.Domain.Entities;
+﻿using espasyo.Application.Common.Interfaces;
+using espasyo.Domain.Entities;
+using MediatR;
 
-namespace nin.Application.Products.Commands.CreateProduct;
+namespace espasyo.Application.Products.Commands.CreateProduct;
 
 public record CreateProductCommand : IRequest<Unit>
 {

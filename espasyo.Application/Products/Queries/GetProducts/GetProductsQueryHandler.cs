@@ -1,7 +1,7 @@
-﻿using MediatR;
-using nin.Application.Common.Interfaces;
+﻿using espasyo.Application.Common.Interfaces;
+using MediatR;
 
-namespace nin.Application.Products.Queries.GetProducts;
+namespace espasyo.Application.Products.Queries.GetProducts;
 
 public class GetProductsQueryHandler(IProductRepository productRepository)
     : IRequestHandler<GetProductsQuery, IEnumerable<ProductResult>>

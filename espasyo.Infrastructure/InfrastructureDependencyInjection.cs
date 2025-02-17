@@ -1,9 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore;
-using nin.Application.Common.Interfaces;
-using nin.Infrastructure.Data;
-using nin.Infrastructure.Data.Repositories;
+﻿using espasyo.Application.Common.Interfaces;
+using espasyo.Infrastructure.Data;
+using espasyo.Infrastructure.Data.Repositories;
+using Microsoft.EntityFrameworkCore;
 
-namespace nin.Infrastructure;
+namespace espasyo.Infrastructure;
 
 public static class InfrastructureDependencyInjection
 {

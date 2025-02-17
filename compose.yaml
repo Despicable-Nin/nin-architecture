@@ -22,3 +22,9 @@
     build:
       context: .
       dockerfile: nin.WebAPI/Dockerfile
+
+  espasyo_console:
+    image: espasyo_console
+    build:
+      context: .
+      dockerfile: espasyo_console/Dockerfile

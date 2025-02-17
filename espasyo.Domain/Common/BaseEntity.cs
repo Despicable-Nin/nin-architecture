@@ -5,7 +5,7 @@ namespace espasyo.Domain.Common
 {
     public abstract class BaseEntity<T>
     {
-        public T Id { get; set; }
+        public T Id { get; protected set; }
         private readonly List<BaseEvent> _domainEvents = new();
 
         [NotMapped]

@@ -25,3 +25,8 @@ docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=YourStrong!Passw0rd" -p 1433:1433 
 ```js
 "C:\Program Files\dotnet\dotnet.exe" ef migrations remove --project espasyo.Infrastructure\espasyo.Infrastructure.csproj --startup-project espasyo.WebAPI\espasyo.WebAPI.csproj --context nin.Infrastructure.Data.ApplicationDbContext --configuration Debug --verbose --force
 ```
+
+### Swagger Open API Documentation
+```js
+http://localhost:5041/swagger/index.html
+```

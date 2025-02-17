@@ -9,4 +9,9 @@ public interface IIncidentRepository
     Task<Incident?> GetIncidentByCaseIdAsync(string caseId);
     Task<Incident?> GetIncidentByIdAsync(Guid id);
     Task<Guid> CreateIncidentAsync(Incident incident);
+    Dictionary<int, string> GetCrimeTypes();
+    Dictionary<int, string> GetSeverityEnums();
+    Dictionary<int, string> GetMotiveEnums();
+    Dictionary<int, string> PoliceDistrictEnums();
+    Dictionary<int, string> GetWeatherEnums();
 }

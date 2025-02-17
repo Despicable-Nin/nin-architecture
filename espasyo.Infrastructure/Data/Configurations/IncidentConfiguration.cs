@@ -10,5 +10,6 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
     {
         builder.ToTable("Incident");
         builder.HasKey(x => x.Id);
+        builder.HasIndex(x => x.CaseId).IsUnique();
     }
 }

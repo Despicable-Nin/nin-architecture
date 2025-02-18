@@ -10,14 +10,19 @@ public class IncidentCreatedEventHandler(ILogger<IncidentCreatedEventHandler> lo
     {
         logger.LogInformation("Handler invoked", [notification]);
 
-        (double? lat, double? lon) = await geocodeService.GetLatLongAsync(notification.Address);
+        var latLongAddress = await geocodeService.GetLatLongAsync(notification.Address);
 
         var incident = await repository.GetIncidentByCaseIdAsync(notification.CaseId);
         
         if(incident == null) throw new KeyNotFoundException(nameof(notification.CaseId));
 
-        incident.ChangeLatLong(lat, lon);
+        incident.ChangeLatLong(latLongAddress.Latitude, latLongAddress.Longitude);
 
-        logger.LogInformation("Nominatum:{lat} {lon}", lat, lon);
+        logger.LogInformation("Nominatim:{lat} {lon}", latLongAddress.Latitude, latLongAddress.Longitude);
+
+        incident.SanitizeAddress(latLongAddress.NewAddress);
+
+        await repository.UpdateIncidentAsync(incident);
+        
     }
 }

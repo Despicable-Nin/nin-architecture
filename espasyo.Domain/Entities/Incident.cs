@@ -7,13 +7,13 @@ namespace espasyo.Domain.Entities
     public class Incident : BaseEntity
     {
 
-        private float? _latitude;
-        private float? _longitude;
+        private double? _latitude;
+        private double? _longitude;
 
         protected Incident() { }
 
         public Incident(string? caseId, string? address, SeverityEnum severity, CrimeTypeEnum crimeType, MotiveEnum motive, MuntinlupaPoliceDistrictEnum policeDistrictEnum, 
-            WeatherConditionEnum weatherCondition, string? otherMotive, DateTimeOffset? timeStamp)
+            WeatherConditionEnum weatherCondition, string? additionalInformation, DateTimeOffset? timeStamp)
         {
             CaseId = caseId;
             Address = address;
@@ -22,12 +22,13 @@ namespace espasyo.Domain.Entities
             Motive = motive;
             PoliceDistrict = policeDistrictEnum;
             Weather = weatherCondition;
-            OtherMotive = otherMotive;
+            AdditionalInformation = additionalInformation;
             TimeStamp = timeStamp;
         }
 
         public string? CaseId { get; private set; }
         public string? Address { get; private set; }
+        public string? SanitizedAddress { get; private set; }
         
         public SeverityEnum Severity { get;  set; }
 
@@ -36,21 +37,26 @@ namespace espasyo.Domain.Entities
         public MotiveEnum Motive { get;  set; }
 
         public MuntinlupaPoliceDistrictEnum PoliceDistrict { get;  set; }
-        public string? OtherMotive { get; set; }
+        public string? AdditionalInformation { get; set; }
 
         public WeatherConditionEnum Weather { get;  set; }
 
         public DateTimeOffset? TimeStamp { get; set; }
 
 
-        public void ChangeLatLong(float? lat = 0, float? lng = 0)
+        public void ChangeLatLong(double? lat = 0, double? lng = 0)
         {
             _latitude = lat;
             _longitude = lng;
         }
 
-        public float? GetLatitude() => _latitude;
-        public float? GetLongitude() => _longitude;
+        public void SanitizeAddress(string? newAddress)
+        {
+            SanitizedAddress = newAddress;
+        }
+
+        public double? GetLatitude() => _latitude;
+        public double? GetLongitude() => _longitude;
 
     }
 }

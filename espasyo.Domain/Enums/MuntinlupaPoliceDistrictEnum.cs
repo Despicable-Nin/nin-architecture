@@ -3,12 +3,13 @@
     public enum MuntinlupaPoliceDistrictEnum
     {
         Alabang,
-        Bayanan,
+        Bayanan ,
         Buli,
         Cupang,
         Poblacion,
         Putatan,
-        Sucat,
-        Tunasan
+        Tunasan,
+        Ayala_Alabang,
+        
     }
 }

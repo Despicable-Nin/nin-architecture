@@ -46,7 +46,7 @@ public class GetPaginatedListQueryHandler(IIncidentRepository repository) : IReq
                 MotiveText = x.Motive.ToString(),
                 PoliceDistrict = (int)x.PoliceDistrict,
                 PoliceDistrictText = x.PoliceDistrict.ToString(),
-                OtherMotive = x.OtherMotive,
+                OtherMotive = x.AdditionalInformation,
                 TimeStamp = x.TimeStamp,
                 Weather = (int)x.Weather,
                 WeatherText = x.Weather.ToString(),

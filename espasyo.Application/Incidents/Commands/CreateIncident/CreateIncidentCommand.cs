@@ -14,7 +14,7 @@ public record CreateIncidentCommand : IRequest<Guid>
     public int CrimeType { get;  init; }
     public int Motive { get;  init; }
     public int PoliceDistrict { get;  init; }
-    public string? OtherMotive { get; init; }
+    public string? AdditionalInfo { get; init; }
     public int Weather { get;  init; }
     public DateTimeOffset? TimeStamp { get; init; }
 }
@@ -22,11 +22,15 @@ public record CreateIncidentCommand : IRequest<Guid>
 
 public class CreateIncidentCommandHandler(
     IIncidentRepository incidentRepository,
+    IGeocodeService geocodeService,
     ILogger<CreateIncidentCommandHandler> logger)
     : IRequestHandler<CreateIncidentCommand, Guid>
 {
     public async Task<Guid> Handle(CreateIncidentCommand request, CancellationToken cancellationToken)
     {
+        
+        logger.LogInformation("Creating Incident. Request:{Request}", request);
+
         Incident incident = new (request.CaseId,
             request.Address,
             (SeverityEnum)request.Severity,
@@ -34,14 +38,23 @@ public class CreateIncidentCommandHandler(
             (MotiveEnum)request.Motive,
             (MuntinlupaPoliceDistrictEnum)request.PoliceDistrict,
             (WeatherConditionEnum)request.Weather,
-            request.OtherMotive,
+            request.AdditionalInfo,
             request.TimeStamp
         );
+        
+        logger.LogInformation("Getting nominatim api . . .");
+        var latLong = await geocodeService.GetLatLongAsync(request.Address!);
+
+        logger.LogInformation("Updating latlong . . .");
+        incident.ChangeLatLong(latLong.Latitude, latLong.Longitude);
+
+        logger.LogInformation("Updating new address . . .");
+        incident.SanitizeAddress(latLong.NewAddress);
         
         var created = await incidentRepository.CreateIncidentAsync(incident);
         
         if(created == null) throw new Exception("Error creating incident");
-
+        
         return created.Id;
     }
 }

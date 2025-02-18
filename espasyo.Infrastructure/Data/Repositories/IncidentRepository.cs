@@ -29,50 +29,50 @@ public class IncidentRepository(ApplicationDbContext context) : IIncidentReposit
         throw new NotImplementedException();
     }
 
-    public Task<Incident> CreateIncidentAsync(Incident incident)
+    public async Task<Incident> CreateIncidentAsync(Incident incident)
     {
-        if(incident == null) throw new ArgumentNullException(nameof(incident));
-        incident.AddDomainEvent(new IncidentCreatedEvent(incident.CaseId, incident.Address));
-        return Task.FromResult(context.Incidents.Add(incident).Entity);
+        ArgumentNullException.ThrowIfNull(incident);
+
+        context.Incidents.Add(incident);
+
+        await context.SaveChangesAsync(CancellationToken.None);
+        return incident;
     }
     
     public async Task<Incident?> UpdateIncidentAsync(Incident incident)
     {
-        return context.Incidents.Update(incident).Entity;
+         context.Incidents.Update(incident);
+         await context.SaveChangesAsync(CancellationToken.None);
+         return incident;
     }
 
     public Dictionary<int, string> GetCrimeTypes()
     {
-        return Enum.GetValues(typeof(CrimeTypeEnum))
-            .Cast<CrimeTypeEnum>()
+        return Enum.GetValues<CrimeTypeEnum>()
             .ToDictionary(e => (int)e, e => e.ToString());
     }
 
     public Dictionary<int, string> GetSeverityEnums()
     {
-        return Enum.GetValues(typeof(SeverityEnum))
-            .Cast<SeverityEnum>()
+        return Enum.GetValues<SeverityEnum>()
             .ToDictionary(e => (int)e, e => e.ToString());
     }
 
     public Dictionary<int, string> GetMotiveEnums()
     {
-        return Enum.GetValues(typeof(MotiveEnum))
-            .Cast<MotiveEnum>()
+        return Enum.GetValues<MotiveEnum>()
             .ToDictionary(e => (int)e, e => e.ToString());
     }
 
     public Dictionary<int, string> PoliceDistrictEnums()
     {
-        return Enum.GetValues(typeof(MuntinlupaPoliceDistrictEnum))
-            .Cast<MuntinlupaPoliceDistrictEnum>()
+        return Enum.GetValues<MuntinlupaPoliceDistrictEnum>()
             .ToDictionary(e => (int)e, e => e.ToString());
     }
 
     public Dictionary<int, string> GetWeatherEnums()
     {
-        return Enum.GetValues(typeof(WeatherConditionEnum))
-            .Cast<WeatherConditionEnum>()
+        return Enum.GetValues<WeatherConditionEnum>()
             .ToDictionary(e => (int)e, e => e.ToString());
     }
 

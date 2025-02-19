@@ -10,37 +10,54 @@ public class MachineLearningService(
     ILogger<MachineLearningService> logger
 ) : IMachineLearningService
 {
-
     public IEnumerable<ClusteredModel> PerformKMeansClustering(IEnumerable<TrainerModel> data)
     {
-        string[] features = [ "CrimeType", "Latitude", "Longitude", "Severity", "PoliceDistrict", "Weather" ];
-        
-        logger.LogInformation("Performing KMeansClustering. {Data} {Feature}", data, features);
+        try
+        {
+            string[] features = ["CrimeType", "Latitude", "Longitude", "Severity", "PoliceDistrict", "Weather", "CrimeMotive"
+            ];
 
-        var dataView = mlContext.Data.LoadFromEnumerable(data);
+            logger.LogInformation("Performing KMeansClustering. {Data} {Feature}", data, features);
 
-        var inputOutputColumnPairs = features.Select(x => new InputOutputColumnPair($"{x}_Single", x)).ToArray();
+            var schema = SchemaDefinition.Create(typeof(TrainerModel));
+            var dataView = mlContext.Data.LoadFromEnumerable(data, schema);
 
-        var inputColumnNames = inputOutputColumnPairs.Select(x => x.OutputColumnName).ToArray();
+            var inputOutputColumnPairs = features.Select(x => new InputOutputColumnPair($"{x}_Single", x)).ToArray();
+            var inputColumnNames = inputOutputColumnPairs.Select(x => x.OutputColumnName).ToArray();
 
-        var pipeline = mlContext
-            .Transforms.Conversion.ConvertType(inputOutputColumnPairs, DataKind.Single)
-            .Append(mlContext.Transforms.Concatenate("Features", inputColumnNames))
-            .Append(mlContext.Clustering.Trainers.KMeans("Features", numberOfClusters: 3));
+            var pipeline = mlContext
+                .Transforms.Conversion.ConvertType(inputOutputColumnPairs, DataKind.Single)
+                .Append(mlContext.Transforms.Concatenate("Features", inputColumnNames))
+                .Append(mlContext.Clustering.Trainers.KMeans(numberOfClusters: 3));
 
-        var model = pipeline.Fit(dataView);
-        
-        var predictions = model.Transform(dataView);
-        
-        model.Transform(dataView);
+            var model = pipeline.Fit(dataView);
+            var predictions = model.Transform(dataView);
+            
+            var centroidModelParameters = model.LastTransformer.Model;
 
-        // Extract cluster assignments and original data
-        var clusterPredictions = mlContext
-            .Data
-            .CreateEnumerable<ClusteredModel>(predictions, reuseRowObject: false)
-            .ToList();
+            // Get Centroids using `GetClusterCentroids`
+            VBuffer<float>[] centroids = null;
+            centroidModelParameters.GetClusterCentroids(ref centroids, k: out var numFeatures);
 
-        return clusterPredictions;
+            // Output Centroids
+            // Console.WriteLine("Centroids:");
+            // for (var i = 0; i < centroids.Length; i++)
+            // {
+            //     var centroidArray = centroids[i].DenseValues().ToArray();
+            //     Console.WriteLine($"Cluster {i} Centroid: {string.Join(", ", centroidArray)}");
+            // }
 
+            var clusterPredictions = mlContext
+                .Data
+                .CreateEnumerable<ClusteredModel>(predictions, reuseRowObject: false, true)
+                .ToList();
+
+            return clusterPredictions;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "An error occurred while performing KMeans clustering.");
+            throw;
+        }
     }
 }

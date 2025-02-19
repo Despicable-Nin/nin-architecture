@@ -3,8 +3,10 @@ using espasyo.Infrastructure.Data;
 using espasyo.Infrastructure.Data.Interceptors;
 using espasyo.Infrastructure.Data.Repositories;
 using espasyo.Infrastructure.Geocoding;
+using espasyo.Infrastructure.MachineLearning;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.ML;
 
 namespace espasyo.Infrastructure;
 
@@ -22,10 +24,12 @@ public static class InfrastructureDependencyInjection
             options.UseSqlServer(connectionString);
         });
 
-
+        services.AddSingleton<MLContext>();
+        
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddTransient<IGeocodeService, AddressGeocodeService>();
+        services.AddTransient<IMachineLearningService, MachineLearningService>();
 
         services.AddHttpClient<AddressGeocodeService>();
 

@@ -1,5 +1,4 @@
 ﻿using espasyo.Application.Common.Interfaces;
-using espasyo.Domain.Enums;
 using MediatR;
 
 namespace espasyo.Application.Products.Queries.GetEnums;

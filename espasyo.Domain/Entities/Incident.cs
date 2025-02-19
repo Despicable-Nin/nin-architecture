@@ -55,8 +55,8 @@ namespace espasyo.Domain.Entities
             SanitizedAddress = newAddress;
         }
 
-        public double? GetLatitude() => _latitude;
-        public double? GetLongitude() => _longitude;
+        public double GetLatitude() => _latitude ?? 0D;
+        public double GetLongitude() => _longitude ?? 0D;
 
     }
 }

@@ -1,7 +1,6 @@
 ﻿using espasyo.Application.Common.Interfaces;
 using espasyo.Domain.Entities;
 using espasyo.Domain.Enums;
-using espasyo.Domain.Events;
 using MediatR;
 
 namespace espasyo.Application.Incidents.Commands.CreateIncident;

@@ -9,15 +9,16 @@ public class IncidentRepository(ApplicationDbContext context) : IIncidentReposit
 {
     public async Task<IEnumerable<Incident>> GetAllIncidentsAsync(KeyValuePair<DateOnly, DateOnly>? dateRange = null)
     {
-        var incidents = await context.Incidents
-            .AsNoTracking()
-            .Where(i => i.TimeStamp != null &&
-                        DateOnly.FromDateTime(i.TimeStamp.Value.DateTime) >= dateRange!.Value.Key &&
-                        DateOnly.FromDateTime(i.TimeStamp.Value.DateTime) <= dateRange!.Value.Value)
-            .OrderBy(i => i.TimeStamp)
-            .ToArrayAsync();
+        dateRange ??= new KeyValuePair<DateOnly, DateOnly>(DateOnly.FromDateTime(DateTime.Now), DateOnly.FromDateTime(DateTime.Now));
+        
+        var query = context.Incidents.AsQueryable();
+        
+        var startDate = dateRange.Value.Key.ToDateTime(TimeOnly.MinValue);
+        var endDate = dateRange.Value.Value.ToDateTime(TimeOnly.MaxValue);
 
-        return incidents;
+        query = query.Where(i => i.TimeStamp >= startDate && i.TimeStamp <= endDate);
+
+        return await query.ToArrayAsync();
     }
 
     public async Task<(IEnumerable<Incident>, int count)> GetPaginatedIncidentsAsync(int pageNumber, int pageSize)

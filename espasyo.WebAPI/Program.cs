@@ -1,9 +1,11 @@
 using espasyo.Application;
 using espasyo.Infrastructure;
+using Microsoft.ML;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 

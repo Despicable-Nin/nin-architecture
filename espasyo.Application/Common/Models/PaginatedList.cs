@@ -1,7 +1,6 @@
-﻿using System.Collections.Generic;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 
-namespace espasyo.Application.Common;
+namespace espasyo.Application.Common.Models;
 
 public record PaginatedList<T>
 {

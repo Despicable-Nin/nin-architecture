@@ -1,9 +1,4 @@
 ﻿using espasyo.Application.Common.Interfaces;
-using System.Net.Http;
-using System.Threading.Tasks;
-using System.Linq;
-using Microsoft.Extensions.Logging;
-using System;
 
 namespace espasyo.Infrastructure.Geocoding
 {

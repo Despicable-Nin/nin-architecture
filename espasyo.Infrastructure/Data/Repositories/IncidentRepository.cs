@@ -1,16 +1,24 @@
 ﻿using espasyo.Application.Common.Interfaces;
 using espasyo.Domain.Entities;
 using espasyo.Domain.Enums;
-using espasyo.Domain.Events;
 using Microsoft.EntityFrameworkCore;
 
 namespace espasyo.Infrastructure.Data.Repositories;
 
 public class IncidentRepository(ApplicationDbContext context) : IIncidentRepository
 {
-    public Task<List<Incident>> GetAllIncidentsAsync()
+    public async Task<IEnumerable<Incident>> GetAllIncidentsAsync(KeyValuePair<DateOnly, DateOnly>? dateRange = null)
     {
-        throw new NotImplementedException();
+        dateRange ??= new KeyValuePair<DateOnly, DateOnly>(DateOnly.FromDateTime(DateTime.Now), DateOnly.FromDateTime(DateTime.Now));
+        
+        var query = context.Incidents.AsQueryable();
+        
+        var startDate = dateRange.Value.Key.ToDateTime(TimeOnly.MinValue);
+        var endDate = dateRange.Value.Value.ToDateTime(TimeOnly.MaxValue);
+
+        query = query.Where(i => i.TimeStamp >= startDate && i.TimeStamp <= endDate);
+
+        return await query.ToArrayAsync();
     }
 
     public async Task<(IEnumerable<Incident>, int count)> GetPaginatedIncidentsAsync(int pageNumber, int pageSize)

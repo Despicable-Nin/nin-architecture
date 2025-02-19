@@ -1,4 +1,6 @@
-﻿namespace espasyo.Application.Common.Models.ML;
+﻿using Microsoft.ML.Data;
+
+namespace espasyo.Application.Common.Models.ML;
 
 public record TrainerModel
 {
@@ -16,11 +18,6 @@ public record TrainerModel
 
 public record ClusteredModel : TrainerModel
 {
-   public int? ClusterId { get; init; }
-}
-
-public class LatLong
-{
-   public float Latitude { get; set; }
-   public float Longitude { get; set; }
+   [ColumnName("PredictedLabel")]
+   public uint ClusterId { get; init; }
 }

@@ -1,4 +1,5 @@
 using espasyo.Application.Incidents.Commands.CreateIncident;
+using espasyo.Application.Incidents.Queries.GetClusters;
 using espasyo.Application.Incidents.Queries.GetPaginatedList;
 using espasyo.Application.Products.Queries.GetEnums;
 using MediatR;
@@ -43,5 +44,14 @@ public class IncidentController( IMediator mediator) : ControllerBase
         {
             return BadRequest(ex.Message);
         }
+    }
+
+    [HttpPut("clusters")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GenerateClusters(GetClustersQuery query)
+    {
+        var result = await mediator.Send(query);
+        return Ok(result);
     }
 }

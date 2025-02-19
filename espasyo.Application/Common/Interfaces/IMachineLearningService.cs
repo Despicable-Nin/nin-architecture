@@ -1,6 +1,8 @@
-﻿namespace espasyo.Application.Common.Interfaces;
+﻿using espasyo.Application.Common.Models.ML;
+
+namespace espasyo.Application.Common.Interfaces;
 
 public interface IMachineLearningService
 {
-    IEnumerable<object> PerformKMeansClustering(IEnumerable<TrainerModel> data, string[] feature);
+    IEnumerable<ClusteredModel> PerformKMeansClustering(IEnumerable<TrainerModel> data);
 }

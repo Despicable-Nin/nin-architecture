@@ -1,0 +1,10 @@
+﻿version: '3.4'
+
+services:
+  webapi:
+    image: espasyo-webapi
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"

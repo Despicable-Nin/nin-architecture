@@ -20,12 +20,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Content Include="..\.dockerignore">
-        <Link>.dockerignore</Link>
-      </Content>
-    </ItemGroup>
-
-    <ItemGroup>
       <ProjectReference Include="..\espasyo.Application\espasyo.Application.csproj" />
       <ProjectReference Include="..\espasyo.Infrastructure\espasyo.Infrastructure.csproj" />
     </ItemGroup>

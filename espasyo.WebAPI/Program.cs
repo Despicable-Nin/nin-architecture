@@ -1,5 +1,6 @@
 using espasyo.Application;
 using espasyo.Infrastructure;
+using espasyo.WebAPI.Filters;
 using Microsoft.ML;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,10 +10,23 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<MyExceptionFilter>();
+});
 builder.Services.AddEndpointsApiExplorer();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+builder.Services.AddCors(opt =>
+{
+    opt.AddPolicy("AllowAll", buider =>
+    {
+        buider.AllowAnyHeader()
+          .AllowAnyMethod()
+          .AllowAnyOrigin();
+    });
+});
 
 var app = builder.Build();
 
@@ -32,11 +46,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.UseCors(policy =>
-{
-    policy.AllowAnyHeader();
-    policy.AllowAnyMethod();
-    policy.AllowAnyOrigin();
-});
+app.UseCors("AllowAll");
 
 await app.RunAsync();

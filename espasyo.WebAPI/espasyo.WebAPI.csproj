@@ -5,6 +5,7 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        <UserSecretsId>96da8bcc-a231-4b93-b6ed-69dd5adb09dc</UserSecretsId>
     </PropertyGroup>
 
     <ItemGroup>
@@ -14,6 +15,7 @@
           <PrivateAssets>all</PrivateAssets>
           <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
+        <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.21.0" />
         <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="9.0.0" />
         <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
         <PackageReference Include="Swashbuckle.AspNetCore.Swagger" Version="7.2.0" />

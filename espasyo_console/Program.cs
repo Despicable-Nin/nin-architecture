@@ -51,14 +51,9 @@ public class Program
         {
             var response = await Client.PostAsync(url, content);
 
-            if (response.IsSuccessStatusCode)
-            {
-                WriteLine($"Successfully created incident {incident.caseId}");
-            }
-            else
-            {
-                WriteLine($"Failed to create incident {incident.caseId}: {response.StatusCode}");
-            }
+            WriteLine(response.IsSuccessStatusCode
+                ? $"Successfully created incident {incident.caseId}"
+                : $"Failed to create incident {incident.caseId}: {response.StatusCode}");
         }
         finally
         {
@@ -66,20 +61,9 @@ public class Program
         }
     }
 
-    static string GenerateRandomAddress()
-    {
-        string[] streets = { "Block 1 Purok 1", "Block 2 Purok 2", "Block 3 Purok 3", "Block 4 Purok 4", "Block 5 Purok 5" }; // Example streets
-        string[] barangays = { "Brgy. Alabang", "Brgy. Bayanan", "Brgy. Putatan", "Brgy. Poblacion", "Brgy. Tunasan" };
-        string[] postalCodes = { "1770", "1771", "1772", "1773", "1774" }; // Example postal codes for Muntinlupa City
+    private static string GenerateRandomAddress() => AddressGenerator.GenerateRandomAddress();
 
-        var street = streets[Random.Next(streets.Length)];
-        var barangay = barangays[Random.Next(barangays.Length)];
-        var postalCode = postalCodes[Random.Next(postalCodes.Length)];
-
-        return $"{Random.Next(1, 1000)} {street}, {barangay}, Muntinlupa City, {postalCode}, Philippines";
-    }
-
-    static string GenerateRandomTimestamp()
+    private static string GenerateRandomTimestamp()
     {
         var start = DateTime.UtcNow.AddYears(-1);
         var range = (DateTime.UtcNow - start).Days;

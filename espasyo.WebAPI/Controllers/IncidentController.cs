@@ -43,7 +43,7 @@ public class IncidentController( IMediator mediator) : ControllerBase
         catch (Exception ex)
         {
             return BadRequest(ex.Message);
-        }
+        }                   
     }
 
     [HttpPut("clusters")]
@@ -54,4 +54,4 @@ public class IncidentController( IMediator mediator) : ControllerBase
         var result = await mediator.Send(query);
         return Ok(result);
     }
-}
+}        

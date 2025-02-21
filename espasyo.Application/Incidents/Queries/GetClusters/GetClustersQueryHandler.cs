@@ -1,5 +1,6 @@
 ﻿using espasyo.Application.Common.Interfaces;
 using espasyo.Application.Common.Models.ML;
+using espasyo.Application.Interfaces;
 using MediatR;
 
 namespace espasyo.Application.Incidents.Queries.GetClusters;
@@ -35,7 +36,7 @@ public class GetClustersQueryHandler(
             TimeStamp = x.TimeStamp.ToString()
         });
 
-        var clusteredModels = kMeansService.PerformKMeansClustering(trainerModels);
+        var clusteredModels = kMeansService.PerformKMeansClustering(trainerModels, request.Features, request.NumberOfClusters, request.NumberOfRuns);
 
         return new GetClustersResult(clusteredModels);
     }

@@ -12,6 +12,8 @@ public class MyExceptionFilter(ILogger<MyExceptionFilter> logger) : IExceptionFi
     {
 
         var exception = context.Exception;
+        logger.LogError(exception.Message);
+        
         var response = context.HttpContext.Response;
         response.StatusCode = (int)HttpStatusCode.InternalServerError;
         response.ContentType = "application/json";
@@ -26,7 +28,7 @@ public class MyExceptionFilter(ILogger<MyExceptionFilter> logger) : IExceptionFi
         {
             //override the status code
             response.StatusCode = (int)HttpStatusCode.BadRequest;
-            errorResponse = errorResponse with { Message = "Range of date insufficient for clustering. Please extend date range."};
+            errorResponse = errorResponse with { Message = "Insufficient number of records."};
         }
       
         context.Result = new JsonResult(errorResponse);

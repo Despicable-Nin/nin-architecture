@@ -8,4 +8,8 @@
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     </PropertyGroup>
 
+    <ItemGroup>
+      <ProjectReference Include="..\espasyo.Domain\espasyo.Domain.csproj" />
+    </ItemGroup>
+
 </Project>

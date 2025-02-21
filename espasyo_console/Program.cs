@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using System.Text.Json;
+using espasyo.Domain.Enums;
 using static System.Console;
 
 namespace espasyo_console;
@@ -19,6 +20,7 @@ public class Program
 
         for (var i = 1; i <= 1000; i++)
         {
+         
             await SendIncidentRequest(url, i);
             await Task.Delay(1000); // Delay of 1 second between requests
         }
@@ -31,14 +33,14 @@ public class Program
     {
         var incident = new
         {
-            caseId = $"CASE-{i:D4}",
+            caseId = $"CASE-{Guid.NewGuid().ToString()}",
             address = GenerateRandomAddress(),
-            severity = Random.Next(1, 4),
-            crimeType = Random.Next(1, 4),
-            motive = Random.Next(1, 4),
-            policeDistrict = Random.Next(1, 4),
+            severity = EnumHelper.GetRandomEnumValue<SeverityEnum>(),
+            crimeType = EnumHelper.GetRandomEnumValue<CrimeTypeEnum>(),
+            motive = EnumHelper.GetRandomEnumValue<MotiveEnum>(),
+            policeDistrict = EnumHelper.GetRandomEnumValue<MuntinlupaPoliceDistrictEnum>(),
             otherMotive = "string",
-            weather = Random.Next(1, 4),
+            weather = EnumHelper.GetRandomEnumValue<WeatherConditionEnum>(),
             timeStamp = GenerateRandomTimestamp()
         };
 

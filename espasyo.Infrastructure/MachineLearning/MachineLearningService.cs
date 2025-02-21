@@ -1,10 +1,6 @@
 ﻿using Microsoft.ML;
-using Microsoft.ML.Data;
-using System.Collections.Generic;
-using System.Linq;
 using espasyo.Application.Common.Models.ML;
 using espasyo.Application.Interfaces;
-using Microsoft.Extensions.Logging;
 
 namespace espasyo.Infrastructure.MachineLearning;
 

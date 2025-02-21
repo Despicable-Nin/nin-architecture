@@ -1,7 +1,6 @@
 using espasyo.Application;
 using espasyo.Infrastructure;
 using espasyo.WebAPI.Filters;
-using Microsoft.ML;
 
 var builder = WebApplication.CreateBuilder(args);
 

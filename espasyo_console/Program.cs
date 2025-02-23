@@ -33,7 +33,7 @@ public class Program
     {
         var incident = new
         {
-            caseId = $"CASE-{Guid.NewGuid().ToString()}",
+            caseId = $"CASE-{i:D4}",
             address = GenerateRandomAddress(),
             severity = EnumHelper.GetRandomEnumValue<SeverityEnum>(),
             crimeType = EnumHelper.GetRandomEnumValue<CrimeTypeEnum>(),

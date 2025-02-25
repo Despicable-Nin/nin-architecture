@@ -1,6 +1,6 @@
 ﻿namespace espasyo.Domain.Enums
 {
-    public enum MuntinlupaPoliceDistrictEnum
+    public enum Barangay
     {
         Alabang,
         Bayanan ,
@@ -10,6 +10,6 @@
         Putatan,
         Tunasan,
         Ayala_Alabang,
-        
+        Sucat
     }
 }

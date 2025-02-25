@@ -19,5 +19,9 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         builder.Property("_longitude")
             .UsePropertyAccessMode(PropertyAccessMode.Field)
             .HasColumnName("Longitude");
+        
+        builder.Property("_timestampInUnix")
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .HasColumnName("TimestampInUnix");
     }
 }

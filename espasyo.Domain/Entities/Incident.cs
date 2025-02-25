@@ -9,6 +9,7 @@ namespace espasyo.Domain.Entities
 
         private double? _latitude;
         private double? _longitude;
+        private long? _timestampInUnix;
 
         protected Incident() { }
 
@@ -24,6 +25,7 @@ namespace espasyo.Domain.Entities
             Weather = weatherCondition;
             AdditionalInformation = additionalInformation;
             TimeStamp = timeStamp;
+            _timestampInUnix = timeStamp!.Value.ToUnixTimeMilliseconds();
         }
 
         public string? CaseId { get; private set; }

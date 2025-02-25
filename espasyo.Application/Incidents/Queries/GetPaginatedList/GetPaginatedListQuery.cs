@@ -1,5 +1,5 @@
-﻿using espasyo.Application.Common.Interfaces;
-using espasyo.Application.Common.Models;
+﻿using espasyo.Application.Common.Models;
+using espasyo.Application.Interfaces;
 using MediatR;
 
 namespace espasyo.Application.Incidents.Queries.GetPaginatedList;

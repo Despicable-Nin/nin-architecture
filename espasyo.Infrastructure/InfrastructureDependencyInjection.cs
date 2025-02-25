@@ -1,5 +1,4 @@
-﻿using espasyo.Application.Common.Interfaces;
-using espasyo.Application.Interfaces;
+﻿using espasyo.Application.Interfaces;
 using espasyo.Infrastructure.Data;
 using espasyo.Infrastructure.Data.Interceptors;
 using espasyo.Infrastructure.Data.Repositories;

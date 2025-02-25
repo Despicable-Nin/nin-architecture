@@ -1,4 +1,4 @@
-﻿using espasyo.Application.Common.Interfaces;
+﻿using espasyo.Application.Interfaces;
 using MediatR;
 
 namespace espasyo.Application.Products.Queries.GetProducts;

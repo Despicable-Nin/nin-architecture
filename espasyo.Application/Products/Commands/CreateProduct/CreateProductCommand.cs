@@ -1,4 +1,4 @@
-﻿using espasyo.Application.Common.Interfaces;
+﻿using espasyo.Application.Interfaces;
 using espasyo.Domain.Entities;
 using MediatR;
 

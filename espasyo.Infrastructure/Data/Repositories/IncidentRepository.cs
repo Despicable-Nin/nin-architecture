@@ -36,7 +36,7 @@ public class IncidentRepository(ApplicationDbContext context) : IIncidentReposit
         var crimeFilteredQuery = FilterByEnum<CrimeTypeEnum>(dateRangeQuery, crimeTypes, "CrimeType");
         var motiveFilteredQuery = FilterByEnum<MotiveEnum>(dateRangeQuery, motives, "Motive");
         var weatherFilteredQuery = FilterByEnum<WeatherConditionEnum>(dateRangeQuery, weathers, "Weather");
-        var precinctFilteredQuery = FilterByEnum<MuntinlupaPoliceDistrictEnum>(dateRangeQuery, policeDistricts, "PoliceDistrict");
+        var precinctFilteredQuery = FilterByEnum<Barangay>(dateRangeQuery, policeDistricts, "PoliceDistrict");
         var severityFilteredQuery =  FilterByEnum<SeverityEnum>(dateRangeQuery, severities, "Severity");
 
         IEnumerable<Incident> result = [];
@@ -140,7 +140,7 @@ public class IncidentRepository(ApplicationDbContext context) : IIncidentReposit
 
     public Dictionary<int, string> PoliceDistrictEnums()
     {
-        return Enum.GetValues<MuntinlupaPoliceDistrictEnum>()
+        return Enum.GetValues<Barangay>()
             .ToDictionary(e => (int)e, e => e.ToString());
     }
 
@@ -157,13 +157,11 @@ public class IncidentRepository(ApplicationDbContext context) : IIncidentReposit
 
     public async Task<int> SaveChangesAsync()
     {
-        return await context.SaveChangesAsync(default);
+        return await context.SaveChangesAsync();
     }
 
     public async ValueTask DisposeAsync()
     {
         await context.DisposeAsync();
     }
-
- 
 }

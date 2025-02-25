@@ -13,7 +13,7 @@ namespace espasyo.Domain.Entities
 
         protected Incident() { }
 
-        public Incident(string? caseId, string? address, SeverityEnum severity, CrimeTypeEnum crimeType, MotiveEnum motive, MuntinlupaPoliceDistrictEnum policeDistrictEnum, 
+        public Incident(string? caseId, string? address, SeverityEnum severity, CrimeTypeEnum crimeType, MotiveEnum motive, Barangay policeDistrictEnum, 
             WeatherConditionEnum weatherCondition, string? additionalInformation, DateTimeOffset? timeStamp)
         {
             CaseId = caseId;
@@ -38,7 +38,7 @@ namespace espasyo.Domain.Entities
 
         public MotiveEnum Motive { get;  set; }
 
-        public MuntinlupaPoliceDistrictEnum PoliceDistrict { get;  set; }
+        public Barangay PoliceDistrict { get;  set; }
         public string? AdditionalInformation { get; set; }
 
         public WeatherConditionEnum Weather { get;  set; }

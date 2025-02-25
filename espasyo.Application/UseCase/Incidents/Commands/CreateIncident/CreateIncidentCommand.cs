@@ -49,7 +49,7 @@ public class CreateIncidentCommandHandler(
             (SeverityEnum)request.Severity,
             (CrimeTypeEnum)request.CrimeType,
             (MotiveEnum)request.Motive,
-            (MuntinlupaPoliceDistrictEnum)request.PoliceDistrict,
+            (Barangay)request.PoliceDistrict,
             (WeatherConditionEnum)request.Weather,
             request.AdditionalInfo,
             request.TimeStamp

@@ -1,7 +1,6 @@
 ﻿using Microsoft.ML;
 using espasyo.Application.Common.Models.ML;
 using espasyo.Application.Interfaces;
-using Microsoft.ML.Data;
 
 namespace espasyo.Infrastructure.MachineLearning;
 
@@ -20,10 +19,11 @@ public class MachineLearningService(
                 features = ["CrimeType", "Severity", "PoliceDistrict", "Weather", "CrimeMotive"];
             }
 
-            logger.LogInformation("Performing KMeansClustering with features: {Features}", features);
-            logger.LogInformation("Total input records: {Count}", data.Count());
+            logger.LogInformation($"Performing KMeansClustering with features: {features}");
+            var trainerModels = data as TrainerModel[] ?? data.ToArray();
+            logger.LogInformation("Total input records: {Count}", trainerModels.Count());
 
-            var dataView = mlContext.Data.LoadFromEnumerable(data);
+            var dataView = mlContext.Data.LoadFromEnumerable(trainerModels);
 
             // Initialize a pipeline
             IEstimator<ITransformer>? pipeline = null;
@@ -40,7 +40,7 @@ public class MachineLearningService(
                 else if (IsFloat(feature))
                 {
                     // Convert float features to Single
-                    var dataKindSingle = mlContext.Transforms.Conversion.ConvertType(feature + "Encoded", feature, DataKind.Single);
+                    var dataKindSingle = mlContext.Transforms.Conversion.ConvertType(feature + "Encoded", feature);
                     pipeline = pipeline == null ? dataKindSingle : pipeline.Append(dataKindSingle);
                 }
                 else
@@ -55,7 +55,7 @@ public class MachineLearningService(
             var selectedFeatureColumns = features.Select(f => IsCategoricalFeature(f) || IsFloat(f) ? $"{f}Encoded" : f).ToArray();
             pipeline = pipeline.Append(mlContext.Transforms.Concatenate("Features", selectedFeatureColumns))
                 .Append(mlContext.Transforms.NormalizeMeanVariance("Features"))
-                .Append(mlContext.Clustering.Trainers.KMeans("Features", numberOfClusters: numberOfClusters));
+                .Append(mlContext.Clustering.Trainers.KMeans(numberOfClusters: numberOfClusters));
 
             double bestScore = double.MaxValue;
             ITransformer? bestModel = null;
@@ -120,10 +120,11 @@ public class MachineLearningService(
                     features = new[] { "CrimeType", "Severity", "PoliceDistrict", "Weather", "CrimeMotive" };
                 }
                 
-                logger.LogInformation("Performing KMeansClustering with features: {Features}", features);
-                logger.LogInformation("Total input records: {Count}", data.Count());
+                logger.LogInformation($"Performing KMeansClustering with features: {features}");
+                var trainerModels = data as TrainerModel[] ?? data.ToArray();
+                logger.LogInformation("Total input records: {Count}", trainerModels.Count());
 
-                var dataView = mlContext.Data.LoadFromEnumerable(data);
+                var dataView = mlContext.Data.LoadFromEnumerable(trainerModels);
 
                 // Initialize a pipeline.
                 IEstimator<ITransformer>? pipeline = null;
@@ -140,7 +141,7 @@ public class MachineLearningService(
                     else if (IsFloat(feature))
                     {
                         // Convert float features to Single.
-                        var dataKindSingle = mlContext.Transforms.Conversion.ConvertType(feature + "Encoded", feature, DataKind.Single);
+                        var dataKindSingle = mlContext.Transforms.Conversion.ConvertType(feature + "Encoded", feature);
                         pipeline = pipeline == null ? dataKindSingle : pipeline.Append(dataKindSingle);
                     }
                     else
@@ -155,7 +156,7 @@ public class MachineLearningService(
                 var selectedFeatureColumns = features.Select(f => IsCategoricalFeature(f) || IsFloat(f) ? $"{f}Encoded" : f).ToArray();
                 pipeline = pipeline.Append(mlContext.Transforms.Concatenate("Features", selectedFeatureColumns))
                                    .Append(mlContext.Transforms.NormalizeMeanVariance("Features"))
-                                   .Append(mlContext.Clustering.Trainers.KMeans("Features", numberOfClusters: numberOfClusters));
+                                   .Append(mlContext.Clustering.Trainers.KMeans(numberOfClusters: numberOfClusters));
 
                 double bestScore = double.MaxValue;
                 ITransformer? bestModel = null;
@@ -187,11 +188,13 @@ public class MachineLearningService(
                 // Optionally, print the predictions.
                 foreach (var prediction in clusterPredictions)
                 {
-                    var cluster = data.FirstOrDefault(x => x.CaseId == prediction.CaseId);
+                    var cluster = trainerModels.FirstOrDefault(x => x.CaseId == prediction.CaseId);
                     Console.WriteLine($"CaseId: {prediction.CaseId}, " +
-                                      $"CrimeType: {cluster.CrimeType.ToString()}, " +
+                                      $"CrimeType: {cluster!.CrimeType.ToString()}, " +
                                       $"Severity: {cluster.Severity.ToString()}, " +
                                       $"Motive: {cluster.CrimeMotive.ToString()}, " +
+                                      $"Weather: {cluster.Weather.ToString()}, " +
+                                      $"Precinct: {cluster.PoliceDistrict.ToString()}, " +
                                       $"Assigned Cluster: {prediction.ClusterId}");
                 }
 

@@ -2,15 +2,15 @@
 using espasyo.Application.Interfaces;
 using MediatR;
 
-namespace espasyo.Application.Incidents.Queries.GetClusters;
+namespace espasyo.Application.Incidents.Queries.GetGroupedClusters;
 
-public class GetClustersQueryHandler(
-    ILogger<GetClustersQueryHandler> logger,
+public class GetGroupedClustersQueryHandler(
+    ILogger<GetGroupedClustersQueryHandler> logger,
     IMachineLearningService kMeansService,
-    IIncidentRepository repository) : IRequestHandler<GetClustersQuery, GetClustersResult>
+    IIncidentRepository repository) : IRequestHandler<GetGroupedClustersQuery, GroupedClusterResponse>
 {
 
-    public async Task<GetClustersResult> Handle(GetClustersQuery request, CancellationToken cancellationToken)
+    public async Task<GroupedClusterResponse> Handle(GetGroupedClustersQuery request, CancellationToken cancellationToken)
     {
         logger.LogInformation("Fetching incident records...");
 
@@ -18,9 +18,14 @@ public class GetClustersQueryHandler(
         
         if(request is { DateFrom: not null, DateTo: not null }) dateRange = new KeyValuePair<DateOnly, DateOnly>(request.DateFrom.Value, request.DateTo.Value); 
 
-        var incidents = await repository.GetAllIncidentsAsync(dateRange);
-
-        incidents = incidents.Where(x => x.CrimeType == Domain.Enums.CrimeTypeEnum.Assault);
+        var incidents = await repository.GetFilteredIncidentsAsync(
+            dateRange, 
+            request.Filters.CrimeTypes, 
+            request.Filters.Motives,
+            request.Filters.Weathers, 
+            request.Filters.Precincts, 
+            request.Filters.Severities
+        );
 
         //map to trainerModel
         var trainerModels = incidents.Select(x => new TrainerModel
@@ -38,10 +43,8 @@ public class GetClustersQueryHandler(
             TimeStampUnix = x.TimeStamp!.Value.ToUnixTimeSeconds()
         });
 
-        string[] features = ["CrimeType", "Latitude", "Longitude"];
+        var result = kMeansService.PerformKMeansAndGetGroupedClusters(trainerModels, request.Features, request.NumberOfClusters, request.NumberOfRuns);
 
-        var clusteredModels = kMeansService.PerformKMeansClustering(trainerModels, features, request.NumberOfClusters, request.NumberOfRuns);
-
-        return new GetClustersResult(clusteredModels);
+        return result;
     }
 }

@@ -1,6 +1,7 @@
-﻿using espasyo.Application.Common.Interfaces;
+﻿using espasyo.Application.Interfaces;
 using espasyo.Domain.Entities;
 using espasyo.Domain.Enums;
+using FluentValidation;
 using MediatR;
 
 namespace espasyo.Application.Incidents.Commands.CreateIncident;
@@ -18,6 +19,18 @@ public record CreateIncidentCommand : IRequest<Guid>
     public DateTimeOffset? TimeStamp { get; init; }
 }
 
+public class CreateIncidentCommandValidator : AbstractValidator<CreateIncidentCommand>
+{
+    public CreateIncidentCommandValidator()
+    {
+        RuleFor(x => x.CaseId).NotEmpty();
+        RuleFor(x => x.Address).NotEmpty();
+        RuleFor(x => x.Severity).NotEmpty();
+        RuleFor(x => x.TimeStamp).NotEmpty();
+        RuleFor(x => x).NotEmpty();
+    }
+}
+
 
 public class CreateIncidentCommandHandler(
     IIncidentRepository incidentRepository,
@@ -30,7 +43,8 @@ public class CreateIncidentCommandHandler(
         
         logger.LogInformation("Creating Incident. Request:{Request}", request);
 
-        Incident incident = new (request.CaseId,
+        Incident incident = new (
+            request.CaseId,
             request.Address,
             (SeverityEnum)request.Severity,
             (CrimeTypeEnum)request.CrimeType,

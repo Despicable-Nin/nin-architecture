@@ -4,6 +4,7 @@ using espasyo.Application.Incidents.Queries.GetPaginatedList;
 using espasyo.Application.Products.Queries.GetEnums;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using espasyo.Application.Incidents.Queries.GetGroupedClusters;
 
 namespace espasyo.WebAPI.Controllers;
 
@@ -54,4 +55,16 @@ public class IncidentController( IMediator mediator) : ControllerBase
         var result = await mediator.Send(query);
         return Ok(result);
     }
-}        
+    
+    [HttpPut("grouped-clusters")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GenerateClusters(GetGroupedClustersQuery query)
+    {
+        var result = await mediator.Send(query);
+        return Ok(result);
+    }
+
+   
+
+}

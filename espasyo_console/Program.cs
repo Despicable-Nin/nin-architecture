@@ -31,7 +31,7 @@ public class Program
 
     private static async Task SendIncidentRequest(string url, int i)
     {
-        var incident = new
+        var incident = new Request()
         {
             caseId = $"CASE-{i:D4}",
             address = GenerateRandomAddress(),
@@ -43,6 +43,8 @@ public class Program
             weather = EnumHelper.GetRandomEnumValue<WeatherConditionEnum>(),
             timeStamp = GenerateRandomTimestamp()
         };
+
+        
 
         var json = JsonSerializer.Serialize(incident);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -72,4 +74,19 @@ public class Program
         var randomDate = start.AddDays(Random.Next(range)).AddHours(Random.Next(0, 24)).AddMinutes(Random.Next(0, 60)).AddSeconds(Random.Next(0, 60));
         return randomDate.ToString("yyyy-MM-ddTHH:mm:ssZ");
     }
+    
+    
+}
+
+public record Request
+{
+    public string caseId { get; set; }
+    public string address { get; set; }
+    public SeverityEnum severity { get; set; }
+    public CrimeTypeEnum crimeType { get; set; }
+    public MotiveEnum motive { get; set; }
+    public MuntinlupaPoliceDistrictEnum policeDistrict { get; set; }
+    public string otherMotive { get; set; }
+    public WeatherConditionEnum weather { get; set; }
+    public string timeStamp { get; set; }
 }

@@ -1,7 +1,7 @@
 ﻿using espasyo.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace espasyo.Application.Common.Interfaces;
+namespace espasyo.Application.Interfaces;
 
 public interface IUnitOfWork : IDisposable
 {

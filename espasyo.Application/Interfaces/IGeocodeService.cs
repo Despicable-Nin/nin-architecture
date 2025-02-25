@@ -1,4 +1,4 @@
-﻿namespace espasyo.Application.Common.Interfaces;
+﻿namespace espasyo.Application.Interfaces;
 
 public interface IGeocodeService
 {

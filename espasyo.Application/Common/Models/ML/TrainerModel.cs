@@ -7,6 +7,7 @@ public record TrainerModel
    public string? CaseId { get; init; }
    public int CrimeType { get; init; }
    public string? TimeStamp { get; init; }
+   public long TimeStampUnix { get; init; }
    public string? Address { get; init; }
    public double Latitude { get; init; }
    public double Longitude { get; init; }
@@ -16,8 +17,34 @@ public record TrainerModel
    public int CrimeMotive { get; init; }
 }
 
-public record ClusteredModel : TrainerModel
+public record ClusteredModel
 {
+   public string CaseId { get; set; }
+
+   // This maps the ML.NET output column "PredictedLabel" to this property.
    [ColumnName("PredictedLabel")]
-   public uint ClusterId { get; init; }
+   public uint ClusterId { get; set; }
+
+   public double Latitude { get; set; }
+   public double Longitude { get; set; }
+}
+
+public class ClusterItem
+{
+   public string CaseId { get; set; }
+   public double Latitude { get; set; }
+   public double Longitude { get; set; }
+}
+
+public record ClusterGroup
+{
+   public uint ClusterId { get; set; }
+   public List<ClusterItem> ClusterItems { get; set; } = [];
+   public int ClusterCount => ClusterItems.Count;
+}
+
+public record GroupedClusterResponse
+{
+   public IEnumerable<ClusterGroup> ClusterGroups { get; init; } = [];
+   public IEnumerable<string> Filters { get; init; } = [];
 }

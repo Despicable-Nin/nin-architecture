@@ -28,7 +28,6 @@ public static class IncidentGenerator
         var incident = new Request()
         {
             caseId = $"CASE-{i:D4}",
-            address = GenerateRandomAddress(),
             severity = EnumHelper.GetRandomEnumValue<SeverityEnum>(),
             crimeType = EnumHelper.GetRandomEnumValue<CrimeTypeEnum>(),
             motive = EnumHelper.GetRandomEnumValue<MotiveEnum>(),
@@ -38,7 +37,7 @@ public static class IncidentGenerator
             timeStamp = GenerateRandomTimestamp()
         };
 
-        
+        incident.address = GenerateRandomAddress(incident.policeDistrict);
 
         var json = JsonSerializer.Serialize(incident);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -59,7 +58,7 @@ public static class IncidentGenerator
         }
     }
 
-    private static string GenerateRandomAddress() => AddressGenerator.GenerateRandomAddress();
+    private static string GenerateRandomAddress(Barangay barangay) => AddressGenerator.GenerateRandomAddress(barangay);
 
     private static string GenerateRandomTimestamp()
     {

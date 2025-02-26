@@ -15,9 +15,9 @@ namespace espasyo.WebAPI.Controllers
         [HttpGet]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesErrorResponseType(typeof(BadRequestResult))]
-        public IActionResult Get()
+        public async Task<IActionResult> Get()
         {
-            return Ok(mediator.Send(new GetStreetsQuery()));
+            return Ok(await mediator.Send(new GetStreetsQuery()));
         }
 
         // POST api/<StreetController>

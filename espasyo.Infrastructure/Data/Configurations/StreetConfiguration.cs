@@ -10,8 +10,9 @@ public class StreetConfiguration : IEntityTypeConfiguration<Street>
     {
         builder.ToTable("Street");
         builder.HasKey(x => x.Id);
-        builder.Property("_barangay")
+        builder.Property<int>("_barangay")
             .UsePropertyAccessMode(propertyAccessMode: PropertyAccessMode.Field)
-            .HasColumnName("Barangay");
+            .HasColumnName("Barangay")
+            .IsRequired();
     }
 }

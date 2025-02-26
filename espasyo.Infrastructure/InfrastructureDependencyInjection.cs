@@ -14,13 +14,14 @@ public static class InfrastructureDependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("DefaultConnection") ?? throw new Exception("No connection string");
+        var connectionString = configuration.GetConnectionString("DefaultConnection") 
+                               ?? throw new InvalidOperationException("DefaultConnection connection string is missing.");
 
         services.AddScoped<ISaveChangesInterceptor, DispatchDomainEventsInterceptor>();
         
         services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
         {
-            options.AddInterceptors(serviceProvider.GetService<ISaveChangesInterceptor>() ?? throw new InvalidOperationException("ISaveChangesInterceptor is not implemented."));
+            options.AddInterceptors(serviceProvider.GetRequiredService<ISaveChangesInterceptor>());
             options.UseSqlServer(connectionString);
         });
 

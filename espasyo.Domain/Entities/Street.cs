@@ -14,12 +14,7 @@ public class Street : BaseEntity
         
     }
 
-    private Street(string name, int barangay)
-    {
-        Name = name;
-        _barangay = barangay;
-    }
-    
+
     public Street (Barangay barangay, string? name)
     {
        _barangay = (int)barangay;

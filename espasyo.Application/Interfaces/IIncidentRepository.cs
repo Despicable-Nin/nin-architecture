@@ -12,7 +12,7 @@ public interface IIncidentRepository
         string[]? weather = null,
         string[]? policeDistrict = null,
         string[]? severity = null);
-    Task<(IEnumerable<Incident>,int count)> GetPaginatedIncidentsAsync(int pageNumber, int pageSize);
+    Task<(IEnumerable<Incident>,int count)> GetPaginatedIncidentsAsync(string search, int pageNumber, int pageSize);
     Task<Incident?> GetIncidentByCaseIdAsync(string caseId);
     Task<Incident?> GetIncidentByIdAsync(Guid id);
     Task<Incident> CreateIncidentAsync(Incident incident);

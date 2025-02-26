@@ -26,9 +26,9 @@ public class IncidentController( IMediator mediator) : ControllerBase
     [HttpGet]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> GetPaginated(int pageNumber = 1, int pageSize = 10)
+    public async Task<IActionResult> GetPaginated(string search = "", int pageNumber = 1, int pageSize = 10)
     {
-        return Ok(await mediator.Send(new GetPaginatedListQuery(pageNumber, pageSize)));
+        return Ok(await mediator.Send(new GetPaginatedListQuery(search, pageNumber, pageSize)));
     }
     
     [HttpGet("enums")]

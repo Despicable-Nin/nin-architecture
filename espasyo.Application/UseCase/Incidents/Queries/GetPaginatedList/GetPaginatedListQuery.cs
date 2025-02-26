@@ -4,7 +4,7 @@ using MediatR;
 
 namespace espasyo.Application.Incidents.Queries.GetPaginatedList;
 
-public record GetPaginatedListQuery(int PageNumber, int PageSize) : IRequest<PaginatedList<IncidentResult>>
+public record GetPaginatedListQuery(string Search, int PageNumber, int PageSize) : IRequest<PaginatedList<IncidentResult>>
 {
 }
 
@@ -32,7 +32,7 @@ public class GetPaginatedListQueryHandler(IIncidentRepository repository) : IReq
     public async Task<PaginatedList<IncidentResult>> Handle(GetPaginatedListQuery request, CancellationToken cancellationToken)
     {
         
-        var result = await repository.GetPaginatedIncidentsAsync(request.PageNumber, request.PageSize);
+        var result = await repository.GetPaginatedIncidentsAsync(request.Search, request.PageNumber, request.PageSize);
 
         var list = result.Item1.Select(x => new IncidentResult
             {

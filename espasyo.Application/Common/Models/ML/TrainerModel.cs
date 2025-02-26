@@ -38,9 +38,16 @@ public class ClusterItem
 
 public record ClusterGroup
 {
-   public uint ClusterId { get; set; }
-   public List<ClusterItem> ClusterItems { get; set; } = [];
-   public int ClusterCount => ClusterItems.Count;
+    public uint ClusterId { get; set; }
+    public float[] Centroids => ClusterItems.Count != 0
+       ?
+         [
+             (float)ClusterItems.Average(item => item.Latitude),
+             (float)ClusterItems.Average(item => item.Longitude)
+         ]
+       : [0f, 0f];
+    public List<ClusterItem> ClusterItems { get; set; } = [];
+    public int ClusterCount => ClusterItems.Count;
 }
 
 public record GroupedClusterResponse

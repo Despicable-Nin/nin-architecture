@@ -90,7 +90,7 @@ public class IncidentRepository(ApplicationDbContext context) : IIncidentReposit
     public async Task<(IEnumerable<Incident>, int count)> GetPaginatedIncidentsAsync(int pageNumber, int pageSize)
     {
         var count = context.Incidents.Count();
-        return (await context.Incidents.OrderByDescending(x => x.TimeStamp).Skip((pageNumber - 1) * pageSize).Take(pageSize).ToArrayAsync(), count);
+        return (await context.Incidents.AsNoTracking().OrderByDescending(x => x.TimeStamp).Skip((pageNumber - 1) * pageSize).Take(pageSize).ToArrayAsync(), count);
     }
 
     public async Task<Incident?> GetIncidentByCaseIdAsync(string caseId)

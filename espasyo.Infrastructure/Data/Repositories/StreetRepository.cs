@@ -9,7 +9,7 @@ public class StreetRepository(ApplicationDbContext context) : IStreetRepository
 {
     public async Task<IEnumerable<Street>> GetAllStreetsAsync()
     {
-        return await context.Streets.AsNoTracking().ToArrayAsync();
+        return await context.Streets.ToListAsync();
     }
 
     public bool CreateStreets(IEnumerable<Street> streets)

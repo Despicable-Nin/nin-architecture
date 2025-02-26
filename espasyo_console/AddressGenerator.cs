@@ -86,14 +86,13 @@ public static class AddressGenerator
             { Barangay.Cupang, CupangStreets },
             { Barangay.Poblacion, PoblacionStreets },
             { Barangay.Putatan, PutatanStreets },
-            { Barangay.Tunasan, TunasanStreets }
+            { Barangay.Tunasan, TunasanStreets },
+            { Barangay.Sucat, SucatStreets }
         };
     }
 
-     public static string GenerateRandomAddress()
+     public static string GenerateRandomAddress(Barangay barangay)
     {
-        // Select a random barangay
-        var barangay = new Random().Next(0, BarangaySuburbs.Count -1);
         var barangayEnum = (Barangay)barangay;
         
         // Select a random suburb/street from the chosen barangay

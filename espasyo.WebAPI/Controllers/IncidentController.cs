@@ -5,6 +5,7 @@ using espasyo.Application.Products.Queries.GetEnums;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using espasyo.Application.Incidents.Queries.GetGroupedClusters;
+using espasyo.Application.UseCase.Incidents.Commands.ClearIncidents;
 
 namespace espasyo.WebAPI.Controllers;
 
@@ -63,6 +64,16 @@ public class IncidentController( IMediator mediator) : ControllerBase
     {
         var result = await mediator.Send(query);
         return Ok(result);
+    }
+
+    [HttpDelete]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> Delete()
+    {
+        await mediator.Send(new ClearIncidentQuery());
+        
+        return NoContent();
     }
 
    

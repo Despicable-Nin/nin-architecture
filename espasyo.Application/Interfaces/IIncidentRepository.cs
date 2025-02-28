@@ -17,6 +17,7 @@ public interface IIncidentRepository
     Task<Incident?> GetIncidentByIdAsync(Guid id);
     Task<Incident> CreateIncidentAsync(Incident incident);
     Task<Incident?> UpdateIncidentAsync(Incident incident);
+    Task<bool> RemoveAllIncidentsAsync();
     Dictionary<int, string> GetCrimeTypes();
     Dictionary<int, string> GetSeverityEnums();
     Dictionary<int, string> GetMotiveEnums();

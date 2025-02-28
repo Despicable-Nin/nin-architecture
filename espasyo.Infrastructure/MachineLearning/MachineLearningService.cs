@@ -119,7 +119,7 @@ public class MachineLearningService(
                 features = ["CrimeType", "Severity", "PoliceDistrict", "Weather", "CrimeMotive"];
             }
 
-            string message = $"Performing KMeansClustering with features: {features}";
+            var message = $"Performing KMeansClustering with features: {features}";
             logger.LogInformation(message);
             var trainerModels = data as TrainerModel[] ?? data.ToArray();
             logger.LogInformation("Total input records: {Count}", trainerModels.Length);
@@ -138,7 +138,7 @@ public class MachineLearningService(
                                 .Append(mlContext.Transforms.NormalizeMeanVariance("Features"))
                                 .Append(mlContext.Clustering.Trainers.KMeans(numberOfClusters: numberOfClusters));
 
-            double bestScore = double.MaxValue;
+            var bestScore = double.MaxValue;
             ITransformer? bestModel = null;
 
             // Run multiple iterations to select the best model.
@@ -168,7 +168,6 @@ public class MachineLearningService(
             }
 #endif
             
-            var centroids = ExtractCentroids(bestModel, numberOfClusters, trainerModels);
 
             // Group the predictions by cluster ID and map to the desired output structure.
             var groupedClusters = clusterPredictions
@@ -203,12 +202,12 @@ public class MachineLearningService(
 
     private static void FindBestKMeansModel(MLContext mlContext, int runs, IDataView dataView, IEstimator<ITransformer>? pipeline, ref double bestScore, ref ITransformer? bestModel)
     {
-        for (int i = 0; i < runs; i++)
+        for (var i = 0; i < runs; i++)
         {
-            ITransformer? model = (pipeline?.Fit(dataView)) ?? throw new InvalidOperationException("Pipeline fitting resulted in a null model.");
-            IDataView predictions = model.Transform(dataView);
+            var model = (pipeline?.Fit(dataView)) ?? throw new InvalidOperationException("Pipeline fitting resulted in a null model.");
+            var predictions = model.Transform(dataView);
 
-            ClusteringMetrics metrics = mlContext.Clustering.Evaluate(predictions, scoreColumnName: "Score");
+            var metrics = mlContext.Clustering.Evaluate(predictions, scoreColumnName: "Score");
 
             if (metrics.AverageDistance < bestScore)
             {
@@ -221,7 +220,7 @@ public class MachineLearningService(
     private static IEstimator<ITransformer>? AppendPipeline(MLContext mlContext, string[]? features, IEstimator<ITransformer>? pipeline)
     {
         if (features == null || features.Length == 0) return pipeline;
-        foreach (string feature in features)
+        foreach (var feature in features)
         {
             if (IsCategoricalFeature(feature))
             {
@@ -246,44 +245,6 @@ public class MachineLearningService(
         return pipeline;
     }
 
-    private static Dictionary<uint, float[]> ExtractCentroids(ITransformer model, int numberOfClusters, TrainerModel[] data)
-    {
-        var centroids = new Dictionary<uint, float[]>();
-
-        if (model is TransformerChain<ClusteringPredictionTransformer<KMeansModelParameters>> kMeansModel)
-        {
-            var kMeansParameters = kMeansModel.LastTransformer.Model;
-
-            if (kMeansParameters != null)
-            {
-                VBuffer<float>[] rawCentroids = null;
-                kMeansParameters.GetClusterCentroids(ref rawCentroids, out int k);
-
-                // Get min/max for latitude and longitude
-                float minLat = (float)data.Min(x => x.Latitude);
-                float maxLat = (float)data.Max(x => x.Latitude);
-                float minLon = (float)data.Min(x => x.Longitude);
-                float maxLon = (float)data.Max(x => x.Longitude);
-
-                for (uint i = 0; i < numberOfClusters; i++)
-                {
-                    var centroid = rawCentroids[i].GetValues().ToArray();
-
-                    // Reverse normalization (assuming NormalizeMinMax scaling was used)
-                    float centroidLat = minLat + centroid[0] * (maxLat - minLat);
-                    float centroidLon = minLon + centroid[1] * (maxLon - minLon);
-
-                    centroids[i] = new float[] { centroidLat, centroidLon };
-                }
-            }
-        }
-
-        return centroids;
-    }
-
-
-
-
     private static bool IsCategoricalFeature(string featureName)
     {
         // Define logic to determine if a feature is categorical
@@ -296,9 +257,4 @@ public class MachineLearningService(
         string[] floatFeatures = { "Longitude", "Latitude" };
         return floatFeatures.Contains(featureName);
     }
-
-
-    
-
-
 }

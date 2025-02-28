@@ -10,6 +10,8 @@ namespace espasyo.Domain.Entities
         private double? _latitude;
         private double? _longitude;
         private long? _timestampInUnix;
+        private int? _year;
+        private int? _month;
 
         protected Incident() { }
 
@@ -26,6 +28,8 @@ namespace espasyo.Domain.Entities
             AdditionalInformation = additionalInformation;
             TimeStamp = timeStamp;
             _timestampInUnix = timeStamp!.Value.ToUnixTimeMilliseconds();
+            _year = timeStamp.Value.Year;
+            _month = timeStamp.Value.Month;
         }
 
         public string? CaseId { get; private set; }
@@ -59,6 +63,10 @@ namespace espasyo.Domain.Entities
 
         public double GetLatitude() => _latitude ?? 0D;
         public double GetLongitude() => _longitude ?? 0D;
+        public long GetTimeStampInUnix => _timestampInUnix ?? 0L;
+
+        public int GetYear() => _year ?? DateTimeOffset.FromUnixTimeSeconds(_timestampInUnix ?? 0L).Year;
+        public int GetMonth() => _month ?? DateTimeOffset.FromUnixTimeSeconds(_timestampInUnix ?? 0L).Month;
 
     }
 }

@@ -23,5 +23,13 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         builder.Property("_timestampInUnix")
             .UsePropertyAccessMode(PropertyAccessMode.Field)
             .HasColumnName("TimestampInUnix");
+        
+        builder.Property("_year")
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .HasColumnName("Year");
+        
+        builder.Property("_month")
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .HasColumnName("Month");
     }
 }

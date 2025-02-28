@@ -133,6 +133,21 @@ public class IncidentRepository(ApplicationDbContext context) : IIncidentReposit
          return incident;
     }
 
+    public async Task<bool> RemoveAllIncidentsAsync()
+    {
+        try
+        {
+            var incidents = context.Incidents;
+            context.Incidents.RemoveRange(incidents);
+            await context.SaveChangesAsync(CancellationToken.None);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            return false;
+        }
+    }
+
     public Dictionary<int, string> GetCrimeTypes()
     {
         return Enum.GetValues<CrimeTypeEnum>()

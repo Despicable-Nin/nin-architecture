@@ -11,6 +11,10 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         builder.ToTable("Incident");
         builder.HasKey(x => x.Id);
         builder.HasIndex(x => x.CaseId).IsUnique();
+        
+        builder.Property(p => p.TimeStamp)
+            .HasColumnName("IncidentDateTime")
+            .IsRequired();
 
         builder.Property("_latitude")
             .UsePropertyAccessMode(PropertyAccessMode.Field)
@@ -22,14 +26,22 @@ public class IncidentConfiguration : IEntityTypeConfiguration<Incident>
         
         builder.Property("_timestampInUnix")
             .UsePropertyAccessMode(PropertyAccessMode.Field)
-            .HasColumnName("TimestampInUnix");
+            .HasColumnName("TimestampInUnix")
+            .IsRequired();
         
         builder.Property("_year")
             .UsePropertyAccessMode(PropertyAccessMode.Field)
-            .HasColumnName("Year");
-        
+            .HasColumnName("Year")
+            .IsRequired();
+
         builder.Property("_month")
             .UsePropertyAccessMode(PropertyAccessMode.Field)
-            .HasColumnName("Month");
+            .HasColumnName("Month")
+            .IsRequired();
+
+        builder.Property("_timeOfDay")
+            .UsePropertyAccessMode(PropertyAccessMode.Field)
+            .HasColumnName("TimeOfDay")
+            .IsRequired();
     }
 }

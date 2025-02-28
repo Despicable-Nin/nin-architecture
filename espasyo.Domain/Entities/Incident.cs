@@ -12,6 +12,7 @@ namespace espasyo.Domain.Entities
         private long? _timestampInUnix;
         private int? _year;
         private int? _month;
+        private string? _timeOfDay;
 
         protected Incident() { }
 
@@ -30,6 +31,7 @@ namespace espasyo.Domain.Entities
             _timestampInUnix = timeStamp!.Value.ToUnixTimeMilliseconds();
             _year = timeStamp.Value.Year;
             _month = timeStamp.Value.Month;
+            _timeOfDay = GetTimeOfDay(TimeStamp!.Value);
         }
 
         public string? CaseId { get; private set; }
@@ -49,7 +51,6 @@ namespace espasyo.Domain.Entities
 
         public DateTimeOffset? TimeStamp { get; set; }
 
-
         public void ChangeLatLong(double? lat = 0, double? lng = 0)
         {
             _latitude = lat;
@@ -60,6 +61,8 @@ namespace espasyo.Domain.Entities
         {
             SanitizedAddress = newAddress;
         }
+        
+        public bool IsAnomaly() => (_longitude.HasValue == false && _latitude.HasValue == false) || TimeStamp.HasValue == false;
 
         public double GetLatitude() => _latitude ?? 0D;
         public double GetLongitude() => _longitude ?? 0D;
@@ -67,6 +70,18 @@ namespace espasyo.Domain.Entities
 
         public int GetYear() => _year ?? DateTimeOffset.FromUnixTimeSeconds(_timestampInUnix ?? 0L).Year;
         public int GetMonth() => _month ?? DateTimeOffset.FromUnixTimeSeconds(_timestampInUnix ?? 0L).Month;
+        public string? GetTimeOfDay() => _timeOfDay;
 
+        private string GetTimeOfDay(DateTimeOffset timeStamp)
+        {
+            var time = timeStamp;
+            return time.Hour switch
+            {
+                >= 0 and < 12 => "Morning",
+                >= 12 and < 18 => "Afternoon",
+                _ => "Evening"
+            };
+
+        }
     }
 }

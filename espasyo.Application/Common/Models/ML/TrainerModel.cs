@@ -14,7 +14,7 @@ public record TrainerModel
    public int Severity { get; init; } 
    public int PoliceDistrict { get; init; } 
    public int Weather { get; init; } 
-   public int CrimeMotive { get; init; }
+   public int Motive { get; init; }
 }
 
 public record ClusteredModel

@@ -31,7 +31,7 @@ public class GetClustersQueryHandler(
             Severity = (int)x.Severity,
             Weather = (int)x.Weather,
             CaseId = x.CaseId,
-            CrimeMotive = (int)x.Motive,
+            Motive = (int)x.Motive,
             CrimeType = (int)x.CrimeType,
             PoliceDistrict = (int)x.PoliceDistrict,
             TimeStamp = x.TimeStamp.ToString(),

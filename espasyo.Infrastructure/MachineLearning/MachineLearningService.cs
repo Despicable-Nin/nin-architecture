@@ -116,7 +116,7 @@ public class MachineLearningService(
             // Default to all features if none provided.
             if (features == null || features.Length == 0)
             {
-                features = ["CrimeType", "Severity", "PoliceDistrict", "Weather", "CrimeMotive"];
+                features = ["CrimeType", "Severity", "PoliceDistrict", "Weather", "Motive"];
             }
 
             var message = $"Performing KMeansClustering with features: {features}";
@@ -161,7 +161,7 @@ public class MachineLearningService(
                 Console.WriteLine($"CaseId: {prediction.CaseId}, " +
                                     $"CrimeType: {cluster!.CrimeType.ToString()}, " +
                                     $"Severity: {cluster.Severity.ToString()}, " +
-                                    $"Motive: {cluster.CrimeMotive.ToString()}, " +
+                                    $"Motive: {cluster.Motive.ToString()}, " +
                                     $"Weather: {cluster.Weather.ToString()}, " +
                                     $"Precinct: {cluster.PoliceDistrict.ToString()}, " +
                                     $"Assigned Cluster: {prediction.ClusterId}");
@@ -248,7 +248,7 @@ public class MachineLearningService(
     private static bool IsCategoricalFeature(string featureName)
     {
         // Define logic to determine if a feature is categorical
-        var categoricalFeatures = new HashSet<string> { "CrimeType", "PoliceDistrict", "Weather", "CrimeMotive", "Severity" };
+        var categoricalFeatures = new HashSet<string> { "CrimeType", "PoliceDistrict", "Weather", "Motive", "Severity" };
         return categoricalFeatures.Contains(featureName);
     }
 

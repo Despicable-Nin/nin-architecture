@@ -1,6 +1,5 @@
 ﻿using espasyo.Application.Interfaces;
 using espasyo.Domain.Entities;
-using espasyo.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace espasyo.Infrastructure.Data.Repositories;

@@ -1,6 +1,8 @@
 using espasyo.Application;
 using espasyo.Infrastructure;
+using espasyo.Infrastructure.Data;
 using espasyo.WebAPI.Filters;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,6 +30,22 @@ builder.Services.AddCors(opt =>
 });
 
 var app = builder.Build();
+
+// Apply pending migrations automatically
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var dbContext = services.GetRequiredService<ApplicationDbContext>();
+        dbContext.Database.Migrate(); // Apply migrations automatically
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"An error occurred while migrating the database: {ex.Message}");
+    }
+}
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

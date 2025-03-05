@@ -4,6 +4,7 @@ using espasyo.Infrastructure.Data.Interceptors;
 using espasyo.Infrastructure.Data.Repositories;
 using espasyo.Infrastructure.Geocoding;
 using espasyo.Infrastructure.MachineLearning;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.ML;
@@ -24,6 +25,10 @@ public static class InfrastructureDependencyInjection
             options.AddInterceptors(serviceProvider.GetRequiredService<ISaveChangesInterceptor>());
             options.UseSqlServer(connectionString);
         });
+        
+        services.AddIdentity<IdentityUser, IdentityRole>()
+            .AddEntityFrameworkStores<ApplicationDbContext>()
+            .AddDefaultTokenProviders();
 
         services.AddSingleton<MLContext>();
         

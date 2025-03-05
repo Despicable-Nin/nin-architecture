@@ -7,19 +7,10 @@ public static class ModelBuilderExtension
 {
     public static ModelBuilder AddSeedIdentityUserAndRole(this ModelBuilder modelBuilder)
     {
-        // Explicitly set primary keys for Identity tables
-        modelBuilder.Entity<IdentityUserRole<string>>()
-            .HasKey(r => new { r.UserId, r.RoleId });
-
-        modelBuilder.Entity<IdentityUserLogin<string>>()
-            .HasKey(l => new { l.LoginProvider, l.ProviderKey });
-
-        modelBuilder.Entity<IdentityUserToken<string>>()
-            .HasKey(t => new { t.UserId, t.LoginProvider, t.Name });
-        
-        // Define roles
-        var adminRoleId = Guid.NewGuid().ToString();
-        var userRoleId = Guid.NewGuid().ToString();
+        // Use static GUIDs instead of dynamic values
+        var adminRoleId = "B5D3D9D6-53E5-44C6-BD92-5C77B3A6F5E1";
+        var userRoleId = "A1F41CC9-07C3-4B0C-9EBF-8D638FA3F763";
+        var adminUserId = "D2A5B7B8-91A6-4E6A-8921-0DBBC5E8A5D4";
 
         var roles = new List<IdentityRole>
         {
@@ -29,10 +20,6 @@ public static class ModelBuilderExtension
 
         modelBuilder.Entity<IdentityRole>().HasData(roles);
 
-        // Define a user
-        var adminUserId = Guid.NewGuid().ToString();
-        var hasher = new PasswordHasher<IdentityUser>();
-
         var adminUser = new IdentityUser
         {
             Id = adminUserId,
@@ -41,20 +28,18 @@ public static class ModelBuilderExtension
             Email = "admin@example.com",
             NormalizedEmail = "ADMIN@EXAMPLE.COM",
             EmailConfirmed = true,
-            PasswordHash = hasher.HashPassword(null, "Admin@123"), // Set a secure password
-            SecurityStamp = Guid.NewGuid().ToString()
+            PasswordHash = "$2y$10$ymwOJBzLSdKa/YMtxRFg6.BZUuJ4SO5Ouhn9weEF/UcrwFyTb3CNq", //Admin@123
+            SecurityStamp = "abcdefghijklmnopqrstuvwxyz1234567890!@#$%^&*()"
         };
 
         modelBuilder.Entity<IdentityUser>().HasData(adminUser);
 
-        // Assign admin role to the user
-        var userRoles = new List<IdentityUserRole<string>>
+        modelBuilder.Entity<IdentityUserRole<string>>().HasData(new IdentityUserRole<string>
         {
-            new IdentityUserRole<string> { UserId = adminUserId, RoleId = adminRoleId }
-        };
+            UserId = adminUserId,
+            RoleId = adminRoleId
+        });
 
-        modelBuilder.Entity<IdentityUserRole<string>>().HasData(userRoles);
-        
         return modelBuilder;
     }
 }

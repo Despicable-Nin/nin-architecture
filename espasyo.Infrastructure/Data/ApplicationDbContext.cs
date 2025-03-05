@@ -15,13 +15,20 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder); // Always call base method
 
-        
-        modelBuilder.AddSeedIdentityUserAndRole();
+        // Ensure IdentityUserLogin has a primary key
+        modelBuilder.Entity<IdentityUserLogin<string>>()
+            .HasKey(l => new { l.LoginProvider, l.ProviderKey });
+
+        // Ensure IdentityUserRole has a composite primary key
+        modelBuilder.Entity<IdentityUserRole<string>>()
+            .HasKey(r => new { r.UserId, r.RoleId });
+
+        // Ensure IdentityUserToken has a composite primary key
+        modelBuilder.Entity<IdentityUserToken<string>>()
+            .HasKey(t => new { t.UserId, t.LoginProvider, t.Name });
         
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
-
     }
-
-   
 }

@@ -2,6 +2,7 @@ using espasyo.Application;
 using espasyo.Infrastructure;
 using espasyo.Infrastructure.Data;
 using espasyo.WebAPI.Filters;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,14 +36,17 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var dbContext = services.GetRequiredService<ApplicationDbContext>();
+    dbContext.Database.Migrate(); // 🚀 Apply migrations
     try
     {
-        var dbContext = services.GetRequiredService<ApplicationDbContext>();
-        dbContext.Database.Migrate(); // Apply migrations automatically
+        var userManager = services.GetRequiredService<UserManager<IdentityUser>>();
+        var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+        await SeedAdminUserAsync(userManager, roleManager);
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"An error occurred while migrating the database: {ex.Message}");
+        Console.WriteLine($"Error seeding data: {ex.Message}");
     }
 }
 
@@ -66,3 +70,39 @@ app.MapControllers();
 app.UseCors("AllowAll");
 
 await app.RunAsync();
+
+async Task SeedAdminUserAsync(UserManager<IdentityUser> userManager, RoleManager<IdentityRole> roleManager)
+{
+    const string adminRole = "Admin";
+    const string adminEmail = "admin@example.com";
+    const string adminPassword = "Admin@123";
+
+    // 1️⃣ Ensure Admin Role Exists
+    if (!await roleManager.RoleExistsAsync(adminRole))
+    {
+        await roleManager.CreateAsync(new IdentityRole(adminRole));
+    }
+
+    // 2️⃣ Ensure Admin User Exists
+    var adminUser = await userManager.FindByEmailAsync(adminEmail);
+    if (adminUser == null)
+    {
+        adminUser = new IdentityUser
+        {
+            UserName = adminEmail,
+            Email = adminEmail,
+            EmailConfirmed = true
+        };
+
+        var result = await userManager.CreateAsync(adminUser, adminPassword);
+        if (result.Succeeded)
+        {
+            await userManager.AddToRoleAsync(adminUser, adminRole);
+            Console.WriteLine("Admin user created successfully.");
+        }
+        else
+        {
+            Console.WriteLine($"Failed to create admin user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+        }
+    }
+}

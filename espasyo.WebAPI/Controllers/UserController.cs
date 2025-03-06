@@ -25,7 +25,7 @@ namespace espasyo.WebAPI.Controllers
                 return BadRequest(ModelState);
             }
             
-            var user = await UserManager.FindByEmailAsync(loginRequest!.UserName!);
+            var user = await UserManager.FindByEmailAsync(loginRequest!.Email!);
             if (user != null && await UserManager.CheckPasswordAsync(user, loginRequest.Password))
             {
                 var roles = await UserManager.GetRolesAsync(user);

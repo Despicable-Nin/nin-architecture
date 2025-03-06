@@ -6,7 +6,7 @@ public record LoginRequest
 {
 
     [Required]
-    public required string? UserName { get; init; }
+    public required string? Email { get; init; }
     
     [Required]
     public required string? Password { get; init; }

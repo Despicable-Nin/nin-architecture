@@ -27,7 +27,7 @@ namespace espasyo.Domain.Entities
             PoliceDistrict = policeDistrictEnum;
             Weather = weatherCondition;
             AdditionalInformation = additionalInformation;
-            TimeStamp = timeStamp;
+            TimeStamp = timeStamp ?? throw new ArgumentNullException(nameof(timeStamp));
             _timestampInUnix = timeStamp!.Value.ToUnixTimeMilliseconds();
             _year = timeStamp.Value.Year;
             _month = timeStamp.Value.Month;

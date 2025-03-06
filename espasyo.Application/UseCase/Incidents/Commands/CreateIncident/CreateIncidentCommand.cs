@@ -13,7 +13,7 @@ public record CreateIncidentCommand : IRequest<Guid>
     public int Severity { get; init; }
     public int CrimeType { get;  init; }
     public int Motive { get;  init; }
-    public int PoliceDistrict { get;  init; }
+    public int Precinct { get;  init; }
     public string? AdditionalInfo { get; init; }
     public int Weather { get;  init; }
     public DateTimeOffset? TimeStamp { get; init; }
@@ -49,7 +49,7 @@ public class CreateIncidentCommandHandler(
             (SeverityEnum)request.Severity,
             (CrimeTypeEnum)request.CrimeType,
             (MotiveEnum)request.Motive,
-            (Barangay)request.PoliceDistrict,
+            (Barangay)request.Precinct,
             (WeatherConditionEnum)request.Weather,
             request.AdditionalInfo,
             request.TimeStamp

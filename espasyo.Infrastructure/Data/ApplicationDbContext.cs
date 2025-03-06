@@ -1,6 +1,5 @@
 ﻿using espasyo.Domain.Entities;
 using espasyo.Infrastructure.Data.Configurations;
-using espasyo.Infrastructure.Data.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;

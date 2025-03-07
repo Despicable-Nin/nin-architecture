@@ -1,11 +1,12 @@
 using espasyo.Application.UseCase.Streets.Commands.CreateStreets;
 using espasyo.Application.UseCase.Streets.Queries.GetStreets;
 using MediatR;
-using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace espasyo.WebAPI.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class StreetController(IMediator mediator) : ControllerBase

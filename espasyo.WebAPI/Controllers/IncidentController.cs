@@ -6,9 +6,11 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using espasyo.Application.Incidents.Queries.GetGroupedClusters;
 using espasyo.Application.UseCase.Incidents.Commands.ClearIncidents;
+using Microsoft.AspNetCore.Authorization;
 
 namespace espasyo.WebAPI.Controllers;
 
+[Authorize]
 [Route("api/[controller]")]
 [ApiController]
 public class IncidentController( IMediator mediator) : ControllerBase

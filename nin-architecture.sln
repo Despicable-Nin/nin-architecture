@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.35825.156 d17.13
+VisualStudioVersion = 17.13.35825.156
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "espasyo.Domain", "espasyo.Domain\espasyo.Domain.csproj", "{75AA5CF4-B95D-419B-8E1F-1EB046B21FAA}"
 EndProject
@@ -27,6 +27,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Domain.Tests", "Domain.Tests\Domain.Tests.csproj", "{6D8C4CAB-D9CA-4101-A62A-4918F712098B}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{C12BB6E2-1939-4FE1-963B-D872D619D498}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Infrastructure.Tests", "Infrastructure.Data.Repositories.Tests\Infrastructure.Tests.csproj", "{A9519326-9BB1-42D2-B55E-E76A3C34BB90}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -58,6 +60,10 @@ Global
 		{6D8C4CAB-D9CA-4101-A62A-4918F712098B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6D8C4CAB-D9CA-4101-A62A-4918F712098B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6D8C4CAB-D9CA-4101-A62A-4918F712098B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A9519326-9BB1-42D2-B55E-E76A3C34BB90}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A9519326-9BB1-42D2-B55E-E76A3C34BB90}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A9519326-9BB1-42D2-B55E-E76A3C34BB90}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A9519326-9BB1-42D2-B55E-E76A3C34BB90}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -69,5 +75,8 @@ Global
 		{CE7243BC-EEE2-4CC9-8F58-0DF5602CAF32} = {621ECE6B-9A2E-4DEE-A67E-E854C6175F93}
 		{7F113CA4-5809-4213-AEE8-D8F30E4E8A8C} = {621ECE6B-9A2E-4DEE-A67E-E854C6175F93}
 		{6D8C4CAB-D9CA-4101-A62A-4918F712098B} = {C12BB6E2-1939-4FE1-963B-D872D619D498}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {10A07857-64C3-4A86-8380-F62EBF3A2EE7}
 	EndGlobalSection
 EndGlobal

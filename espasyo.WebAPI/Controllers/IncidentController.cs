@@ -18,6 +18,7 @@ public class IncidentController( IMediator mediator) : ControllerBase
         
     // POST api/<IncidentController>
     [HttpPost]
+    [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Post([FromBody] CreateIncidentCommand incident)

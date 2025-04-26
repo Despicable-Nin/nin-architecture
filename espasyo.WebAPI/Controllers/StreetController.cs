@@ -23,6 +23,7 @@ namespace espasyo.WebAPI.Controllers
 
         // POST api/<StreetController>
         [HttpPost]
+        [AllowAnonymous]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesErrorResponseType(typeof(BadRequestResult))]
         public async Task<IActionResult> Post([FromBody] CreateStreetsCommand command)

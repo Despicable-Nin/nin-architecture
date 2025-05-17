@@ -71,5 +71,17 @@ namespace espasyo.Domain.Entities.Tests
             };
             Assert.AreEqual(temp, incident.GetTimeOfDay());
         }
+        [TestMethod()]
+        public void PoliceDistrictTest()
+        {
+            // Arrange
+            var expectedDistrict = Barangay.Alabang;
+
+            // Act
+            var actualDistrict = incident.PoliceDistrict;
+
+            // Assert
+            Assert.AreEqual(expectedDistrict, actualDistrict);
+        }
     }
 }

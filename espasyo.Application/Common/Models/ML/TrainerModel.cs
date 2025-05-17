@@ -34,6 +34,9 @@ public class ClusterItem
    public string CaseId { get; set; }
    public double Latitude { get; set; }
    public double Longitude { get; set; }
+    public int Month { get; internal set; }
+    public int Year { get; internal set; }
+    public string TimeOfDay { get; internal set; }
 }
 
 public record ClusterGroup

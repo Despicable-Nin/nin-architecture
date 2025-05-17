@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace espasyo.WebAPI.Controllers;
 
-[Authorize]
+//[Authorize]
 [Route("api/[controller]")]
 [ApiController]
 public class IncidentController( IMediator mediator) : ControllerBase

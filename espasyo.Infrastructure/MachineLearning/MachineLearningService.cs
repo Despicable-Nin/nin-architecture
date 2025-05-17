@@ -183,9 +183,12 @@ public class MachineLearningService(
                         // Assuming ClusteredModel has Latitude and Longitude properties.
                         Latitude = item.Latitude,
                         Longitude = item.Longitude
+                        
                     }).ToList()
                 })
                 .ToList();
+
+           
 
             return new GroupedClusterResponse()
             {

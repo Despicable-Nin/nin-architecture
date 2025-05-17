@@ -1,4 +1,5 @@
 ﻿using espasyo.Application.Common.Models.ML;
+using espasyo.Application.Extensions;
 using espasyo.Application.Interfaces;
 using MediatR;
 
@@ -44,6 +45,24 @@ public class GetGroupedClustersQueryHandler(
         });
 
         var result = kMeansService.PerformKMeansAndGetGroupedClusters(trainerModels, request.Features, request.NumberOfClusters, request.NumberOfRuns);
+
+
+        //we don't want to overload the ML library so we are just going to do heavy-lifting on the database instead
+        foreach(var r in result.ClusterGroups)
+        {
+            foreach(var item in r.ClusterItems)
+            {
+                var trainerData = trainerModels.Single(i => i.CaseId == item.CaseId);
+
+                long unixTimeSeconds = trainerData.TimeStampUnix;
+                var date = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(unixTimeSeconds);
+
+                item.Month = date.Month;
+                item.Year = date.Year;
+                item.TimeOfDay = date.GetTimeOfDay();
+
+            }
+        }
 
         return result;
     }

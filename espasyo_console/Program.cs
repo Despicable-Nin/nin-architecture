@@ -13,25 +13,19 @@ public class Program
 
     private static async Task Main(string[] args)
     {
+        WriteLine("Starting seeding process...");
 
-        Console.WriteLine("1. Seed Streets");
-        Console.WriteLine("2. Seed Incidents");
-        Console.Write("Choose an option: ");
-        var choice = Console.ReadLine();
-        if (choice == "1")
-        {
-            await StreetsGenerator.Seed(Client);
-        }
-        else if (choice == "2")
-        {
-            await IncidentGenerator.Seed(Client,Semaphore);
-        }
-        else
-        {
-            Console.WriteLine("Invalid choice, please try again.");
-        }
+        // Automatically seed streets
+        WriteLine("Seeding Streets...");
+        await StreetsGenerator.Seed(Client);
+        
+        // Automatically seed incidents
+        WriteLine("Seeding Incidents...");
+        await IncidentGenerator.Seed(Client, Semaphore);
 
+        WriteLine("Seeding process complete.");
         WriteLine("Press any key to exit...");
+        ReadKey();
     }
 }
 

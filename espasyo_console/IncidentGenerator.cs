@@ -34,13 +34,13 @@ public static class IncidentGenerator
             severity = EnumHelper.GetRandomEnumValue<SeverityEnum>(),
             crimeType = EnumHelper.GetRandomEnumValue<CrimeTypeEnum>(),
             motive = EnumHelper.GetRandomEnumValue<MotiveEnum>(),
-            policeDistrict = (Barangay)new Random().Next(0,7),
+            precinct = (Barangay)new Random().Next(0,7),
             otherMotive = "xxxxx",
             weather = EnumHelper.GetRandomEnumValue<WeatherConditionEnum>(),
             timeStamp = GenerateRandomTimestamp()
         };
 
-        incident.address = GenerateRandomAddress(incident.policeDistrict);
+        incident.address = GenerateRandomAddress(incident.precinct);
 
         var json = JsonSerializer.Serialize(incident);
         var content = new StringContent(json, Encoding.UTF8, "application/json");

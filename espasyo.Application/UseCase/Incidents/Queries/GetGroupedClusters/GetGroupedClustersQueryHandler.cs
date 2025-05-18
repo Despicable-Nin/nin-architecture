@@ -1,6 +1,7 @@
 ﻿using espasyo.Application.Common.Models.ML;
 using espasyo.Application.Extensions;
 using espasyo.Application.Interfaces;
+using espasyo.Domain.Enums;
 using MediatR;
 
 namespace espasyo.Application.Incidents.Queries.GetGroupedClusters;
@@ -68,6 +69,7 @@ public class GetGroupedClustersQueryHandler(
                     item.Month = date.Month;
                     item.Year = date.Year;
                     item.TimeOfDay = date.GetTimeOfDay();
+                    item.Precinct = (Barangay)trainerData.PoliceDistrict;
                 }
             }
         }

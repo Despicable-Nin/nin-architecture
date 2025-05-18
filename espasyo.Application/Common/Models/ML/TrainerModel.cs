@@ -1,4 +1,5 @@
-﻿using Microsoft.ML.Data;
+﻿using espasyo.Domain.Enums;
+using Microsoft.ML.Data;
 
 namespace espasyo.Application.Common.Models.ML;
 
@@ -37,6 +38,7 @@ public class ClusterItem
     public int Month { get;  set; }
     public int Year { get;  set; }
     public string TimeOfDay { get;  set; }
+    public Barangay Precinct { get; internal set; }
 }
 
 public record ClusterGroup

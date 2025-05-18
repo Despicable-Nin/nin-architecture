@@ -36,7 +36,7 @@ public record Request
     public SeverityEnum severity { get; set; }
     public CrimeTypeEnum crimeType { get; set; }
     public MotiveEnum motive { get; set; }
-    public Barangay policeDistrict { get; set; }
+    public Barangay precinct { get; set; }
     public string otherMotive { get; set; }
     public WeatherConditionEnum weather { get; set; }
     public string timeStamp { get; set; }

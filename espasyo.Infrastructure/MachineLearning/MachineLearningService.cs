@@ -160,21 +160,21 @@ public class MachineLearningService(
 
             logger.LogInformation("Total records after prediction: {Count}", clusterPredictions.Count);
 
-#if DEBUG
-            foreach (var prediction in clusterPredictions)
-            {
-                if (caseIdToTrainer.TryGetValue(prediction.CaseId, out var cluster))
-                {
-                    Console.WriteLine($"CaseId: {prediction.CaseId}, " +
-                                      $"CrimeType: {cluster.CrimeType}, " +
-                                      $"Severity: {cluster.Severity}, " +
-                                      $"Motive: {cluster.Motive}, " +
-                                      $"Weather: {cluster.Weather}, " +
-                                      $"Precinct: {cluster.PoliceDistrict}, " +
-                                      $"Assigned Cluster: {prediction.ClusterId}");
-                }
-            }
-#endif
+//#if DEBUG
+//            foreach (var prediction in clusterPredictions)
+//            {
+//                if (caseIdToTrainer.TryGetValue(prediction.CaseId, out var cluster))
+//                {
+//                    Console.WriteLine($"CaseId: {prediction.CaseId}, " +
+//                                      $"CrimeType: {cluster.CrimeType}, " +
+//                                      $"Severity: {cluster.Severity}, " +
+//                                      $"Motive: {cluster.Motive}, " +
+//                                      $"Weather: {cluster.Weather}, " +
+//                                      $"Precinct: {cluster.PoliceDistrict}, " +
+//                                      $"Assigned Cluster: {prediction.ClusterId}");
+//                }
+//            }
+//#endif
 
             // Group predictions by clusterId efficiently
             var groupedClusters = new Dictionary<uint, List<ClusterItem>>();

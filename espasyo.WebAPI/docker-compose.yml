@@ -21,13 +21,13 @@ services:
     depends_on:
       - sqlserver
 
-  console:
-    build:
-      context: ./espasyo_console  # Adjust if your console project is in a different folder
-      dockerfile: Dockerfile      # Make sure your console project contains a proper Dockerfile
-    image: espasyo_console
-    depends_on:
-      - sqlserver
-      - webapi
-    command: ["dotnet", "run", "--project", "espasyo_console/espasyo_console.csproj"]
-    restart: "no"
+  # console:
+  #   build:
+  #     context: ./espasyo_console  # Adjust if your console project is in a different folder
+  #     dockerfile: Dockerfile      # Make sure your console project contains a proper Dockerfile
+  #   image: espasyo_console
+  #   depends_on:
+  #     - sqlserver
+  #     - webapi
+  #   command: ["dotnet", "run", "--project", "espasyo_console/espasyo_console.csproj"]
+  #   restart: "no"

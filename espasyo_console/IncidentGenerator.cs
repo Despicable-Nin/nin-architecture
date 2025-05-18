@@ -1,17 +1,20 @@
 ﻿using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using espasyo.Domain.Enums;
 
 namespace espasyo_console;
 
 public static class IncidentGenerator
 {
-    public static async Task Seed(HttpClient httpClient, SemaphoreSlim semaphore)
+    private static async Task Seed(HttpClient httpClient, SemaphoreSlim semaphore)
     {
         Console.WriteLine("This seed is expected to last for 1000 seconds..");
         Console.WriteLine("Start: {0}", DateTimeOffset.Now);
 
         const string url = "http://localhost:5041/api/Incident";
+
+     
 
         for (var i = 1; i <= 1000; i++)
         {
@@ -31,7 +34,7 @@ public static class IncidentGenerator
             severity = EnumHelper.GetRandomEnumValue<SeverityEnum>(),
             crimeType = EnumHelper.GetRandomEnumValue<CrimeTypeEnum>(),
             motive = EnumHelper.GetRandomEnumValue<MotiveEnum>(),
-            policeDistrict = EnumHelper.GetRandomEnumValue<Barangay>(),
+            policeDistrict = (Barangay)new Random().Next(0,7),
             otherMotive = "xxxxx",
             weather = EnumHelper.GetRandomEnumValue<WeatherConditionEnum>(),
             timeStamp = GenerateRandomTimestamp()
@@ -66,6 +69,40 @@ public static class IncidentGenerator
         var range = (DateTime.UtcNow - start).Days;
         var randomDate = start.AddDays(new Random().Next(range)).AddHours(new Random().Next(0, 24)).AddMinutes(new Random().Next(0, 60)).AddSeconds(new Random().Next(0, 60));
         return randomDate.ToString("yyyy-MM-ddTHH:mm:ssZ");
+    }
+    public static async Task SeedIfNoIncidents(HttpClient httpClient, SemaphoreSlim semaphore)
+    {
+        Console.WriteLine("Checking for existing incidents...");
+        const string url = "http://localhost:5041/api/Incident";
+
+        var response = await httpClient.GetAsync(url);
+        if (response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync();
+
+            // Parse content as dynamic JSON object
+            using var doc = JsonDocument.Parse(content);
+            var root = doc.RootElement;
+
+            // Try to get totalCount property
+            int totalCount = 0;
+            if (root.TryGetProperty("totalCount", out var totalCountProp))
+            {
+                totalCount = totalCountProp.GetInt32();
+            }
+
+            if (totalCount > 0)
+            {
+                Console.WriteLine("Incidents already exist. Seeding aborted.");
+                return;
+            }
+        }
+        else
+        {
+            Console.WriteLine($"Failed to check incidents: {response.StatusCode}. Proceeding with seeding.");
+        }
+
+        await Seed(httpClient, semaphore);
     }
     
 }

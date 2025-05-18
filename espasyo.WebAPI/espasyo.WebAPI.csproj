@@ -23,6 +23,7 @@
     <ItemGroup>
       <ProjectReference Include="..\espasyo.Application\espasyo.Application.csproj" />
       <ProjectReference Include="..\espasyo.Infrastructure\espasyo.Infrastructure.csproj" />
+      <ProjectReference Include="..\nin-architecture.ServiceDefaults\nin-architecture.ServiceDefaults.csproj" />
     </ItemGroup>
 
 </Project>

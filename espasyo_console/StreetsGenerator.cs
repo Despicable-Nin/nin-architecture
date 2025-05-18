@@ -1,6 +1,6 @@
-﻿using System.Text;
+﻿using espasyo.Domain.Enums;
+using System.Text;
 using System.Text.Json;
-using espasyo.Domain.Enums;
 
 namespace espasyo_console;
 public record StreetDto
@@ -16,18 +16,55 @@ public record StreetDto
 
 public static class StreetsGenerator
 {
-    
     public static async Task<bool> Seed(HttpClient httpClient)
     {
-        var enums = (Barangay[])Enum.GetValues(typeof(Barangay));
+        var url = "http://localhost:5041/api/Street";
+        // Check if data exists at the URL
+        var getResponse = await httpClient.GetAsync(url);
+        if (getResponse.IsSuccessStatusCode)
+        {
+            var content = await getResponse.Content.ReadAsStringAsync();
+            // Check for empty JSON array or empty "streets" property
+            bool isEmpty = false;
+            if (!string.IsNullOrWhiteSpace(content))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(content);
+                    if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                    {
+                        isEmpty = doc.RootElement.GetArrayLength() == 0;
+                    }
+                    else if (doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty("streets", out var streetsProp))
+                    {
+                        isEmpty = streetsProp.ValueKind == JsonValueKind.Array && streetsProp.GetArrayLength() == 0;
+                    }
+                }
+                catch
+                {
+                    // If parsing fails, treat as not empty to avoid seeding
+                    isEmpty = false;
+                }
+            }
+            else
+            {
+                isEmpty = true;
+            }
 
+            if (!isEmpty)
+            {
+                Console.WriteLine("Street data already exists. Skipping seed.");
+                return false;
+            }
+        }
+
+        var enums = (Barangay[])Enum.GetValues(typeof(Barangay));
         var streets = new List<StreetDto>();
 
         var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
         var projectDirectory = Directory.GetParent(baseDirectory).Parent.Parent.FullName.Replace("bin", "");
         var jsonFilesDirectory = Path.Combine(projectDirectory, "JsonFiles");
-        
-        
+
         foreach (var e in enums)
         {
             Console.WriteLine($"Generating streets from {e}");
@@ -49,12 +86,11 @@ public static class StreetsGenerator
                 }
             }
         }
-        
-        await SendAddressRequest("http://localhost:5041/api/Street", streets, httpClient);
+
+        await SendAddressRequest(url, streets, httpClient);
 
         return true;
     }
-
 
     private static async Task SendAddressRequest(string url, IEnumerable<StreetDto> streets, HttpClient client)
     {
@@ -62,11 +98,10 @@ public static class StreetsGenerator
         {
             streets = streets
         };
-     
+
         var json = JsonSerializer.Serialize(data);
         var content = new StringContent(json, Encoding.UTF8, "application/json");
-        
-       
+
         try
         {
             var response = await client.PostAsync(url, content);
@@ -74,7 +109,7 @@ public static class StreetsGenerator
         }
         finally
         {
-            
+
         }
     }
 }

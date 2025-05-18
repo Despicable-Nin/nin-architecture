@@ -10,6 +10,8 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddServiceDefaults();
+
 // Add services to the container.
 
 builder.Services.AddApplication();
@@ -60,6 +62,8 @@ builder.Services.AddCors(opt =>
 });
 
 var app = builder.Build();
+
+app.MapDefaultEndpoints();
 
 // Apply pending migrations automatically
 using (var scope = app.Services.CreateScope())

@@ -21,7 +21,7 @@ public class Program
         
         // Automatically seed incidents
         WriteLine("Seeding Incidents...");
-        await IncidentGenerator.Seed(Client, Semaphore);
+        await IncidentGenerator.SeedIfNoIncidents(Client, Semaphore);
 
         WriteLine("Seeding process complete.");
         WriteLine("Press any key to exit...");

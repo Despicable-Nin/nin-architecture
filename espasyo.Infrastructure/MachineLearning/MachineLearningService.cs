@@ -119,81 +119,99 @@ public class MachineLearningService(
                 features = ["CrimeType", "Severity", "PoliceDistrict", "Weather", "Motive"];
             }
 
-            var message = $"Performing KMeansClustering with features: {features}";
-            logger.LogInformation(message);
+            logger.LogInformation("Performing KMeansClustering with features: {Features}", features);
+            // Materialize data once for reuse
             var trainerModels = data as TrainerModel[] ?? data.ToArray();
             logger.LogInformation("Total input records: {Count}", trainerModels.Length);
 
             var dataView = mlContext.Data.LoadFromEnumerable(trainerModels);
 
-            // Initialize a pipeline.
-            IEstimator<ITransformer>? pipeline = null;
-
-            // Dynamically append transformations for each feature.
-            pipeline = AppendPipeline(mlContext, features, pipeline);
-
-            // Concatenate all selected encoded features into a single "Features" column.
+            // Build pipeline only once
+            IEstimator<ITransformer>? pipeline = AppendPipeline(mlContext, features, null);
             var selectedFeatureColumns = features.Select(f => IsCategoricalFeature(f) || IsFloat(f) ? $"{f}Encoded" : f).ToArray();
             pipeline = pipeline.Append(mlContext.Transforms.Concatenate("Features", selectedFeatureColumns))
-                                .Append(mlContext.Transforms.NormalizeMeanVariance("Features"))
-                                .Append(mlContext.Clustering.Trainers.KMeans(numberOfClusters: numberOfClusters));
+                               .Append(mlContext.Transforms.NormalizeMeanVariance("Features"))
+                               .Append(mlContext.Clustering.Trainers.KMeans(numberOfClusters: numberOfClusters));
 
-            var bestScore = double.MaxValue;
+            double bestScore = double.MaxValue;
             ITransformer? bestModel = null;
 
             // Run multiple iterations to select the best model.
-            FindBestKMeansModel(mlContext, runs, dataView, pipeline, ref bestScore, ref bestModel);
+            for (int i = 0; i < runs; i++)
+            {
+                var model = pipeline.Fit(dataView);
+                var predictions = model.Transform(dataView);
+                var metrics = mlContext.Clustering.Evaluate(predictions, scoreColumnName: "Score");
+
+                if (metrics.AverageDistance < bestScore)
+                {
+                    bestScore = metrics.AverageDistance;
+                    bestModel = model;
+                }
+            }
 
             // Transform the data using the best model.
             var finalPredictions = bestModel!.Transform(dataView);
+            // Use a dictionary for fast CaseId lookup
+            var caseIdToTrainer = trainerModels.ToDictionary(x => x.CaseId ?? string.Empty);
             var clusterPredictions = mlContext.Data
                 .CreateEnumerable<ClusteredModel>(finalPredictions, reuseRowObject: false, ignoreMissingColumns: true)
                 .ToList();
 
-            // Log the count of records after prediction.
             logger.LogInformation("Total records after prediction: {Count}", clusterPredictions.Count);
 
-            // Optionally, print the predictions.
 #if DEBUG
             foreach (var prediction in clusterPredictions)
             {
-                var cluster = trainerModels.FirstOrDefault(x => x.CaseId == prediction.CaseId);
-                Console.WriteLine($"CaseId: {prediction.CaseId}, " +
-                                    $"CrimeType: {cluster!.CrimeType.ToString()}, " +
-                                    $"Severity: {cluster.Severity.ToString()}, " +
-                                    $"Motive: {cluster.Motive.ToString()}, " +
-                                    $"Weather: {cluster.Weather.ToString()}, " +
-                                    $"Precinct: {cluster.PoliceDistrict.ToString()}, " +
-                                    $"Assigned Cluster: {prediction.ClusterId}");
+                if (caseIdToTrainer.TryGetValue(prediction.CaseId, out var cluster))
+                {
+                    Console.WriteLine($"CaseId: {prediction.CaseId}, " +
+                                      $"CrimeType: {cluster.CrimeType}, " +
+                                      $"Severity: {cluster.Severity}, " +
+                                      $"Motive: {cluster.Motive}, " +
+                                      $"Weather: {cluster.Weather}, " +
+                                      $"Precinct: {cluster.PoliceDistrict}, " +
+                                      $"Assigned Cluster: {prediction.ClusterId}");
+                }
             }
 #endif
-            
 
-            // Group the predictions by cluster ID and map to the desired output structure.
-            var groupedClusters = clusterPredictions
-                .GroupBy(x => x.ClusterId)
-                .Select(g => new ClusterGroup()
+            // Group predictions by clusterId efficiently
+            var groupedClusters = new Dictionary<uint, List<ClusterItem>>();
+            foreach (var item in clusterPredictions)
+            {
+                if (!groupedClusters.TryGetValue(item.ClusterId, out var list))
                 {
-                    ClusterId = g.Key,
-                    // Filters property is now on the same level as ClusterId; currently left empty.
-                 //   Centroids = centroids.TryGetValue(g.Key, out float[]? value) ? value : [0, 0], // Assign centroid
-                    ClusterItems = g.Select(item => new ClusterItem
+                    list = new List<ClusterItem>();
+                    groupedClusters[item.ClusterId] = list;
+                }
+                if (caseIdToTrainer.TryGetValue(item.CaseId, out var trainer))
+                {
+                    list.Add(new ClusterItem
                     {
                         CaseId = item.CaseId,
-                        // Assuming ClusteredModel has Latitude and Longitude properties.
                         Latitude = item.Latitude,
-                        Longitude = item.Longitude
-                        
-                    }).ToList()
+                        Longitude = item.Longitude,
+                        Month = GetMonth(trainer.TimeStampUnix),
+                        Year = GetYear(trainer.TimeStampUnix),
+                        TimeOfDay = GetTimeOfDay(trainer.TimeStampUnix)
+                    });
+                }
+            }
+
+            var clusterGroups = groupedClusters
+                .OrderBy(kvp => kvp.Key)
+                .Select(kvp => new ClusterGroup
+                {
+                    ClusterId = kvp.Key,
+                    ClusterItems = kvp.Value
                 })
                 .ToList();
 
-           
-
-            return new GroupedClusterResponse()
+            return new GroupedClusterResponse
             {
                 Filters = [],
-                ClusterGroups = groupedClusters.OrderBy(x => x.ClusterId).ToList()
+                ClusterGroups = clusterGroups
             };
         }
         catch (Exception ex)
@@ -201,6 +219,29 @@ public class MachineLearningService(
             logger.LogError(ex, "An error occurred while performing KMeans clustering with features: {Features}, number of clusters: {NumberOfClusters}, runs: {Runs}.", features, numberOfClusters, runs);
             throw;
         }
+    }
+
+    // Helper methods for extracting Month, Year, and TimeOfDay from Unix timestamp
+    private static int GetMonth(long unixTimestamp)
+    {
+        var dateTime = DateTimeOffset.FromUnixTimeSeconds(unixTimestamp).UtcDateTime;
+        return dateTime.Month;
+    }
+
+    private static int GetYear(long unixTimestamp)
+    {
+        var dateTime = DateTimeOffset.FromUnixTimeSeconds(unixTimestamp).UtcDateTime;
+        return dateTime.Year;
+    }
+
+    private static string GetTimeOfDay(long unixTimestamp)
+    {
+        var dateTime = DateTimeOffset.FromUnixTimeSeconds(unixTimestamp).UtcDateTime;
+        var hour = dateTime.Hour;
+        if (hour < 6) return "Night";
+        if (hour < 12) return "Morning";
+        if (hour < 18) return "Afternoon";
+        return "Evening";
     }
 
     private static void FindBestKMeansModel(MLContext mlContext, int runs, IDataView dataView, IEstimator<ITransformer>? pipeline, ref double bestScore, ref ITransformer? bestModel)

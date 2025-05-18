@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace espasyo.WebAPI.Controllers
 {
-    [Authorize]
+    //[Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class StreetController(IMediator mediator) : ControllerBase

@@ -6,9 +6,6 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "espasyo.Domain", "espasyo.Domain\espasyo.Domain.csproj", "{75AA5CF4-B95D-419B-8E1F-1EB046B21FAA}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8F1DECEA-1758-4A11-B711-76A490EBB8C3}"
-	ProjectSection(SolutionItems) = preProject
-		compose.yaml = compose.yaml
-	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "espasyo.Application", "espasyo.Application\espasyo.Application.csproj", "{4CDEF47C-CE54-4F19-8B01-302D8C171AB3}"
 EndProject

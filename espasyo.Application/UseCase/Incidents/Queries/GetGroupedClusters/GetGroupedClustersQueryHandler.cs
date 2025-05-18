@@ -70,6 +70,7 @@ public class GetGroupedClustersQueryHandler(
                     item.Year = date.Year;
                     item.TimeOfDay = date.GetTimeOfDay();
                     item.Precinct = (Barangay)trainerData.PoliceDistrict;
+                    item.CrimeType = (CrimeTypeEnum)trainerData.CrimeType;
                 }
             }
         }

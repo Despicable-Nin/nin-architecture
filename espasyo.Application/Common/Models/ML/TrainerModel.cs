@@ -30,15 +30,16 @@ public record ClusteredModel
    public double Longitude { get; set; }
 }
 
-public class ClusterItem
+public record ClusterItem
 {
    public string CaseId { get; set; }
    public double Latitude { get; set; }
    public double Longitude { get; set; }
     public int Month { get;  set; }
     public int Year { get;  set; }
-    public string TimeOfDay { get;  set; }
-    public Barangay Precinct { get; internal set; }
+    public string TimeOfDay { get; set; }
+    public Barangay Precinct { get; set; }
+    public CrimeTypeEnum CrimeType { get; set; }
 }
 
 public record ClusterGroup

@@ -65,7 +65,7 @@ public static class IncidentGenerator
 
     private static string GenerateRandomTimestamp()
     {
-        var start = DateTime.UtcNow.AddYears(-1);
+        var start = DateTime.UtcNow.AddYears(-5);
         var range = (DateTime.UtcNow - start).Days;
         var randomDate = start.AddDays(new Random().Next(range)).AddHours(new Random().Next(0, 24)).AddMinutes(new Random().Next(0, 60)).AddSeconds(new Random().Next(0, 60));
         return randomDate.ToString("yyyy-MM-ddTHH:mm:ssZ");

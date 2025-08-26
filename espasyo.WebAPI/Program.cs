@@ -53,11 +53,20 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddCors(opt =>
 {
-    opt.AddPolicy("AllowAll", buider =>
+    opt.AddPolicy("AllowFrontend", builder =>
     {
-        buider.AllowAnyHeader()
-          .AllowAnyMethod()
-          .AllowAnyOrigin();
+        builder.WithOrigins("http://localhost:3000", "http://127.0.0.1:3000")
+               .AllowAnyHeader()
+               .AllowAnyMethod()
+               .AllowCredentials();
+    });
+    
+    // Fallback policy for development
+    opt.AddPolicy("AllowAll", builder =>
+    {
+        builder.AllowAnyHeader()
+               .AllowAnyMethod()
+               .AllowAnyOrigin();
     });
 });
 
@@ -99,10 +108,18 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
+// CORS must be configured before authentication/authorization
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("AllowAll");
+}
+else
+{
+    app.UseCors("AllowFrontend");
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
-
-app.UseCors("AllowAll");
 
 app.MapControllers();
 

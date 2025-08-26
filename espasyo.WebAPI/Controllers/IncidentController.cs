@@ -7,13 +7,17 @@ using Microsoft.AspNetCore.Mvc;
 using espasyo.Application.Incidents.Queries.GetGroupedClusters;
 using espasyo.Application.UseCase.Incidents.Commands.ClearIncidents;
 using Microsoft.AspNetCore.Authorization;
+using espasyo.Application.Common.Models.ML;
+using espasyo.Application.UseCase.Incidents.Commands.GenerateStatisticalForecast;
+using espasyo.Application.UseCase.Incidents.Commands.ValidateForecastModel;
+using espasyo.Application.UseCase.Incidents.Commands.AssessDataQuality;
 
 namespace espasyo.WebAPI.Controllers;
 
 //[Authorize]
 [Route("api/[controller]")]
 [ApiController]
-public class IncidentController( IMediator mediator) : ControllerBase
+public class IncidentController(IMediator mediator) : ControllerBase
 {
         
     // POST api/<IncidentController>
@@ -79,6 +83,81 @@ public class IncidentController( IMediator mediator) : ControllerBase
         return NoContent();
     }
 
-   
+    #region Statistical Forecasting Endpoints
+
+    [HttpPost("forecast/statistical")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GenerateStatisticalForecast([FromBody] StatisticalForecastRequest request)
+    {
+        try
+        {
+            var command = new GenerateStatisticalForecastCommand
+            {
+                ClusterData = request.ClusterData,
+                Horizon = request.Horizon,
+                ConfidenceLevel = request.ConfidenceLevel,
+                ModelType = request.ModelType,
+                IncludeSeasonality = request.IncludeSeasonality,
+                WeightRecentData = request.WeightRecentData
+            };
+
+            var forecast = await mediator.Send(command);
+            return Ok(forecast);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to generate forecast: {ex.Message}");
+        }
+    }
+
+    [HttpPost("forecast/validate")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ValidateForecastModel([FromBody] StatisticalForecastRequest request)
+    {
+        try
+        {
+            var command = new ValidateForecastModelCommand
+            {
+                ClusterData = request.ClusterData,
+                Horizon = request.Horizon,
+                ConfidenceLevel = request.ConfidenceLevel,
+                ModelType = request.ModelType,
+                IncludeSeasonality = request.IncludeSeasonality,
+                WeightRecentData = request.WeightRecentData
+            };
+
+            var validation = await mediator.Send(command);
+            return Ok(validation);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to validate model: {ex.Message}");
+        }
+    }
+
+    [HttpPost("forecast/assess-data-quality")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AssessDataQuality([FromBody] IEnumerable<ClusterGroup> clusterData)
+    {
+        try
+        {
+            var command = new AssessDataQualityCommand
+            {
+                ClusterData = clusterData
+            };
+
+            var assessment = await mediator.Send(command);
+            return Ok(assessment);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to assess data quality: {ex.Message}");
+        }
+    }
+
+    #endregion
 
 }

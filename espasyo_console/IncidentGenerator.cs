@@ -16,7 +16,7 @@ public static class IncidentGenerator
 
      
 
-        for (var i = 1; i <= 1000; i++)
+        for (var i = 1; i <= 5000; i++)
         {
          
             await SendIncidentRequest(url, i, httpClient,semaphore);

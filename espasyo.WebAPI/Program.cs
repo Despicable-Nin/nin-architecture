@@ -78,8 +78,22 @@ app.MapDefaultEndpoints();
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
-    var dbContext = services.GetRequiredService<ApplicationDbContext>();
-    dbContext.Database.Migrate(); // 🚀 Apply migrations
+    
+    // Get the database provider from configuration
+    var databaseProvider = builder.Configuration["DatabaseProvider"] ?? "SqlServer";
+    
+    // Apply migrations based on the database provider
+    if (databaseProvider.ToLower() == "sqlite")
+    {
+        var sqliteContext = services.GetService<espasyo.Infrastructure.Data.SqliteApplicationDbContext>();
+        sqliteContext?.Database.Migrate();
+    }
+    else
+    {
+        var sqlServerContext = services.GetService<ApplicationDbContext>();
+        sqlServerContext?.Database.Migrate();
+    }
+    
     try
     {
         var userManager = services.GetRequiredService<UserManager<IdentityUser>>();

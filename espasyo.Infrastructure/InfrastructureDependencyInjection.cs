@@ -15,6 +15,24 @@ public static class InfrastructureDependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        var databaseProvider = configuration["DatabaseProvider"] ?? "SqlServer";
+
+        switch (databaseProvider.ToLower())
+        {
+            case "sqlite":
+                services.AddSqliteInfrastructure(configuration);
+                break;
+            case "sqlserver":
+            default:
+                services.AddSqlServerInfrastructure(configuration);
+                break;
+        }
+
+        return services;
+    }
+
+    private static IServiceCollection AddSqlServerInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    {
         var connectionString = configuration.GetConnectionString("DefaultConnection") 
                                ?? throw new InvalidOperationException("DefaultConnection connection string is missing.");
 

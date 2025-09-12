@@ -30,7 +30,19 @@ public class SqliteApplicationDbContext(DbContextOptions<SqliteApplicationDbCont
         
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(SqliteApplicationDbContext).Assembly);
         
-        // SQLite-specific configurations can be added here if needed
-        // For example, SQLite doesn't support some SQL Server features like certain data types
+        // SQLite-specific DateTimeOffset configuration
+        // Configure proper DateTimeOffset handling for SQLite
+        modelBuilder.Entity<Incident>()
+            .Property(e => e.TimeStamp)
+            .HasConversion(
+                v => v.HasValue ? v.Value.ToString("O") : null, // Convert nullable DateTimeOffset to ISO 8601 string
+                v => string.IsNullOrEmpty(v) ? null : DateTimeOffset.Parse(v)); // Convert back from string
+            
+        // Also configure LockoutEnd from Identity for SQLite
+        modelBuilder.Entity<IdentityUser>()
+            .Property(e => e.LockoutEnd)
+            .HasConversion(
+                v => v.HasValue ? v.Value.ToString("O") : null, // Convert nullable DateTimeOffset to string
+                v => string.IsNullOrEmpty(v) ? null : DateTimeOffset.Parse(v)); // Convert back from string
     }
 }

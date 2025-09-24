@@ -97,6 +97,8 @@ public record ForecastResponse
     public ForecastMetrics Metrics { get; init; } = new();
     public DateTime GeneratedAt { get; init; } = DateTime.UtcNow;
     public string ModelUsed { get; init; } = string.Empty;
+    public ForecastSummary Summary { get; init; } = new();
+    public ForecastExplanation Explanation { get; init; } = new();
 }
 
 public record ForecastMetrics
@@ -142,6 +144,29 @@ public class ForecastOutput
     public float[] UpperBoundValues { get; set; } = Array.Empty<float>();
 }
 
+public record ForecastSummary
+{
+    public int TotalForecasts { get; init; }
+    public int HighRiskPredictions { get; init; }
+    public int CriticalRiskPredictions { get; init; }
+    public string OverallTrend { get; init; } = "stable"; // increasing, decreasing, stable
+    public string DominantRiskLevel { get; init; } = "medium";
+    public double AverageConfidence { get; init; }
+    public string KeyInsight { get; init; } = string.Empty;
+    public List<string> RecommendedActions { get; init; } = new();
+}
+
+public record ForecastExplanation
+{
+    public string ModelDescription { get; init; } = string.Empty;
+    public string DataQualityNotes { get; init; } = string.Empty;
+    public string ConfidenceExplanation { get; init; } = string.Empty;
+    public string TrendAnalysis { get; init; } = string.Empty;
+    public string RiskAssessmentLogic { get; init; } = string.Empty;
+    public string LimitationsAndCaveats { get; init; } = string.Empty;
+    public string HowToInterpret { get; init; } = string.Empty;
+}
+
 // Request models for API endpoints
 public record StatisticalForecastRequest
 {
@@ -151,4 +176,11 @@ public record StatisticalForecastRequest
     public string ModelType { get; init; } = "SSA";
     public bool IncludeSeasonality { get; init; } = true;
     public bool WeightRecentData { get; init; } = true;
+    
+    // Support for existing UI filters
+    public int[]? PrecinctFilter { get; init; }
+    public int[]? CrimeTypeFilter { get; init; }
+    public string[]? RiskLevelFilter { get; init; }
+    public DateTime? DateRangeStart { get; init; }
+    public DateTime? DateRangeEnd { get; init; }
 }

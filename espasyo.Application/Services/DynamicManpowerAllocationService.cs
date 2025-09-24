@@ -11,7 +11,7 @@ public class DynamicManpowerAllocationService
     /// <summary>
     /// Calculate optimal manpower allocation using data-driven formulas
     /// </summary>
-    public ManpowerRecommendation CalculateOptimalAllocation(
+    public DynamicManpowerRecommendation CalculateOptimalAllocation(
         Barangay precinct,
         int predictedCrimeCount,
         IEnumerable<HistoricalDataPoint> historicalData)
@@ -29,7 +29,7 @@ public class DynamicManpowerAllocationService
         // Step 4: Calculate recommended manpower using proven formulas
         var recommendedCount = CalculateRecommendedManpower(predictedCrimeCount, baseline, workloadLevel);
         
-        return new ManpowerRecommendation
+        return new DynamicManpowerRecommendation
         {
             Precinct = precinct,
             PredictedCrimeCount = predictedCrimeCount,
@@ -91,9 +91,9 @@ public class DynamicManpowerAllocationService
         var percentile95 = GetPercentile(crimeCounts, 95); // Critical workload threshold
         
         return new DynamicThresholds(
-            lightWorkload: percentile25,
-            normalWorkload: percentile75,
-            heavyWorkload: percentile95
+            percentile25,
+            percentile75,
+            percentile95
         );
     }
     
@@ -222,7 +222,7 @@ public record HistoricalDataPoint
     public int ManpowerCount { get; init; }
 }
 
-public record ManpowerRecommendation
+public record DynamicManpowerRecommendation
 {
     public Barangay Precinct { get; init; }
     public int PredictedCrimeCount { get; init; }

@@ -313,10 +313,11 @@ public class MachineLearningService(
             logger.LogInformation("Generating statistical forecast with horizon: {Horizon}, model: {ModelType}", 
                 parameters.Horizon, parameters.ModelType);
 
+            var clusterDataList = clusterData.ToList(); // Cache for reuse
             var forecastSeries = new List<ForecastSeries>();
 
             // Group cluster data by precinct and crime type
-            var groupedData = GroupClusterDataForForecasting(clusterData);
+            var groupedData = GroupClusterDataForForecasting(clusterDataList);
 
             foreach (var (key, timeSeriesData) in groupedData)
             {
@@ -328,7 +329,7 @@ public class MachineLearningService(
                     continue;
                 }
 
-                var forecasts = await GenerateForecastForSeries(timeSeriesData, parameters);
+                var forecasts = await GenerateForecastForSeries(timeSeriesData, parameters, clusterDataList);
                 
                 forecastSeries.Add(new ForecastSeries
                 {
@@ -385,7 +386,7 @@ public class MachineLearningService(
                 var testData = timeSeriesData.Skip(trainSize).ToList();
 
                 var testParameters = parameters with { Horizon = 6 };
-                var predictions = await GenerateForecastForSeries(trainData, testParameters);
+                var predictions = await GenerateForecastForSeries(trainData, testParameters, clusterData);
 
                 var metrics = CalculateValidationMetrics(testData, predictions);
                 allMetrics.Add(metrics);
@@ -519,7 +520,7 @@ public class MachineLearningService(
         return grouped;
     }
 
-    private async Task<List<ForecastPoint>> GenerateForecastForSeries(List<TimeSeriesData> data, ForecastParameters parameters)
+    private async Task<List<ForecastPoint>> GenerateForecastForSeries(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData)
     {
         return await Task.Run(() =>
         {
@@ -530,9 +531,9 @@ public class MachineLearningService(
                 // Choose forecasting method based on model type
                 forecasts = parameters.ModelType.ToLower() switch
                 {
-                    "linear" => GenerateLinearTrendForecast(data, parameters),
-                    "seasonal" => GenerateSeasonalForecast(data, parameters),
-                    "ssa" or _ => GenerateSSAForecast(data, parameters)
+                    "linear" => GenerateLinearTrendForecast(data, parameters, clusterData),
+                    "seasonal" => GenerateSeasonalForecast(data, parameters, clusterData),
+                    "ssa" or _ => GenerateSSAForecast(data, parameters, clusterData)
                 };
             }
             catch (Exception ex)
@@ -540,14 +541,14 @@ public class MachineLearningService(
                 logger.LogWarning(ex, "{ModelType} forecasting failed, falling back to simple linear trend", parameters.ModelType);
                 
                 // Fallback to simple linear trend
-                forecasts = GenerateLinearTrendForecast(data, parameters);
+                forecasts = GenerateLinearTrendForecast(data, parameters, clusterData);
             }
 
             return forecasts;
         });
     }
 
-    private List<ForecastPoint> GenerateLinearTrendForecast(List<TimeSeriesData> data, ForecastParameters parameters)
+    private List<ForecastPoint> GenerateLinearTrendForecast(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData)
     {
         var forecasts = new List<ForecastPoint>();
         var recent = data.TakeLast(Math.Min(12, data.Count)).ToList();
@@ -570,7 +571,7 @@ public class MachineLearningService(
             var forecastValue = Math.Max(0, intercept + slope * (n + i + 1));
             var errorMargin = recentAverage * (parameters.WeightRecentData ? 0.15 : 0.2);
             
-            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage);
+            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData);
             
             forecasts.Add(new ForecastPoint
             {
@@ -587,7 +588,7 @@ public class MachineLearningService(
         return forecasts;
     }
 
-    private List<ForecastPoint> GenerateSSAForecast(List<TimeSeriesData> data, ForecastParameters parameters)
+    private List<ForecastPoint> GenerateSSAForecast(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData)
     {
         var forecasts = new List<ForecastPoint>();
         var dataView = mlContext.Data.LoadFromEnumerable(data);
@@ -619,7 +620,7 @@ public class MachineLearningService(
             var upperBound = forecast.UpperBoundValues?[i] ?? forecastValue * 1.2f;
 
             // Determine trend and risk level
-            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage);
+            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData);
 
             forecasts.Add(new ForecastPoint
             {
@@ -636,14 +637,14 @@ public class MachineLearningService(
         return forecasts;
     }
 
-    private List<ForecastPoint> GenerateSeasonalForecast(List<TimeSeriesData> data, ForecastParameters parameters)
+    private List<ForecastPoint> GenerateSeasonalForecast(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData)
     {
         var forecasts = new List<ForecastPoint>();
         
         if (data.Count < 12)
         {
             // Not enough data for seasonal analysis, fall back to linear
-            return GenerateLinearTrendForecast(data, parameters);
+            return GenerateLinearTrendForecast(data, parameters, clusterData);
         }
 
         // Calculate seasonal pattern (monthly averages)
@@ -677,7 +678,7 @@ public class MachineLearningService(
             // Calculate confidence bounds based on historical variance
             var errorMargin = recentAverage * (parameters.IncludeSeasonality ? 0.25 : 0.2);
             
-            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage);
+            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData);
             
             forecasts.Add(new ForecastPoint
             {
@@ -694,22 +695,84 @@ public class MachineLearningService(
         return forecasts;
     }
     
-    private static (string trend, string riskLevel) AnalyzeForecastTrend(double forecastValue, double recentAverage)
+    private (string trend, string riskLevel) AnalyzeForecastTrend(
+        double forecastValue, 
+        double recentAverage, 
+        IEnumerable<ClusterGroup> allClusterData)
     {
-        var trendThresholdHigh = 1.1;
-        var trendThresholdLow = 0.9;
-        var riskThresholdCritical = 1.5;
-        var riskThresholdHigh = 1.2;
-        var riskThresholdMedium = 0.8;
+        // Calculate dynamic thresholds based on historical data distribution
+        var thresholds = CalculateDynamicRiskThresholds(allClusterData);
         
-        var trend = forecastValue > recentAverage * trendThresholdHigh ? "increasing" :
-                   forecastValue < recentAverage * trendThresholdLow ? "decreasing" : "stable";
+        // Trend analysis (keep simple thresholds)
+        var trend = forecastValue > recentAverage * 1.1 ? "increasing" :
+                   forecastValue < recentAverage * 0.9 ? "decreasing" : "stable";
                    
-        var riskLevel = forecastValue > recentAverage * riskThresholdCritical ? "critical" :
-                       forecastValue > recentAverage * riskThresholdHigh ? "high" :
-                       forecastValue > recentAverage * riskThresholdMedium ? "medium" : "low";
+        // Risk analysis using dynamic thresholds
+        var ratio = recentAverage > 0 ? forecastValue / recentAverage : 1.0;
+        var riskLevel = ratio > thresholds.highMax ? "critical" :
+                       ratio > thresholds.mediumMax ? "high" :
+                       ratio > thresholds.lowMax ? "medium" : "low";
                        
         return (trend, riskLevel);
+    }
+    
+    private (double lowMax, double mediumMax, double highMax) CalculateDynamicRiskThresholds(IEnumerable<ClusterGroup> clusterData)
+    {
+        try
+        {
+            // Calculate prediction vs historical ratios from all available data
+            var ratios = new List<double>();
+            
+            // Group by precinct/crime type to get historical averages
+            var grouped = clusterData
+                .SelectMany(c => c.ClusterItems)
+                .GroupBy(item => new { Precinct = (int)item.Precinct, CrimeType = (int)item.CrimeType })
+                .Where(g => g.Count() > 6) // Need reasonable sample size
+                .ToList();
+                
+            foreach (var group in grouped)
+            {
+                var items = group.OrderBy(i => new DateTime(i.Year, i.Month, 1)).ToList();
+                if (items.Count < 12) continue;
+                
+                // Calculate recent vs historical ratios
+                var recent = items.TakeLast(6).Count();
+                var older = items.Take(items.Count - 6).Count();
+                var avgOlder = older / Math.Max(1, items.Count - 6);
+                
+                if (avgOlder > 0)
+                {
+                    var ratio = recent / (double)avgOlder;
+                    ratios.Add(ratio);
+                }
+            }
+            
+            if (ratios.Count < 5) // Fallback to default thresholds
+            {
+                return (0.8, 1.2, 1.5);
+            }
+            
+            // Calculate percentiles for dynamic thresholds
+            ratios.Sort();
+            var percentile25 = ratios[Math.Max(0, (int)(ratios.Count * 0.25))];
+            var percentile75 = ratios[Math.Max(0, (int)(ratios.Count * 0.75))];
+            var percentile90 = ratios[Math.Max(0, (int)(ratios.Count * 0.90))];
+            
+            // Apply safety bounds to prevent extreme values
+            var lowMax = Math.Max(0.6, Math.Min(1.0, percentile25));
+            var mediumMax = Math.Max(1.0, Math.Min(1.4, percentile75));
+            var highMax = Math.Max(1.3, Math.Min(2.0, percentile90));
+            
+            logger.LogDebug("Dynamic thresholds calculated: Low={Low:F2}, Medium={Medium:F2}, High={High:F2} from {Count} data points", 
+                lowMax, mediumMax, highMax, ratios.Count);
+            
+            return (lowMax, mediumMax, highMax);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Error calculating dynamic thresholds, using defaults");
+            return (0.8, 1.2, 1.5); // Safe defaults
+        }
     }
 
     private ForecastMetrics CalculateOverallMetrics(List<ForecastSeries> series)

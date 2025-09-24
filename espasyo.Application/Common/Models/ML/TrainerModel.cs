@@ -99,6 +99,7 @@ public record ForecastResponse
     public string ModelUsed { get; init; } = string.Empty;
     public ForecastSummary Summary { get; init; } = new();
     public ForecastExplanation Explanation { get; init; } = new();
+    public ThresholdCalculationResult DynamicThresholds { get; init; } = new();
 }
 
 public record ForecastMetrics
@@ -165,6 +166,23 @@ public record ForecastExplanation
     public string RiskAssessmentLogic { get; init; } = string.Empty;
     public string LimitationsAndCaveats { get; init; } = string.Empty;
     public string HowToInterpret { get; init; } = string.Empty;
+}
+
+// Dynamic Risk Threshold Models
+public record DynamicThresholds
+{
+    public double LowMax { get; init; } = 0.8;      // Low risk threshold (80% of average)
+    public double MediumMax { get; init; } = 1.2;   // Medium risk threshold (120% of average)
+    public double HighMax { get; init; } = 1.5;     // High risk threshold (150% of average)
+    // Critical is anything above HighMax
+}
+
+public record ThresholdCalculationResult
+{
+    public DynamicThresholds Thresholds { get; init; } = new();
+    public int DataPointsUsed { get; init; }
+    public string CalculationMethod { get; init; } = "percentile-based";
+    public Dictionary<string, double> Statistics { get; init; } = new();
 }
 
 // Request models for API endpoints

@@ -329,7 +329,7 @@ public class MachineLearningService(
                     continue;
                 }
 
-                var forecasts = await GenerateForecastForSeries(timeSeriesData, parameters, clusterDataList);
+                var forecasts = await GenerateForecastForSeries(timeSeriesData, parameters, clusterDataList, precinct);
                 
                 forecastSeries.Add(new ForecastSeries
                 {
@@ -520,7 +520,7 @@ public class MachineLearningService(
         return grouped;
     }
 
-    private async Task<List<ForecastPoint>> GenerateForecastForSeries(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData)
+    private async Task<List<ForecastPoint>> GenerateForecastForSeries(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData, int? precinct = null)
     {
         return await Task.Run(() =>
         {
@@ -531,9 +531,9 @@ public class MachineLearningService(
                 // Choose forecasting method based on model type
                 forecasts = parameters.ModelType.ToLower() switch
                 {
-                    "linear" => GenerateLinearTrendForecast(data, parameters, clusterData),
-                    "seasonal" => GenerateSeasonalForecast(data, parameters, clusterData),
-                    "ssa" or _ => GenerateSSAForecast(data, parameters, clusterData)
+                    "linear" => GenerateLinearTrendForecast(data, parameters, clusterData, precinct),
+                    "seasonal" => GenerateSeasonalForecast(data, parameters, clusterData, precinct),
+                    "ssa" or _ => GenerateSSAForecast(data, parameters, clusterData, precinct)
                 };
             }
             catch (Exception ex)
@@ -541,14 +541,14 @@ public class MachineLearningService(
                 logger.LogWarning(ex, "{ModelType} forecasting failed, falling back to simple linear trend", parameters.ModelType);
                 
                 // Fallback to simple linear trend
-                forecasts = GenerateLinearTrendForecast(data, parameters, clusterData);
+                forecasts = GenerateLinearTrendForecast(data, parameters, clusterData, precinct);
             }
 
             return forecasts;
         });
     }
 
-    private List<ForecastPoint> GenerateLinearTrendForecast(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData)
+    private List<ForecastPoint> GenerateLinearTrendForecast(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData, int? precinct = null)
     {
         var forecasts = new List<ForecastPoint>();
         var recent = data.TakeLast(Math.Min(12, data.Count)).ToList();
@@ -571,7 +571,7 @@ public class MachineLearningService(
             var forecastValue = Math.Max(0, intercept + slope * (n + i + 1));
             var errorMargin = recentAverage * (parameters.WeightRecentData ? 0.15 : 0.2);
             
-            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData);
+            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, precinct);
             
             forecasts.Add(new ForecastPoint
             {
@@ -588,7 +588,7 @@ public class MachineLearningService(
         return forecasts;
     }
 
-    private List<ForecastPoint> GenerateSSAForecast(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData)
+    private List<ForecastPoint> GenerateSSAForecast(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData, int? precinct = null)
     {
         var forecasts = new List<ForecastPoint>();
         var dataView = mlContext.Data.LoadFromEnumerable(data);
@@ -620,7 +620,7 @@ public class MachineLearningService(
             var upperBound = forecast.UpperBoundValues?[i] ?? forecastValue * 1.2f;
 
             // Determine trend and risk level
-            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData);
+            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, precinct);
 
             forecasts.Add(new ForecastPoint
             {
@@ -637,14 +637,14 @@ public class MachineLearningService(
         return forecasts;
     }
 
-    private List<ForecastPoint> GenerateSeasonalForecast(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData)
+    private List<ForecastPoint> GenerateSeasonalForecast(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData, int? precinct = null)
     {
         var forecasts = new List<ForecastPoint>();
         
         if (data.Count < 12)
         {
             // Not enough data for seasonal analysis, fall back to linear
-            return GenerateLinearTrendForecast(data, parameters, clusterData);
+            return GenerateLinearTrendForecast(data, parameters, clusterData, precinct);
         }
 
         // Calculate seasonal pattern (monthly averages)
@@ -678,7 +678,7 @@ public class MachineLearningService(
             // Calculate confidence bounds based on historical variance
             var errorMargin = recentAverage * (parameters.IncludeSeasonality ? 0.25 : 0.2);
             
-            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData);
+            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, precinct);
             
             forecasts.Add(new ForecastPoint
             {
@@ -698,10 +698,16 @@ public class MachineLearningService(
     private (string trend, string riskLevel) AnalyzeForecastTrend(
         double forecastValue, 
         double recentAverage, 
-        IEnumerable<ClusterGroup> allClusterData)
+        IEnumerable<ClusterGroup> allClusterData,
+        int? targetPrecinct = null)
     {
         // Calculate dynamic thresholds based on historical data distribution
-        var thresholds = CalculateDynamicRiskThresholds(allClusterData);
+        var thresholds = CalculateEnhancedDynamicRiskThresholds(allClusterData);
+        
+        // Use precinct-specific thresholds if available, otherwise fall back to global
+        var activeThresholds = targetPrecinct.HasValue && thresholds.PrecinctSpecificThresholds.ContainsKey(targetPrecinct.Value)
+            ? thresholds.PrecinctSpecificThresholds[targetPrecinct.Value]
+            : thresholds.GlobalThresholds;
         
         // Trend analysis (keep simple thresholds)
         var trend = forecastValue > recentAverage * 1.1 ? "increasing" :
@@ -709,69 +715,163 @@ public class MachineLearningService(
                    
         // Risk analysis using dynamic thresholds
         var ratio = recentAverage > 0 ? forecastValue / recentAverage : 1.0;
-        var riskLevel = ratio > thresholds.highMax ? "critical" :
-                       ratio > thresholds.mediumMax ? "high" :
-                       ratio > thresholds.lowMax ? "medium" : "low";
+        var riskLevel = ratio > activeThresholds.HighMax ? "critical" :
+                       ratio > activeThresholds.MediumMax ? "high" :
+                       ratio > activeThresholds.LowMax ? "medium" : "low";
                        
         return (trend, riskLevel);
     }
     
     private (double lowMax, double mediumMax, double highMax) CalculateDynamicRiskThresholds(IEnumerable<ClusterGroup> clusterData)
     {
+        // Legacy method - maintained for backward compatibility
+        var enhanced = CalculateEnhancedDynamicRiskThresholds(clusterData);
+        return (enhanced.GlobalThresholds.LowMax, enhanced.GlobalThresholds.MediumMax, enhanced.GlobalThresholds.HighMax);
+    }
+    
+    private ThresholdCalculationResult CalculateEnhancedDynamicRiskThresholds(IEnumerable<ClusterGroup> clusterData)
+    {
         try
         {
-            // Calculate prediction vs historical ratios from all available data
-            var ratios = new List<double>();
+            var result = new Dictionary<string, object>
+            {
+                ["GlobalThresholds"] = new { LowMax = 0.8, MediumMax = 1.2, HighMax = 1.5 },
+                ["PrecinctSpecificThresholds"] = new Dictionary<int, object>(),
+                ["TotalDataPointsUsed"] = 0,
+                ["DataPointsPerPrecinct"] = new Dictionary<int, int>(),
+                ["GlobalStatistics"] = new Dictionary<string, double>(),
+                ["PrecinctStatistics"] = new Dictionary<int, Dictionary<string, double>>(),
+                ["Warnings"] = new List<string>()
+            };
             
-            // Group by precinct/crime type to get historical averages
-            var grouped = clusterData
+            var warnings = (List<string>)result["Warnings"];
+            var precinctThresholds = (Dictionary<int, object>)result["PrecinctSpecificThresholds"];
+            var dataPointsPerPrecinct = (Dictionary<int, int>)result["DataPointsPerPrecinct"];
+            var precinctStats = (Dictionary<int, Dictionary<string, double>>)result["PrecinctStatistics"];
+            
+            // Group by precinct/crime type to get historical patterns
+            var allGroups = clusterData
                 .SelectMany(c => c.ClusterItems)
                 .GroupBy(item => new { Precinct = (int)item.Precinct, CrimeType = (int)item.CrimeType })
                 .Where(g => g.Count() > 6) // Need reasonable sample size
                 .ToList();
-                
-            foreach (var group in grouped)
+            
+            if (allGroups.Count == 0)
             {
+                warnings.Add("No sufficient data for threshold calculation, using defaults");
+                return CreateThresholdResult(result, warnings);
+            }
+            
+            // Calculate ratios for each precinct-crime type combination
+            var globalRatiosWithWeights = new List<(double ratio, int weight)>();
+            var precinctRatios = new Dictionary<int, List<double>>();
+            
+            foreach (var group in allGroups)
+            {
+                var precinct = group.Key.Precinct;
                 var items = group.OrderBy(i => new DateTime(i.Year, i.Month, 1)).ToList();
-                if (items.Count < 12) continue;
+                
+                if (items.Count < 12) continue; // Need at least 12 months
                 
                 // Calculate recent vs historical ratios
-                var recent = items.TakeLast(6).Count();
-                var older = items.Take(items.Count - 6).Count();
-                var avgOlder = older / Math.Max(1, items.Count - 6);
+                var recentCount = items.TakeLast(6).Count();
+                var olderItems = items.Take(items.Count - 6).ToList();
+                var avgOlder = olderItems.Count / Math.Max(1.0, (items.Count - 6) / 6.0); // Average per 6-month period
                 
                 if (avgOlder > 0)
                 {
-                    var ratio = recent / (double)avgOlder;
-                    ratios.Add(ratio);
+                    var ratio = recentCount / avgOlder;
+                    var weight = items.Count; // Weight by amount of data
+                    
+                    globalRatiosWithWeights.Add((ratio, weight));
+                    
+                    // Store for precinct-specific calculation
+                    if (!precinctRatios.ContainsKey(precinct))
+                        precinctRatios[precinct] = new List<double>();
+                    precinctRatios[precinct].Add(ratio);
+                    
+                    // Update data points counter
+                    dataPointsPerPrecinct[precinct] = dataPointsPerPrecinct.GetValueOrDefault(precinct, 0) + items.Count;
                 }
             }
             
-            if (ratios.Count < 5) // Fallback to default thresholds
+            // Calculate global weighted mean thresholds
+            if (globalRatiosWithWeights.Count >= 5)
             {
-                return (0.8, 1.2, 1.5);
+                var globalThresholds = CalculateWeightedPercentileThresholds(globalRatiosWithWeights);
+                result["GlobalThresholds"] = new 
+                {
+                    LowMax = globalThresholds.lowMax,
+                    MediumMax = globalThresholds.mediumMax, 
+                    HighMax = globalThresholds.highMax
+                };
+                
+                // Calculate global statistics
+                var totalWeight = globalRatiosWithWeights.Sum(x => x.weight);
+                var weightedMean = globalRatiosWithWeights.Sum(x => x.ratio * x.weight) / totalWeight;
+                var globalStats = new Dictionary<string, double>
+                {
+                    ["WeightedMean"] = weightedMean,
+                    ["TotalDataPoints"] = globalRatiosWithWeights.Sum(x => x.weight),
+                    ["PrecinctsCovered"] = precinctRatios.Keys.Count
+                };
+                result["GlobalStatistics"] = globalStats;
+                result["TotalDataPointsUsed"] = (int)globalStats["TotalDataPoints"];
+            }
+            else
+            {
+                warnings.Add($"Insufficient data for global thresholds ({globalRatiosWithWeights.Count} data points), using defaults");
             }
             
-            // Calculate percentiles for dynamic thresholds
-            ratios.Sort();
-            var percentile25 = ratios[Math.Max(0, (int)(ratios.Count * 0.25))];
-            var percentile75 = ratios[Math.Max(0, (int)(ratios.Count * 0.75))];
-            var percentile90 = ratios[Math.Max(0, (int)(ratios.Count * 0.90))];
+            // Calculate precinct-specific thresholds
+            foreach (var (precinct, ratios) in precinctRatios)
+            {
+                if (ratios.Count >= 3) // Minimum for precinct-specific calculation
+                {
+                    var sortedRatios = ratios.OrderBy(r => r).ToList();
+                    var precinctThreshold = CalculateSimplePercentileThresholds(sortedRatios);
+                    
+                    precinctThresholds[precinct] = new 
+                    {
+                        LowMax = precinctThreshold.lowMax,
+                        MediumMax = precinctThreshold.mediumMax,
+                        HighMax = precinctThreshold.highMax
+                    };
+                    
+                    // Calculate precinct statistics
+                    precinctStats[precinct] = new Dictionary<string, double>
+                    {
+                        ["Mean"] = ratios.Average(),
+                        ["DataPoints"] = ratios.Count,
+                        ["Min"] = ratios.Min(),
+                        ["Max"] = ratios.Max()
+                    };
+                }
+                else
+                {
+                    warnings.Add($"Insufficient data for precinct {precinct} specific thresholds ({ratios.Count} data points), using global");
+                }
+            }
             
-            // Apply safety bounds to prevent extreme values
-            var lowMax = Math.Max(0.6, Math.Min(1.0, percentile25));
-            var mediumMax = Math.Max(1.0, Math.Min(1.4, percentile75));
-            var highMax = Math.Max(1.3, Math.Min(2.0, percentile90));
+            logger.LogInformation("Enhanced thresholds calculated: Global from {GlobalPoints} weighted data points, {PrecinctCount} precinct-specific thresholds", 
+                globalRatiosWithWeights.Sum(x => x.weight), precinctThresholds.Count);
             
-            logger.LogDebug("Dynamic thresholds calculated: Low={Low:F2}, Medium={Medium:F2}, High={High:F2} from {Count} data points", 
-                lowMax, mediumMax, highMax, ratios.Count);
-            
-            return (lowMax, mediumMax, highMax);
+            return CreateThresholdResult(result, warnings);
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Error calculating dynamic thresholds, using defaults");
-            return (0.8, 1.2, 1.5); // Safe defaults
+            logger.LogWarning(ex, "Error calculating enhanced dynamic thresholds, using defaults");
+            var fallbackResult = new Dictionary<string, object>
+            {
+                ["GlobalThresholds"] = new { LowMax = 0.8, MediumMax = 1.2, HighMax = 1.5 },
+                ["PrecinctSpecificThresholds"] = new Dictionary<int, object>(),
+                ["TotalDataPointsUsed"] = 0,
+                ["DataPointsPerPrecinct"] = new Dictionary<int, int>(),
+                ["GlobalStatistics"] = new Dictionary<string, double>(),
+                ["PrecinctStatistics"] = new Dictionary<int, Dictionary<string, double>>(),
+                ["Warnings"] = new List<string> { "Error in threshold calculation, using safe defaults" }
+            };
+            return CreateThresholdResult(fallbackResult, (List<string>)fallbackResult["Warnings"]);
         }
     }
 
@@ -848,6 +948,108 @@ public class MachineLearningService(
         var upperBound = q3 + 1.5f * iqr;
 
         return values.Where(v => v < lowerBound || v > upperBound).ToList();
+    }
+    
+    private (double lowMax, double mediumMax, double highMax) CalculateWeightedPercentileThresholds(
+        List<(double ratio, int weight)> weightedRatios)
+    {
+        // Sort by ratio value
+        var sorted = weightedRatios.OrderBy(x => x.ratio).ToList();
+        var totalWeight = sorted.Sum(x => x.weight);
+        
+        // Calculate weighted percentiles
+        var percentile25 = CalculateWeightedPercentile(sorted, totalWeight, 0.25);
+        var percentile75 = CalculateWeightedPercentile(sorted, totalWeight, 0.75);
+        var percentile90 = CalculateWeightedPercentile(sorted, totalWeight, 0.90);
+        
+        // Apply safety bounds to prevent extreme values
+        var lowMax = Math.Max(0.6, Math.Min(1.0, percentile25));
+        var mediumMax = Math.Max(1.0, Math.Min(1.4, percentile75));
+        var highMax = Math.Max(1.3, Math.Min(2.0, percentile90));
+        
+        return (lowMax, mediumMax, highMax);
+    }
+    
+    private double CalculateWeightedPercentile(
+        List<(double ratio, int weight)> sortedWeightedRatios, 
+        int totalWeight, 
+        double percentile)
+    {
+        var targetWeight = totalWeight * percentile;
+        var cumulativeWeight = 0;
+        
+        for (int i = 0; i < sortedWeightedRatios.Count; i++)
+        {
+            cumulativeWeight += sortedWeightedRatios[i].weight;
+            
+            if (cumulativeWeight >= targetWeight)
+            {
+                // Linear interpolation between adjacent values if needed
+                if (i > 0 && cumulativeWeight > targetWeight)
+                {
+                    var prevWeight = cumulativeWeight - sortedWeightedRatios[i].weight;
+                    var ratio = (targetWeight - prevWeight) / sortedWeightedRatios[i].weight;
+                    return sortedWeightedRatios[i - 1].ratio + 
+                           (sortedWeightedRatios[i].ratio - sortedWeightedRatios[i - 1].ratio) * ratio;
+                }
+                return sortedWeightedRatios[i].ratio;
+            }
+        }
+        
+        return sortedWeightedRatios.LastOrDefault().ratio;
+    }
+    
+    private (double lowMax, double mediumMax, double highMax) CalculateSimplePercentileThresholds(
+        List<double> sortedRatios)
+    {
+        if (sortedRatios.Count == 0) return (0.8, 1.2, 1.5);
+        
+        var percentile25 = sortedRatios[Math.Max(0, (int)(sortedRatios.Count * 0.25))];
+        var percentile75 = sortedRatios[Math.Max(0, (int)(sortedRatios.Count * 0.75))];
+        var percentile90 = sortedRatios[Math.Max(0, (int)(sortedRatios.Count * 0.90))];
+        
+        // Apply safety bounds
+        var lowMax = Math.Max(0.6, Math.Min(1.0, percentile25));
+        var mediumMax = Math.Max(1.0, Math.Min(1.4, percentile75));
+        var highMax = Math.Max(1.3, Math.Min(2.0, percentile90));
+        
+        return (lowMax, mediumMax, highMax);
+    }
+    
+    private ThresholdCalculationResult CreateThresholdResult(
+        Dictionary<string, object> result, 
+        List<string> warnings)
+    {
+        // Convert dictionary results to strongly typed objects
+        var globalThresholds = (dynamic)result["GlobalThresholds"];
+        var precinctThresholds = (Dictionary<int, object>)result["PrecinctSpecificThresholds"];
+        
+        return new ThresholdCalculationResult
+        {
+            GlobalThresholds = new DynamicThresholds
+            {
+                LowMax = globalThresholds.LowMax,
+                MediumMax = globalThresholds.MediumMax,
+                HighMax = globalThresholds.HighMax
+            },
+            PrecinctSpecificThresholds = precinctThresholds.ToDictionary(
+                kvp => kvp.Key,
+                kvp => {
+                    var threshold = (dynamic)kvp.Value;
+                    return new DynamicThresholds
+                    {
+                        LowMax = threshold.LowMax,
+                        MediumMax = threshold.MediumMax,
+                        HighMax = threshold.HighMax
+                    };
+                }
+            ),
+            TotalDataPointsUsed = (int)result["TotalDataPointsUsed"],
+            DataPointsPerPrecinct = (Dictionary<int, int>)result["DataPointsPerPrecinct"],
+            GlobalStatistics = (Dictionary<string, double>)result["GlobalStatistics"],
+            PrecinctStatistics = (Dictionary<int, Dictionary<string, double>>)result["PrecinctStatistics"],
+            Warnings = warnings
+        };
     }
 
     #endregion

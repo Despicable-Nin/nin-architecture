@@ -179,10 +179,14 @@ public record DynamicThresholds
 
 public record ThresholdCalculationResult
 {
-    public DynamicThresholds Thresholds { get; init; } = new();
-    public int DataPointsUsed { get; init; }
+    public DynamicThresholds GlobalThresholds { get; init; } = new();
+    public Dictionary<int, DynamicThresholds> PrecinctSpecificThresholds { get; init; } = new();
+    public int TotalDataPointsUsed { get; init; }
+    public Dictionary<int, int> DataPointsPerPrecinct { get; init; } = new();
     public string CalculationMethod { get; init; } = "percentile-based";
-    public Dictionary<string, double> Statistics { get; init; } = new();
+    public Dictionary<string, double> GlobalStatistics { get; init; } = new();
+    public Dictionary<int, Dictionary<string, double>> PrecinctStatistics { get; init; } = new();
+    public List<string> Warnings { get; init; } = new();
 }
 
 // Request models for API endpoints

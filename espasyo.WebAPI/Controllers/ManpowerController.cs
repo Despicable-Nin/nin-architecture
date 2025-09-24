@@ -1,6 +1,8 @@
 using espasyo.Application.UseCase.Manpower.Commands.CreateManpower;
+using espasyo.Application.UseCase.Manpower.Commands.UpdateManpower;
 using espasyo.Application.UseCase.Manpower.Queries.AnalyzeManpowerNeeds;
 using espasyo.Application.UseCase.Manpower.Queries.GetAllManpower;
+using espasyo.Application.UseCase.Manpower.Queries.GetManpowerById;
 using espasyo.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -61,6 +63,63 @@ public class ManpowerController : ControllerBase
             return BadRequest($"Failed to create manpower allocation: {ex.Message}");
         }
     }
+
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetManpowerById(Guid id)
+    {
+        try
+        {
+            var query = new GetManpowerByIdQuery { Id = id };
+            var result = await _mediator.Send(query);
+            
+            if (result == null)
+            {
+                return NotFound($"Manpower allocation with ID {id} not found");
+            }
+            
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to retrieve manpower allocation: {ex.Message}");
+        }
+    }
+
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateManpower(Guid id, [FromBody] UpdateManpowerCommand command)
+    {
+        try
+        {
+            command.Id = id; // Ensure the ID from the route is used
+            var success = await _mediator.Send(command);
+            
+            if (!success)
+            {
+                return NotFound($"Manpower allocation with ID {id} not found");
+            }
+            
+            return Ok(new { Id = id, Message = "Manpower allocation updated successfully" });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(ex.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to update manpower allocation: {ex.Message}");
+        }
+    }
+
 
     [HttpPost("analyze")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -154,6 +213,31 @@ public class ManpowerController : ControllerBase
         
         var calculatedOfficers = baseOfficers + (int)Math.Ceiling(predictedCrimes / crimesPerOfficer);
         return Math.Max(baseOfficers, Math.Min(calculatedOfficers, 20)); // Cap at 20 officers max
+    }
+    
+    /// <summary>
+    /// Get all available precincts/barangays
+    /// </summary>
+    [HttpGet("precincts")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public IActionResult GetPrecincts()
+    {
+        try
+        {
+            var precincts = Enum.GetValues<Barangay>()
+                .Select(b => new { 
+                    Value = (int)b, 
+                    Name = b.ToString().Replace('_', ' ') 
+                })
+                .OrderBy(p => p.Value)
+                .ToList();
+            
+            return Ok(precincts);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to retrieve precincts: {ex.Message}");
+        }
     }
     
     /// <summary>

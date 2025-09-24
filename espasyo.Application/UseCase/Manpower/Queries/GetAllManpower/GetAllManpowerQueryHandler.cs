@@ -37,8 +37,11 @@ public class GetAllManpowerQueryHandler : IRequestHandler<GetAllManpowerQuery, I
         return manpowers.Select(m => new ManpowerResponse
         {
             Id = m.Id,
-            Precinct = m.Precinct,
-            PrecinctName = m.Precinct.ToString(),
+            PrecinctId = m.PrecinctId,
+            PrecinctName = m.Precinct?.Name ?? "Unknown",
+            PrecinctCode = m.Precinct?.Code ?? "N/A",
+            // Map legacy enum property for backward compatibility
+            Precinct = m.PrecinctEnum,
             Year = m.Year,
             AllocatedCount = m.AllocatedCount,
             MildThreshold = m.MildThreshold,

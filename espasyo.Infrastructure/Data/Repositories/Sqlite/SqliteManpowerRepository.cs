@@ -17,36 +17,42 @@ public class SqliteManpowerRepository : IManpowerRepository
     public async Task<IEnumerable<Manpower>> GetAllManpowerAsync()
     {
         return await _context.Manpowers
+            .Include(m => m.Precinct)
             .OrderBy(m => m.Year)
-            .ThenBy(m => m.Precinct)
+            .ThenBy(m => m.PrecinctEnum)
             .ToListAsync();
     }
 
     public async Task<IEnumerable<Manpower>> GetByYearAsync(int year)
     {
         return await _context.Manpowers
+            .Include(m => m.Precinct)
             .Where(m => m.Year == year)
-            .OrderBy(m => m.Precinct)
+            .OrderBy(m => m.PrecinctEnum)
             .ToListAsync();
     }
 
     public async Task<Manpower?> GetByPrecinctAndYearAsync(Barangay precinct, int year)
     {
         return await _context.Manpowers
-            .FirstOrDefaultAsync(m => m.Precinct == precinct && m.Year == year);
+            .Include(m => m.Precinct)
+            .FirstOrDefaultAsync(m => m.PrecinctEnum == precinct && m.Year == year);
     }
 
     public async Task<IEnumerable<Manpower>> GetByPrecinctAsync(Barangay precinct)
     {
         return await _context.Manpowers
-            .Where(m => m.Precinct == precinct)
+            .Include(m => m.Precinct)
+            .Where(m => m.PrecinctEnum == precinct)
             .OrderBy(m => m.Year)
             .ToListAsync();
     }
 
     public async Task<Manpower?> GetByIdAsync(Guid id)
     {
-        return await _context.Manpowers.FindAsync(id);
+        return await _context.Manpowers
+            .Include(m => m.Precinct)
+            .FirstOrDefaultAsync(m => m.Id == id);
     }
 
     public async Task<Manpower> CreateAsync(Manpower manpower)
@@ -79,14 +85,14 @@ public class SqliteManpowerRepository : IManpowerRepository
     public async Task<bool> ExistsAsync(Barangay precinct, int year)
     {
         return await _context.Manpowers
-            .AnyAsync(m => m.Precinct == precinct && m.Year == year);
+            .AnyAsync(m => m.PrecinctEnum == precinct && m.Year == year);
     }
 
     public async Task<Dictionary<Barangay, int>> GetTotalManpowerByPrecinctAsync(int year)
     {
         return await _context.Manpowers
             .Where(m => m.Year == year)
-            .GroupBy(m => m.Precinct)
+            .GroupBy(m => m.PrecinctEnum)
             .ToDictionaryAsync(
                 g => g.Key,
                 g => g.Sum(m => m.AllocatedCount)
@@ -98,8 +104,8 @@ public class SqliteManpowerRepository : IManpowerRepository
         var manpowerData = await GetByYearAsync(year);
         
         return manpowerData.Where(m => 
-            predictedCaseCounts.ContainsKey(m.Precinct) && 
-            m.RequiresManpowerAdjustment(predictedCaseCounts[m.Precinct])
+            predictedCaseCounts.ContainsKey(m.PrecinctEnum) && 
+            m.RequiresManpowerAdjustment(predictedCaseCounts[m.PrecinctEnum])
         );
     }
 }

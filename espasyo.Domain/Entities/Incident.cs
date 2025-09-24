@@ -44,6 +44,11 @@ namespace espasyo.Domain.Entities
 
         public MotiveEnum Motive { get;  set; }
 
+        // Foreign key to Precinct table
+        public Guid PrecinctId { get; set; }
+        public virtual Precinct Precinct { get; set; } = null!;
+        
+        // Legacy enum property - can be removed after migration
         public Barangay PoliceDistrict { get;  set; }
         public string? AdditionalInformation { get; set; }
 

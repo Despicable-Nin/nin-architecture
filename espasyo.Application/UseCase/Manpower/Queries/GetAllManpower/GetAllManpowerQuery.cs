@@ -12,8 +12,11 @@ public class GetAllManpowerQuery : IRequest<IEnumerable<ManpowerResponse>>
 public class ManpowerResponse
 {
     public Guid Id { get; set; }
-    public Barangay Precinct { get; set; }
+    public Guid PrecinctId { get; set; }
     public string PrecinctName { get; set; } = string.Empty;
+    public string PrecinctCode { get; set; } = string.Empty;
+    // Legacy enum property for backward compatibility
+    public Barangay Precinct { get; set; }
     public int Year { get; set; }
     public int AllocatedCount { get; set; }
     public int MildThreshold { get; set; }

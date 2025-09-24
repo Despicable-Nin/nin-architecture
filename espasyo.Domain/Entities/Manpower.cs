@@ -7,9 +7,22 @@ public class Manpower : BaseEntity
 {
     protected Manpower() { }
 
+    public Manpower(Guid precinctId, int year, int allocatedCount)
+    {
+        PrecinctId = precinctId;
+        Year = year;
+        AllocatedCount = allocatedCount;
+        MildThreshold = 10;  // Default values
+        ModerateThreshold = 25;
+        CriticalThreshold = 50;
+        CreatedAt = DateTimeOffset.UtcNow;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+    
+    // Legacy constructor for backward compatibility
     public Manpower(Barangay precinct, int year, int allocatedCount)
     {
-        Precinct = precinct;
+        PrecinctEnum = precinct;
         Year = year;
         AllocatedCount = allocatedCount;
         MildThreshold = 10;  // Default values
@@ -19,9 +32,22 @@ public class Manpower : BaseEntity
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
+    public Manpower(Guid precinctId, int year, int allocatedCount, int mildThreshold, int moderateThreshold, int criticalThreshold)
+    {
+        PrecinctId = precinctId;
+        Year = year;
+        AllocatedCount = allocatedCount;
+        MildThreshold = mildThreshold;
+        ModerateThreshold = moderateThreshold;
+        CriticalThreshold = criticalThreshold;
+        CreatedAt = DateTimeOffset.UtcNow;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+    
+    // Legacy constructor for backward compatibility  
     public Manpower(Barangay precinct, int year, int allocatedCount, int mildThreshold, int moderateThreshold, int criticalThreshold)
     {
-        Precinct = precinct;
+        PrecinctEnum = precinct;
         Year = year;
         AllocatedCount = allocatedCount;
         MildThreshold = mildThreshold;
@@ -31,7 +57,12 @@ public class Manpower : BaseEntity
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
-    public Barangay Precinct { get; private set; }
+    // Foreign key to Precinct table
+    public Guid PrecinctId { get; private set; }
+    public virtual Precinct Precinct { get; set; } = null!;
+    
+    // Legacy enum property - can be removed after migration
+    public Barangay PrecinctEnum { get; private set; }
     public int Year { get; private set; }
     public int AllocatedCount { get; private set; }
     public int MildThreshold { get; private set; }
@@ -51,6 +82,32 @@ public class Manpower : BaseEntity
             
         AllocatedCount = newCount;
         UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>
+    /// Updates the risk thresholds for this precinct
+    /// </summary>
+    public void UpdateThresholds(int mildThreshold, int moderateThreshold, int criticalThreshold)
+    {
+        if (mildThreshold < 1 || moderateThreshold < 1 || criticalThreshold < 1)
+            throw new ArgumentException("All thresholds must be at least 1");
+            
+        if (mildThreshold >= moderateThreshold || moderateThreshold >= criticalThreshold)
+            throw new ArgumentException("Thresholds must be in ascending order: mild < moderate < critical");
+            
+        MildThreshold = mildThreshold;
+        ModerateThreshold = moderateThreshold;
+        CriticalThreshold = criticalThreshold;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>
+    /// Updates both allocation and thresholds in a single operation
+    /// </summary>
+    public void UpdateAllocationAndThresholds(int newCount, int mildThreshold, int moderateThreshold, int criticalThreshold)
+    {
+        UpdateAllocation(newCount);
+        UpdateThresholds(mildThreshold, moderateThreshold, criticalThreshold);
     }
 
     /// <summary>

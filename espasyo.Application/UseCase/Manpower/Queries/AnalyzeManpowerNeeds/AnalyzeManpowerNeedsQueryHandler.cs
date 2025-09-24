@@ -15,7 +15,7 @@ public class AnalyzeManpowerNeedsQueryHandler : IRequestHandler<AnalyzeManpowerN
     public async Task<ManpowerAnalysisResponse> Handle(AnalyzeManpowerNeedsQuery request, CancellationToken cancellationToken)
     {
         var manpowerAllocations = await _manpowerRepository.GetByYearAsync(request.Year);
-        var manpowerDict = manpowerAllocations.ToDictionary(m => m.Precinct, m => m);
+        var manpowerDict = manpowerAllocations.ToDictionary(m => m.PrecinctEnum, m => m);
         
         var analyses = new List<PrecinctAnalysis>();
         var summary = new ManpowerSummary();

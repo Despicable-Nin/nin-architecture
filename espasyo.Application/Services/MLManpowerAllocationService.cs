@@ -335,7 +335,7 @@ public class MLManpowerAllocationService
                 {
                     manpowerData.Add(new HistoricalManpowerData
                     {
-                        Precinct = data.Precinct,
+                        Precinct = data.PrecinctEnum,
                         Year = year,
                         Month = month,
                         StaffingLevel = data.AllocatedCount

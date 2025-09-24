@@ -12,6 +12,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Street> Streets { get; set; }
     public DbSet<Incident> Incidents { get; set; }
     public DbSet<Manpower> Manpowers { get; set; }
+    public DbSet<Precinct> Precincts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

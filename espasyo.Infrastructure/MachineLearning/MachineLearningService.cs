@@ -524,60 +524,20 @@ public class MachineLearningService(
         return await Task.Run(() =>
         {
             var forecasts = new List<ForecastPoint>();
-            var dataView = mlContext.Data.LoadFromEnumerable(data);
 
             try
             {
-                // Use ML.NET's SSA (Singular Spectrum Analysis) for time series forecasting
-                var pipeline = mlContext.Forecasting.ForecastBySsa(
-                    outputColumnName: "ForecastedValues",
-                    inputColumnName: nameof(TimeSeriesData.Value),
-                    windowSize: Math.Min(12, data.Count / 2), // Seasonal window
-                    seriesLength: data.Count,
-                    trainSize: data.Count,
-                    horizon: parameters.Horizon,
-                    confidenceLevel: (float)parameters.ConfidenceLevel,
-                    confidenceLowerBoundColumn: "LowerBound",
-                    confidenceUpperBoundColumn: "UpperBound");
-
-                var model = pipeline.Fit(dataView);
-                var forecastEngine = model.CreateTimeSeriesEngine<TimeSeriesData, ForecastOutput>(mlContext);
-                var forecast = forecastEngine.Predict();
-
-                var lastDate = data.Max(d => d.Date);
-                var recentAverage = data.TakeLast(6).Average(d => d.Value);
-
-                for (int i = 0; i < parameters.Horizon; i++)
+                // Choose forecasting method based on model type
+                forecasts = parameters.ModelType.ToLower() switch
                 {
-                    var forecastDate = lastDate.AddMonths(i + 1);
-                    var forecastValue = forecast.ForecastedValues[i];
-                    var lowerBound = forecast.LowerBoundValues?[i] ?? forecastValue * 0.8f;
-                    var upperBound = forecast.UpperBoundValues?[i] ?? forecastValue * 1.2f;
-
-                    // Determine trend
-                    var trend = forecastValue > recentAverage * 1.1 ? "increasing" :
-                               forecastValue < recentAverage * 0.9 ? "decreasing" : "stable";
-
-                    // Determine risk level
-                    var riskLevel = forecastValue > recentAverage * 1.5 ? "critical" :
-                                   forecastValue > recentAverage * 1.2 ? "high" :
-                                   forecastValue > recentAverage * 0.8 ? "medium" : "low";
-
-                    forecasts.Add(new ForecastPoint
-                    {
-                        Timestamp = forecastDate,
-                        Forecast = Math.Max(0, forecastValue), // Ensure non-negative
-                        LowerBound = Math.Max(0, lowerBound),
-                        UpperBound = Math.Max(0, upperBound),
-                        Confidence = parameters.ConfidenceLevel,
-                        Trend = trend,
-                        RiskLevel = riskLevel
-                    });
-                }
+                    "linear" => GenerateLinearTrendForecast(data, parameters),
+                    "seasonal" => GenerateSeasonalForecast(data, parameters),
+                    "ssa" or _ => GenerateSSAForecast(data, parameters)
+                };
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "SSA forecasting failed, falling back to simple linear trend");
+                logger.LogWarning(ex, "{ModelType} forecasting failed, falling back to simple linear trend", parameters.ModelType);
                 
                 // Fallback to simple linear trend
                 forecasts = GenerateLinearTrendForecast(data, parameters);
@@ -608,14 +568,9 @@ public class MachineLearningService(
         for (int i = 0; i < parameters.Horizon; i++)
         {
             var forecastValue = Math.Max(0, intercept + slope * (n + i + 1));
-            var errorMargin = recentAverage * 0.2; // 20% error margin
+            var errorMargin = recentAverage * (parameters.WeightRecentData ? 0.15 : 0.2);
             
-            var trend = forecastValue > recentAverage * 1.1 ? "increasing" :
-                       forecastValue < recentAverage * 0.9 ? "decreasing" : "stable";
-                       
-            var riskLevel = forecastValue > recentAverage * 1.5 ? "critical" :
-                           forecastValue > recentAverage * 1.2 ? "high" :
-                           forecastValue > recentAverage * 0.8 ? "medium" : "low";
+            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage);
             
             forecasts.Add(new ForecastPoint
             {
@@ -630,6 +585,131 @@ public class MachineLearningService(
         }
         
         return forecasts;
+    }
+
+    private List<ForecastPoint> GenerateSSAForecast(List<TimeSeriesData> data, ForecastParameters parameters)
+    {
+        var forecasts = new List<ForecastPoint>();
+        var dataView = mlContext.Data.LoadFromEnumerable(data);
+
+        // Use ML.NET's SSA (Singular Spectrum Analysis) for time series forecasting
+        var pipeline = mlContext.Forecasting.ForecastBySsa(
+            outputColumnName: "ForecastedValues",
+            inputColumnName: nameof(TimeSeriesData.Value),
+            windowSize: Math.Min(12, data.Count / 2), // Seasonal window
+            seriesLength: data.Count,
+            trainSize: data.Count,
+            horizon: parameters.Horizon,
+            confidenceLevel: (float)parameters.ConfidenceLevel,
+            confidenceLowerBoundColumn: "LowerBound",
+            confidenceUpperBoundColumn: "UpperBound");
+
+        var model = pipeline.Fit(dataView);
+        var forecastEngine = model.CreateTimeSeriesEngine<TimeSeriesData, ForecastOutput>(mlContext);
+        var forecast = forecastEngine.Predict();
+
+        var lastDate = data.Max(d => d.Date);
+        var recentAverage = data.TakeLast(6).Average(d => d.Value);
+
+        for (int i = 0; i < parameters.Horizon; i++)
+        {
+            var forecastDate = lastDate.AddMonths(i + 1);
+            var forecastValue = forecast.ForecastedValues[i];
+            var lowerBound = forecast.LowerBoundValues?[i] ?? forecastValue * 0.8f;
+            var upperBound = forecast.UpperBoundValues?[i] ?? forecastValue * 1.2f;
+
+            // Determine trend and risk level
+            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage);
+
+            forecasts.Add(new ForecastPoint
+            {
+                Timestamp = forecastDate,
+                Forecast = Math.Max(0, forecastValue),
+                LowerBound = Math.Max(0, lowerBound),
+                UpperBound = Math.Max(0, upperBound),
+                Confidence = parameters.ConfidenceLevel,
+                Trend = trend,
+                RiskLevel = riskLevel
+            });
+        }
+
+        return forecasts;
+    }
+
+    private List<ForecastPoint> GenerateSeasonalForecast(List<TimeSeriesData> data, ForecastParameters parameters)
+    {
+        var forecasts = new List<ForecastPoint>();
+        
+        if (data.Count < 12)
+        {
+            // Not enough data for seasonal analysis, fall back to linear
+            return GenerateLinearTrendForecast(data, parameters);
+        }
+
+        // Calculate seasonal pattern (monthly averages)
+        var monthlyAverages = data
+            .GroupBy(d => d.Date.Month)
+            .ToDictionary(g => g.Key, g => g.Average(d => d.Value));
+
+        // Calculate overall trend
+        var recent = data.TakeLast(Math.Min(12, data.Count)).ToList();
+        var n = recent.Count;
+        var sumX = n * (n + 1) / 2.0;
+        var sumY = recent.Sum(d => d.Value);
+        var sumXY = recent.Select((d, i) => (i + 1) * d.Value).Sum();
+        var sumXX = n * (n + 1) * (2 * n + 1) / 6.0;
+        
+        var slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        var intercept = (sumY - slope * sumX) / n;
+        
+        var lastDate = data.Max(d => d.Date);
+        var recentAverage = recent.Average(d => d.Value);
+        
+        for (int i = 0; i < parameters.Horizon; i++)
+        {
+            var forecastDate = lastDate.AddMonths(i + 1);
+            var trendValue = intercept + slope * (n + i + 1);
+            
+            // Apply seasonal adjustment
+            var seasonalMultiplier = monthlyAverages.GetValueOrDefault(forecastDate.Month, recentAverage) / recentAverage;
+            var forecastValue = Math.Max(0, trendValue * seasonalMultiplier);
+            
+            // Calculate confidence bounds based on historical variance
+            var errorMargin = recentAverage * (parameters.IncludeSeasonality ? 0.25 : 0.2);
+            
+            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage);
+            
+            forecasts.Add(new ForecastPoint
+            {
+                Timestamp = forecastDate,
+                Forecast = forecastValue,
+                LowerBound = Math.Max(0, forecastValue - errorMargin),
+                UpperBound = forecastValue + errorMargin,
+                Confidence = parameters.ConfidenceLevel * 0.9, // Slightly lower confidence for seasonal
+                Trend = trend,
+                RiskLevel = riskLevel
+            });
+        }
+        
+        return forecasts;
+    }
+    
+    private static (string trend, string riskLevel) AnalyzeForecastTrend(double forecastValue, double recentAverage)
+    {
+        var trendThresholdHigh = 1.1;
+        var trendThresholdLow = 0.9;
+        var riskThresholdCritical = 1.5;
+        var riskThresholdHigh = 1.2;
+        var riskThresholdMedium = 0.8;
+        
+        var trend = forecastValue > recentAverage * trendThresholdHigh ? "increasing" :
+                   forecastValue < recentAverage * trendThresholdLow ? "decreasing" : "stable";
+                   
+        var riskLevel = forecastValue > recentAverage * riskThresholdCritical ? "critical" :
+                       forecastValue > recentAverage * riskThresholdHigh ? "high" :
+                       forecastValue > recentAverage * riskThresholdMedium ? "medium" : "low";
+                       
+        return (trend, riskLevel);
     }
 
     private ForecastMetrics CalculateOverallMetrics(List<ForecastSeries> series)

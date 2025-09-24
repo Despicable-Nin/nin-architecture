@@ -15,6 +15,7 @@ builder.AddServiceDefaults();
 // Add services to the container.
 
 builder.Services.AddApplication();
+builder.Services.AddMLServices(builder.Configuration);
 
 builder.Services.AddInfrastructure(builder.Configuration);
 

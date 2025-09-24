@@ -11,6 +11,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Product> Products { get; set; }
     public DbSet<Street> Streets { get; set; }
     public DbSet<Incident> Incidents { get; set; }
+    public DbSet<Manpower> Manpowers { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

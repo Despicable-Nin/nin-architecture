@@ -53,6 +53,7 @@ public static class InfrastructureDependencyInjection
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IStreetRepository, StreetRepository>();
+        services.AddScoped<IManpowerRepository, ManpowerRepository>();
         services.AddTransient<IGeocodeService, AddressGeocodeService>();
         services.AddTransient<IMachineLearningService, MachineLearningService>();
 

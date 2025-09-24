@@ -14,6 +14,9 @@ public class Program
     private static async Task Main(string[] args)
     {
         WriteLine("Starting seeding process...");
+        
+        // Check if we should run in non-interactive mode
+        var isNonInteractive = args.Contains("--non-interactive") || args.Contains("-n");
 
         // Automatically seed streets
         WriteLine("Seeding Streets...");
@@ -22,10 +25,37 @@ public class Program
         // Automatically seed incidents
         WriteLine("Seeding Incidents...");
         await IncidentGenerator.SeedIfNoIncidents(Client, Semaphore);
+        
+        // Automatically seed work force allocations
+        WriteLine("Seeding Manpower Allocations...");
+        await ManpowerSeeder.SeedCurrentYearManpower(Client);
 
         WriteLine("Seeding process complete.");
-        WriteLine("Press any key to exit...");
-        ReadKey();
+        
+        // Handle exit behavior based on environment and arguments
+        if (isNonInteractive)
+        {
+            WriteLine("Running in non-interactive mode. Exiting automatically.");
+            return;
+        }
+        
+        // Try to wait for user input, but handle cases where it's not available
+        try
+        {
+            if (!IsInputRedirected && Environment.UserInteractive)
+            {
+                WriteLine("Press any key to exit...");
+                ReadKey();
+            }
+            else
+            {
+                WriteLine("Console input not available. Exiting automatically.");
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            WriteLine("Console input not available. Exiting automatically.");
+        }
     }
 }
 

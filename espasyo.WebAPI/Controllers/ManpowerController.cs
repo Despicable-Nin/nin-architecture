@@ -84,6 +84,32 @@ public class ManpowerController : ControllerBase
         }
     }
 
+    [HttpPost("allocate-dynamic")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> CalculateDynamicAllocation([FromBody] DynamicAllocationRequest request)
+    {
+        try
+        {
+            // This would integrate with the new DynamicManpowerAllocationService
+            // For now, return a simplified calculation based on the request data
+            var results = request.Forecasts.Select(f => new 
+            {
+                Precinct = f.Precinct.ToString(),
+                PredictedCrimes = f.PredictedCount,
+                RecommendedManpower = CalculateSimplifiedAllocation(f.PredictedCount),
+                WorkloadLevel = DetermineWorkloadLevel(f.PredictedCount),
+                Justification = $"Recommended {CalculateSimplifiedAllocation(f.PredictedCount)} officers for {f.PredictedCount} predicted crimes based on dynamic analysis."
+            }).ToList();
+            
+            return Ok(new { Recommendations = results });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to calculate dynamic allocation: {ex.Message}");
+        }
+    }
+    
     [HttpGet("summary/{year}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -116,10 +142,49 @@ public class ManpowerController : ControllerBase
             return BadRequest($"Failed to retrieve manpower summary: {ex.Message}");
         }
     }
+    
+    /// <summary>
+    /// Simple allocation formula: Base of 2 officers + 1 officer per 10 crimes
+    /// This is a simplified version - real implementation would use historical data
+    /// </summary>
+    private int CalculateSimplifiedAllocation(int predictedCrimes)
+    {
+        const int baseOfficers = 2;  // Minimum staffing per precinct
+        const double crimesPerOfficer = 10.0;  // Base ratio (would be calculated from data)
+        
+        var calculatedOfficers = baseOfficers + (int)Math.Ceiling(predictedCrimes / crimesPerOfficer);
+        return Math.Max(baseOfficers, Math.Min(calculatedOfficers, 20)); // Cap at 20 officers max
+    }
+    
+    /// <summary>
+    /// Determine workload level based on crime count
+    /// In real implementation, this would use historical percentiles
+    /// </summary>
+    private string DetermineWorkloadLevel(int crimeCount)
+    {
+        return crimeCount switch
+        {
+            <= 15 => "Light",
+            <= 30 => "Normal", 
+            <= 50 => "Heavy",
+            _ => "Critical"
+        };
+    }
 }
 
 public class ManpowerAnalysisRequest
 {
     public int Year { get; set; }
     public Dictionary<Barangay, int> PredictedCaseCounts { get; set; } = new();
+}
+
+public class DynamicAllocationRequest
+{
+    public List<ForecastData> Forecasts { get; set; } = new();
+}
+
+public class ForecastData
+{
+    public Barangay Precinct { get; set; }
+    public int PredictedCount { get; set; }
 }

@@ -27,15 +27,6 @@ public class ManpowerConfiguration : IEntityTypeConfiguration<Manpower>
         builder.Property(m => m.AllocatedCount)
             .IsRequired();
 
-        builder.Property(m => m.MildThreshold)
-            .IsRequired();
-
-        builder.Property(m => m.ModerateThreshold)
-            .IsRequired();
-
-        builder.Property(m => m.CriticalThreshold)
-            .IsRequired();
-
         builder.Property(m => m.CreatedAt)
             .IsRequired();
 

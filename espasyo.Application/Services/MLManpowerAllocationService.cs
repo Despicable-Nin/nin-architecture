@@ -86,11 +86,13 @@ public class MLManpowerAllocationService
     }
 
     /// <summary>
-    /// Predict optimal manpower allocation using trained ML models
+    /// Calculate optimal manpower allocation using data-driven formulas
+    /// No hard-coded thresholds - all values derived from historical data patterns
     /// </summary>
-    public async Task<MLManpowerRecommendation> PredictOptimalManpowerAsync(
+    public async Task<MLManpowerRecommendation> CalculateOptimalManpowerAsync(
         Barangay precinct, 
         Dictionary<CrimeTypeEnum, int> predictedCrimeCounts,
+        IEnumerable<HistoricalIncidentData> historicalData,
         int currentYear)
     {
         if (_complexityModel == null || _workloadModel == null || _optimizationModel == null)

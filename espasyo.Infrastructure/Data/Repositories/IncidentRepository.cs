@@ -111,6 +111,22 @@ public class IncidentRepository(ApplicationDbContext context) : IIncidentReposit
         await context.SaveChangesAsync(CancellationToken.None);
         return incident;
     }
+
+    public async Task<IEnumerable<Incident>> CreateIncidentsAsync(IEnumerable<Incident> incidents)
+    {
+        ArgumentNullException.ThrowIfNull(incidents);
+        
+        var incidentList = incidents.ToList();
+        if (incidentList.Count == 0)
+        {
+            return incidentList;
+        }
+
+        context.Incidents.AddRange(incidentList);
+        await context.SaveChangesAsync(CancellationToken.None);
+        
+        return incidentList;
+    }
     
     public async Task<Incident?> UpdateIncidentAsync(Incident incident)
     {

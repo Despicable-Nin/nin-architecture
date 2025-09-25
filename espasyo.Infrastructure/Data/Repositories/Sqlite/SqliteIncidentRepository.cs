@@ -121,6 +121,45 @@ public class SqliteIncidentRepository(SqliteApplicationDbContext context) : IInc
         await context.SaveChangesAsync(CancellationToken.None);
         return incident;
     }
+
+    public async Task<IEnumerable<Incident>> CreateIncidentsAsync(IEnumerable<Incident> incidents)
+    {
+        ArgumentNullException.ThrowIfNull(incidents);
+        
+        var incidentList = incidents.ToList();
+        if (incidentList.Count == 0)
+        {
+            return incidentList;
+        }
+
+        // Check for duplicate CaseIds within the batch and against existing records
+        var caseIds = incidentList.Where(i => !string.IsNullOrEmpty(i.CaseId)).Select(i => i.CaseId).ToList();
+        if (caseIds.Count > 0)
+        {
+            // Check for duplicates within the batch
+            var duplicatesInBatch = caseIds.GroupBy(x => x).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+            if (duplicatesInBatch.Count > 0)
+            {
+                throw new InvalidOperationException($"Duplicate CaseIds found in batch: {string.Join(", ", duplicatesInBatch)}");
+            }
+
+            // Check for existing CaseIds in database
+            var existingCaseIds = await context.Incidents
+                .Where(i => caseIds.Contains(i.CaseId))
+                .Select(i => i.CaseId)
+                .ToListAsync();
+                
+            if (existingCaseIds.Count > 0)
+            {
+                throw new InvalidOperationException($"The following CaseIds already exist: {string.Join(", ", existingCaseIds)}");
+            }
+        }
+
+        context.Incidents.AddRange(incidentList);
+        await context.SaveChangesAsync(CancellationToken.None);
+        
+        return incidentList;
+    }
     
     public async Task<Incident?> UpdateIncidentAsync(Incident incident)
     {

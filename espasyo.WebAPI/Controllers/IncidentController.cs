@@ -1,4 +1,5 @@
 using espasyo.Application.Incidents.Commands.CreateIncident;
+using espasyo.Application.Incidents.Commands.BulkCreateIncidents;
 using espasyo.Application.Incidents.Queries.GetClusters;
 using espasyo.Application.Incidents.Queries.GetPaginatedList;
 using espasyo.Application.Products.Queries.GetEnums;
@@ -29,6 +30,17 @@ public class IncidentController(IMediator mediator) : ControllerBase
     {
         var id = await mediator.Send( incident );
         return Created("api/incident", id);
+    }
+
+    // POST api/<IncidentController>/bulk
+    [HttpPost("bulk")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> BulkCreate([FromBody] BulkCreateIncidentsCommand command)
+    {
+        var result = await mediator.Send(command);
+        return Ok(result);
     }
 
     [HttpGet]

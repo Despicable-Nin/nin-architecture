@@ -16,6 +16,7 @@ public interface IIncidentRepository
     Task<Incident?> GetIncidentByCaseIdAsync(string caseId);
     Task<Incident?> GetIncidentByIdAsync(Guid id);
     Task<Incident> CreateIncidentAsync(Incident incident);
+    Task<IEnumerable<Incident>> CreateIncidentsAsync(IEnumerable<Incident> incidents);
     Task<Incident?> UpdateIncidentAsync(Incident incident);
     Task<bool> RemoveAllIncidentsAsync();
     Dictionary<int, string> GetCrimeTypes();

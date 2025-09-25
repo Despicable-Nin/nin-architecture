@@ -7,40 +7,108 @@ public static class ManpowerSeeder
 {
     private static readonly Random Random = new();
     
-    public static async Task SeedCurrentYearManpower(HttpClient client)
+    public static async Task<bool> SeedMissingManpower(HttpClient client)
     {
-        Console.WriteLine("Seeding manpower allocations...");
-
-        // First, get all precincts from the API
-        var precincts = await GetPrecincts(client);
-        if (precincts == null || precincts.Length == 0)
+        Console.WriteLine("🔍 Checking existing manpower allocations...");
+        
+        try
         {
-            Console.WriteLine("No precincts found. Cannot seed manpower allocations.");
-            return;
-        }
-
-        var successCount = 0;
-        foreach (var precinct in precincts)
-        {
-            // Generate random head count between 15-40 officers per precinct
-            var headCount = Random.Next(15, 41);
-            
-            if (await CreateManpowerAllocation(client, precinct.Id, headCount))
+            // Get all precincts
+            var precincts = await GetPrecincts(client);
+            if (precincts == null || precincts.Length == 0)
             {
-                successCount++;
+                Console.WriteLine("❌ No precincts found. Cannot seed manpower allocations.");
+                return false;
+            }
+
+            // Get existing manpower allocations
+            var existingManpower = await GetExistingManpower(client);
+            var existingPrecinctIds = new HashSet<string>();
+            
+            if (existingManpower != null)
+            {
+                // Parse existing manpower to get precinct IDs
+                foreach (var item in existingManpower)
+                {
+                    var jsonElement = (JsonElement)item;
+                    if (jsonElement.TryGetProperty("precinctId", out var precinctIdProp))
+                    {
+                        existingPrecinctIds.Add(precinctIdProp.GetString() ?? "");
+                    }
+                }
+            }
+
+            // Find precincts without manpower allocations
+            var precinctsMissingManpower = precincts.Where(p => !existingPrecinctIds.Contains(p.Id)).ToArray();
+            
+            if (precinctsMissingManpower.Length == 0)
+            {
+                Console.WriteLine($"✅ All {precincts.Length} precincts already have manpower allocations. Skipping.");
+                return true;
+            }
+
+            Console.WriteLine($"🌱 Seeding manpower for {precinctsMissingManpower.Length} precincts missing allocations:");
+            foreach (var precinct in precinctsMissingManpower)
+            {
+                Console.WriteLine($"  - {precinct.Name} ({precinct.Code})");
             }
             
-            await Task.Delay(100); // Small delay between requests
-        }
+            var successCount = 0;
+            
+            foreach (var precinct in precinctsMissingManpower)
+            {
+                // Generate random head count between 15-40 officers per precinct
+                var headCount = Random.Next(15, 41);
+                
+                if (await CreateManpowerAllocation(client, precinct.Id, headCount))
+                {
+                    successCount++;
+                }
+                else
+                {
+                    Console.WriteLine($"❌ Failed to create manpower allocation for {precinct.Name}. Continuing...");
+                }
+                
+                await Task.Delay(100); // Small delay between requests
+            }
 
-        Console.WriteLine($"Successfully seeded {successCount}/{precincts.Length} manpower allocations.");
+            Console.WriteLine($"✅ Successfully seeded {successCount}/{precinctsMissingManpower.Length} missing manpower allocations.");
+            return successCount > 0 || precinctsMissingManpower.Length == 0;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Exception in manpower seeding: {ex.Message}");
+            return false;
+        }
+    }
+    
+    private static async Task<object[]?> GetExistingManpower(HttpClient client)
+    {
+        try
+        {
+            var response = await client.GetAsync("http://localhost:5041/api/manpower");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                var manpowerList = JsonSerializer.Deserialize<object[]>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+                return manpowerList;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"⚠️ Error checking existing manpower: {ex.Message}");
+        }
+        return null;
     }
 
     private static async Task<PrecinctDto[]?> GetPrecincts(HttpClient client)
     {
         try
         {
-            var response = await client.GetAsync("https://localhost:5041/api/precinct");
+            var response = await client.GetAsync("http://localhost:5041/api/manpower/precincts");
             
             if (response.IsSuccessStatusCode)
             {
@@ -76,7 +144,7 @@ public static class ManpowerSeeder
 
         try
         {
-            var response = await client.PostAsync("https://localhost:5041/api/manpower", content);
+            var response = await client.PostAsync("http://localhost:5041/api/manpower", content);
             
             if (response.IsSuccessStatusCode)
             {

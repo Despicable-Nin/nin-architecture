@@ -12,6 +12,7 @@ public class SqliteApplicationDbContext(DbContextOptions<SqliteApplicationDbCont
     public DbSet<Street> Streets { get; set; }
     public DbSet<Incident> Incidents { get; set; }
     public DbSet<Manpower> Manpowers { get; set; }
+    public DbSet<Precinct> Precincts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,6 +39,26 @@ public class SqliteApplicationDbContext(DbContextOptions<SqliteApplicationDbCont
             .HasConversion(
                 v => v.HasValue ? v.Value.ToString("O") : null, // Convert nullable DateTimeOffset to ISO 8601 string
                 v => string.IsNullOrEmpty(v) ? null : DateTimeOffset.Parse(v)); // Convert back from string
+
+        // Configure DateTimeOffset for Precinct
+        modelBuilder.Entity<Precinct>()
+            .Property(e => e.CreatedAt)
+            .HasConversion(
+                v => v.ToString("O"), // Convert DateTimeOffset to ISO 8601 string
+                v => DateTimeOffset.Parse(v)); // Convert back from string
+                
+        modelBuilder.Entity<Precinct>()
+            .Property(e => e.UpdatedAt)
+            .HasConversion(
+                v => v.HasValue ? v.Value.ToString("O") : null, // Convert nullable DateTimeOffset to string
+                v => string.IsNullOrEmpty(v) ? null : DateTimeOffset.Parse(v)); // Convert back from string
+
+        // Configure DateTimeOffset for Manpower
+        modelBuilder.Entity<Manpower>()
+            .Property(e => e.LastUpdated)
+            .HasConversion(
+                v => v.ToString("O"), // Convert DateTimeOffset to ISO 8601 string
+                v => DateTimeOffset.Parse(v)); // Convert back from string
             
         // Also configure LockoutEnd from Identity for SQLite
         modelBuilder.Entity<IdentityUser>()

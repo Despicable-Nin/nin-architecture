@@ -25,102 +25,132 @@ public record PrecinctDto
 
 public static class StreetsGenerator
 {
-    public static async Task<bool> Seed(HttpClient httpClient)
+    public static async Task<bool> RefreshAllStreets(HttpClient httpClient)
     {
-        var url = "http://localhost:5041/api/Street";
-        // Check if data exists at the URL
-        var getResponse = await httpClient.GetAsync(url);
-        if (getResponse.IsSuccessStatusCode)
+        Console.WriteLine("🗑️ Refreshing all streets (delete + re-seed)...");
+        
+        try
         {
-            var content = await getResponse.Content.ReadAsStringAsync();
-            // Check for empty JSON array or empty "streets" property
-            bool isEmpty = false;
-            if (!string.IsNullOrWhiteSpace(content))
+            // Delete existing streets (if any)
+            await DeleteAllStreets(httpClient);
+            
+            // Seed new streets
+            return await SeedAllStreets(httpClient);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Exception in street refresh: {ex.Message}");
+            return false;
+        }
+    }
+    
+    private static async Task DeleteAllStreets(HttpClient httpClient)
+    {
+        try
+        {
+            var response = await httpClient.DeleteAsync("http://localhost:5041/api/Street");
+            if (response.IsSuccessStatusCode)
             {
-                try
-                {
-                    using var doc = JsonDocument.Parse(content);
-                    if (doc.RootElement.ValueKind == JsonValueKind.Array)
-                    {
-                        isEmpty = doc.RootElement.GetArrayLength() == 0;
-                    }
-                    else if (doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty("streets", out var streetsProp))
-                    {
-                        isEmpty = streetsProp.ValueKind == JsonValueKind.Array && streetsProp.GetArrayLength() == 0;
-                    }
-                }
-                catch
-                {
-                    // If parsing fails, treat as not empty to avoid seeding
-                    isEmpty = false;
-                }
+                Console.WriteLine("✅ Successfully deleted existing streets.");
             }
             else
             {
-                isEmpty = true;
+                Console.WriteLine($"⚠️ Could not delete existing streets: {response.StatusCode}");
             }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"⚠️ Error deleting streets: {ex.Message}");
+        }
+    }
+    
+    private static async Task<bool> SeedAllStreets(HttpClient httpClient)
+    {
+        Console.WriteLine("🌱 Seeding new streets...");
+        return await SeedStreetsInternal(httpClient);
+    }
 
-            if (!isEmpty)
+    public static async Task<bool> Seed(HttpClient httpClient, bool isNonInteractive = false)
+    {
+        // Legacy method for backward compatibility
+        return await SeedStreetsInternal(httpClient);
+    }
+    
+    private static async Task<bool> SeedStreetsInternal(HttpClient httpClient)
+
+    {
+        try
+        {
+            // First, get all precincts from the API
+            var precincts = await GetPrecincts(httpClient);
+            if (precincts == null || precincts.Length == 0)
             {
-                Console.WriteLine("Street data already exists. Skipping seed.");
+                Console.WriteLine("❌ No precincts found. Cannot seed streets.");
                 return false;
             }
-        }
 
-        // First, get all precincts from the API
-        var precincts = await GetPrecincts(httpClient);
-        if (precincts == null || precincts.Length == 0)
-        {
-            Console.WriteLine("No precincts found. Cannot seed streets.");
-            return false;
-        }
+            var streets = new List<StreetDto>();
 
-        var streets = new List<StreetDto>();
+            var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            var projectDirectory = Directory.GetParent(baseDirectory).Parent.Parent.FullName.Replace("bin", "");
+            var jsonFilesDirectory = Path.Combine(projectDirectory, "JsonFiles");
 
-        var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        var projectDirectory = Directory.GetParent(baseDirectory).Parent.Parent.FullName.Replace("bin", "");
-        var jsonFilesDirectory = Path.Combine(projectDirectory, "JsonFiles");
-
-        foreach (var precinct in precincts)
-        {
-            Console.WriteLine($"Generating streets for {precinct.Name}");
-            
-            // Map old barangay names to precinct names for backward compatibility
-            var fileName = GetFileNameForPrecinct(precinct.Name);
-            if (fileName != null)
+            Console.WriteLine($"🌱 Generating streets for {precincts.Length} precincts...");
+            foreach (var precinct in precincts)
             {
-                var filePath = Path.Combine(jsonFilesDirectory, fileName);
+                Console.WriteLine($"  - Processing streets for {precinct.Name}");
                 
-                if (File.Exists(filePath))
+                // Map old barangay names to precinct names for backward compatibility
+                var fileName = GetFileNameForPrecinct(precinct.Name);
+                if (fileName != null)
                 {
-                    var jsonContent = File.ReadAllText(filePath);
-                    var obj = JsonSerializer.Deserialize<StreetDto?[]>(jsonContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-                    if (obj != null && obj.Length > 0)
+                    var filePath = Path.Combine(jsonFilesDirectory, fileName);
+                    
+                    if (File.Exists(filePath))
                     {
-                        foreach (var s in obj)
+                        var jsonContent = File.ReadAllText(filePath);
+                        var obj = JsonSerializer.Deserialize<StreetDto?[]>(jsonContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                        if (obj != null && obj.Length > 0)
                         {
-                            if (s != null)
+                            foreach (var s in obj)
                             {
-                                s.Update(precinct.Id, precinct.Name);
-                                streets.Add(s);
+                                if (s != null)
+                                {
+                                    s.Update(precinct.Id, precinct.Name);
+                                    streets.Add(s);
+                                }
                             }
                         }
                     }
+                    else
+                    {
+                        Console.WriteLine($"⚠️ No street data file found for {precinct.Name} (expected: {fileName})");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"⚠️ No mapping found for precinct: {precinct.Name}");
                 }
             }
+
+            Console.WriteLine($"📊 Total streets to seed: {streets.Count}");
+            const string url = "http://localhost:5041/api/Street";
+            var success = await SendAddressRequest(url, streets, httpClient);
+            return success;
         }
-
-        await SendAddressRequest(url, streets, httpClient);
-
-        return true;
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Exception in street seeding: {ex.Message}");
+            return false;
+        }
     }
 
     private static async Task<PrecinctDto[]?> GetPrecincts(HttpClient client)
     {
         try
         {
-            var response = await client.GetAsync("http://localhost:5041/api/precinct");
+            var response = await client.GetAsync("http://localhost:5041/api/manpower/precincts");
             
             if (response.IsSuccessStatusCode)
             {
@@ -162,7 +192,7 @@ public static class StreetsGenerator
         };
     }
 
-    private static async Task SendAddressRequest(string url, IEnumerable<StreetDto> streets, HttpClient client)
+    private static async Task<bool> SendAddressRequest(string url, IEnumerable<StreetDto> streets, HttpClient client)
     {
         dynamic data = new
         {
@@ -175,11 +205,24 @@ public static class StreetsGenerator
         try
         {
             var response = await client.PostAsync(url, content);
-            Console.WriteLine("Street creation is: " + response.StatusCode);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"✅ Street creation successful: {response.StatusCode}");
+                return true;
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"❌ Street creation failed: {response.StatusCode}");
+                Console.WriteLine($"📄 Error details: {error}");
+                return false;
+            }
         }
-        finally
+        catch (Exception ex)
         {
-
+            Console.WriteLine($"❌ Exception in street creation: {ex.Message}");
+            return false;
         }
     }
 }

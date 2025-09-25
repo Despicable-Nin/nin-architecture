@@ -13,7 +13,7 @@ public record CreateIncidentCommand : IRequest<Guid>
     public int Severity { get; init; }
     public int CrimeType { get;  init; }
     public int Motive { get;  init; }
-    public int Precinct { get;  init; }
+    public Guid PrecinctId { get;  init; }
     public string? AdditionalInfo { get; init; }
     public int Weather { get;  init; }
     public DateTimeOffset? TimeStamp { get; init; }
@@ -49,11 +49,14 @@ public class CreateIncidentCommandHandler(
             (SeverityEnum)request.Severity,
             (CrimeTypeEnum)request.CrimeType,
             (MotiveEnum)request.Motive,
-            (Barangay)request.Precinct,
+            Barangay.Alabang, // Placeholder - the real association is via PrecinctId
             (WeatherConditionEnum)request.Weather,
             request.AdditionalInfo,
             request.TimeStamp
         );
+        
+        // Set the actual PrecinctId
+        incident.PrecinctId = request.PrecinctId;
         
         logger.LogInformation("Getting nominatim api . . .");
         var latLong = await geocodeService.GetLatLongAsync(request.Address!);

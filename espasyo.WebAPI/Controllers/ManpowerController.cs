@@ -3,10 +3,12 @@ using espasyo.Application.UseCase.Manpower.Commands.UpdateManpower;
 using espasyo.Application.UseCase.Manpower.Queries.AnalyzeManpowerNeeds;
 using espasyo.Application.UseCase.Manpower.Queries.GetAllManpower;
 using espasyo.Application.UseCase.Manpower.Queries.GetManpowerById;
-using espasyo.Domain.Enums;
+using espasyo.Domain.Entities;
+using espasyo.Infrastructure.Data;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace espasyo.WebAPI.Controllers;
 
@@ -15,10 +17,12 @@ namespace espasyo.WebAPI.Controllers;
 public class ManpowerController : ControllerBase
 {
     private readonly IMediator _mediator;
+    private readonly SqliteApplicationDbContext _context;
 
-    public ManpowerController(IMediator mediator)
+    public ManpowerController(IMediator mediator, SqliteApplicationDbContext context)
     {
         _mediator = mediator;
+        _context = context;
     }
 
     [HttpGet]
@@ -149,7 +153,7 @@ public class ManpowerController : ControllerBase
             // For now, return a simplified calculation based on the request data
             var results = request.Forecasts.Select(f => new 
             {
-                Precinct = f.Precinct.ToString(),
+                PrecinctId = f.PrecinctId.ToString(),
                 PredictedCrimes = f.PredictedCount,
                 RecommendedManpower = CalculateSimplifiedAllocation(f.PredictedCount),
                 WorkloadLevel = DetermineWorkloadLevel(f.PredictedCount),
@@ -212,27 +216,100 @@ public class ManpowerController : ControllerBase
     }
     
     /// <summary>
-    /// Get all available precincts/barangays
+    /// Get all available precincts
     /// </summary>
     [HttpGet("precincts")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public IActionResult GetPrecincts()
+    public async Task<IActionResult> GetPrecincts()
     {
         try
         {
-            var precincts = Enum.GetValues<Barangay>()
-                .Select(b => new { 
-                    Value = (int)b, 
-                    Name = b.ToString().Replace('_', ' ') 
+            var precincts = await _context.Precincts
+                .Where(p => p.IsActive)
+                .Select(p => new
+                {
+                    p.Id,
+                    p.Name,
+                    p.Code,
+                    p.Population,
+                    p.AreaKm2,
+                    p.IsActive
                 })
-                .OrderBy(p => p.Value)
-                .ToList();
+                .OrderBy(p => p.Name)
+                .ToListAsync();
             
             return Ok(precincts);
         }
         catch (Exception ex)
         {
             return BadRequest($"Failed to retrieve precincts: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Upsert precincts (create if not exists, update if exists)
+    /// This is useful for seeding initial precinct data
+    /// </summary>
+    [HttpPost("precincts/upsert")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpsertPrecincts([FromBody] UpsertPrecinctsRequest request)
+    {
+        try
+        {
+            var upsertedCount = 0;
+            var createdCount = 0;
+            var updatedCount = 0;
+
+            foreach (var precinctData in request.Precincts)
+            {
+                // Try to find existing precinct by code
+                var existingPrecinct = await _context.Precincts
+                    .FirstOrDefaultAsync(p => p.Code == precinctData.Code);
+
+                if (existingPrecinct == null)
+                {
+                    // Create new precinct
+                    var newPrecinct = new Precinct(precinctData.Name, precinctData.Code);
+                    
+                    if (precinctData.Population.HasValue || !string.IsNullOrEmpty(precinctData.Description))
+                    {
+                        newPrecinct.UpdateDetails(precinctData.Name, precinctData.Code,
+                            precinctData.Population, precinctData.AreaKm2,
+                            precinctData.Latitude, precinctData.Longitude,
+                            precinctData.Description, precinctData.ContactInfo);
+                    }
+                    
+                    _context.Precincts.Add(newPrecinct);
+                    createdCount++;
+                }
+                else
+                {
+                    // Update existing precinct
+                    existingPrecinct.UpdateDetails(precinctData.Name, precinctData.Code,
+                        precinctData.Population, precinctData.AreaKm2,
+                        precinctData.Latitude, precinctData.Longitude,
+                        precinctData.Description, precinctData.ContactInfo);
+                    
+                    updatedCount++;
+                }
+                
+                upsertedCount++;
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                Message = $"Successfully processed {upsertedCount} precincts",
+                TotalProcessed = upsertedCount,
+                Created = createdCount,
+                Updated = updatedCount
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to upsert precincts: {ex.Message}");
         }
     }
     
@@ -255,7 +332,7 @@ public class ManpowerController : ControllerBase
 public class ManpowerAnalysisRequest
 {
     public int Year { get; set; }
-    public Dictionary<Barangay, int> PredictedCaseCounts { get; set; } = new();
+    public Dictionary<Guid, int> PredictedCaseCounts { get; set; } = new();
 }
 
 public class DynamicAllocationRequest
@@ -265,6 +342,23 @@ public class DynamicAllocationRequest
 
 public class ForecastData
 {
-    public Barangay Precinct { get; set; }
+    public Guid PrecinctId { get; set; }
     public int PredictedCount { get; set; }
+}
+
+public class UpsertPrecinctsRequest
+{
+    public List<PrecinctData> Precincts { get; set; } = new();
+}
+
+public class PrecinctData
+{
+    public string Name { get; set; } = string.Empty;
+    public string Code { get; set; } = string.Empty;
+    public int? Population { get; set; }
+    public decimal? AreaKm2 { get; set; }
+    public decimal? Latitude { get; set; }
+    public decimal? Longitude { get; set; }
+    public string? Description { get; set; }
+    public string? ContactInfo { get; set; }
 }

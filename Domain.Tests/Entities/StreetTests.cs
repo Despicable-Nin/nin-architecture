@@ -8,15 +8,18 @@ namespace espasyo.Domain.Entities.Tests
         [TestMethod()]
         public void StreetTest()
         {
-           var street = new Street(Barangay.Alabang, "Test Street");
+           var precinctId = Guid.NewGuid();
+           var street = new Street(precinctId, "Test Street");
             Assert.IsNotNull(street);
         }
 
         [TestMethod()]
-        public void GetBarangayTest()
+        public void StreetPropertiesTest()
         {
-            var street = new Street(Barangay.Alabang, "Test Street");
-            Assert.AreEqual(Barangay.Alabang, street.GetBarangay());
+            var precinctId = Guid.NewGuid();
+            var street = new Street(precinctId, "Test Street");
+            Assert.AreEqual(precinctId, street.PrecinctId);
+            Assert.AreEqual("Test Street", street.Name);
         }
     }
 }

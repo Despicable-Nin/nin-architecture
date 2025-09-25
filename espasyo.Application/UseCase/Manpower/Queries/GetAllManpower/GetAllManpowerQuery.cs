@@ -1,3 +1,4 @@
+using espasyo.Domain.Enums;
 using MediatR;
 
 namespace espasyo.Application.UseCase.Manpower.Queries.GetAllManpower;
@@ -13,6 +14,8 @@ public class ManpowerResponse
     public Guid PrecinctId { get; set; }
     public string PrecinctName { get; set; } = string.Empty;
     public string PrecinctCode { get; set; } = string.Empty;
+    public ShiftEnum Shift { get; set; }
+    public string ShiftDisplayName { get; set; } = string.Empty;
     public int HeadCount { get; set; }
     public DateTimeOffset LastUpdated { get; set; }
     

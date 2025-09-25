@@ -4,6 +4,7 @@ using espasyo.Application.UseCase.Manpower.Queries.AnalyzeManpowerNeeds;
 using espasyo.Application.UseCase.Manpower.Queries.GetAllManpower;
 using espasyo.Application.UseCase.Manpower.Queries.GetManpowerById;
 using espasyo.Domain.Entities;
+using espasyo.Domain.Enums;
 using espasyo.Infrastructure.Data;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -63,6 +64,27 @@ public class ManpowerController : ControllerBase
         }
     }
 
+    [HttpPost("upsert")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpsertManpower([FromBody] UpsertManpowerCommand command)
+    {
+        try
+        {
+            var id = await _mediator.Send(command);
+            return Ok(new { Id = id, Message = "Manpower allocation created or updated successfully" });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to upsert manpower allocation: {ex.Message}");
+        }
+    }
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -84,6 +106,31 @@ public class ManpowerController : ControllerBase
         catch (Exception ex)
         {
             return BadRequest($"Failed to retrieve manpower allocation: {ex.Message}");
+        }
+    }
+
+    [HttpGet("precinct/{precinctId:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetManpowerByPrecinct(Guid precinctId)
+    {
+        try
+        {
+            var query = new GetAllManpowerQuery();
+            var allManpower = await _mediator.Send(query);
+            var precinctManpower = allManpower.Where(m => m.PrecinctId == precinctId).ToList();
+            
+            if (!precinctManpower.Any())
+            {
+                return NotFound($"No manpower allocations found for precinct {precinctId}");
+            }
+            
+            return Ok(precinctManpower);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to retrieve manpower for precinct: {ex.Message}");
         }
     }
 
@@ -310,6 +357,35 @@ public class ManpowerController : ControllerBase
         catch (Exception ex)
         {
             return BadRequest($"Failed to upsert precincts: {ex.Message}");
+        }
+    }
+    
+    [HttpGet("shifts")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public IActionResult GetAvailableShifts()
+    {
+        try
+        {
+            var shifts = Enum.GetValues<ShiftEnum>()
+                .Select(shift => new
+                {
+                    Value = (int)shift,
+                    Name = shift.ToString(),
+                    DisplayName = shift switch
+                    {
+                        ShiftEnum.Morning => "Morning (6:00 AM - 2:00 PM)",
+                        ShiftEnum.Evening => "Evening (2:00 PM - 10:00 PM)",
+                        ShiftEnum.Night => "Night (10:00 PM - 6:00 AM)",
+                        _ => shift.ToString()
+                    }
+                })
+                .ToList();
+            
+            return Ok(shifts);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to retrieve shifts: {ex.Message}");
         }
     }
     

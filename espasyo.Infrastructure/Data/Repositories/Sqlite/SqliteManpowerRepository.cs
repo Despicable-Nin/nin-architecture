@@ -1,5 +1,6 @@
 using espasyo.Application.Interfaces;
 using espasyo.Domain.Entities;
+using espasyo.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace espasyo.Infrastructure.Data.Repositories.Sqlite;
@@ -28,6 +29,22 @@ public class SqliteManpowerRepository : IManpowerRepository
             .FirstOrDefaultAsync(m => m.PrecinctId == precinctId);
     }
 
+    public async Task<IEnumerable<Manpower>> GetByPrecinctIdAllShiftsAsync(Guid precinctId)
+    {
+        return await _context.Manpowers
+            .Include(m => m.Precinct)
+            .Where(m => m.PrecinctId == precinctId)
+            .OrderBy(m => m.Shift)
+            .ToListAsync();
+    }
+
+    public async Task<Manpower?> GetByPrecinctIdAndShiftAsync(Guid precinctId, ShiftEnum shift)
+    {
+        return await _context.Manpowers
+            .Include(m => m.Precinct)
+            .FirstOrDefaultAsync(m => m.PrecinctId == precinctId && m.Shift == shift);
+    }
+
     public async Task<Manpower?> GetByIdAsync(Guid id)
     {
         return await _context.Manpowers
@@ -52,6 +69,27 @@ public class SqliteManpowerRepository : IManpowerRepository
         return existing;
     }
 
+    public async Task<Manpower> UpsertAsync(Guid precinctId, ShiftEnum shift, int headCount)
+    {
+        var existing = await GetByPrecinctIdAndShiftAsync(precinctId, shift);
+        
+        if (existing != null)
+        {
+            // Update existing record
+            existing.UpdateHeadCount(headCount);
+            await _context.SaveChangesAsync();
+            return existing;
+        }
+        else
+        {
+            // Create new record
+            var newManpower = new Manpower(precinctId, shift, headCount);
+            _context.Manpowers.Add(newManpower);
+            await _context.SaveChangesAsync();
+            return newManpower;
+        }
+    }
+
     public async Task<bool> DeleteAsync(Guid id)
     {
         var manpower = await _context.Manpowers.FindAsync(id);
@@ -66,6 +104,12 @@ public class SqliteManpowerRepository : IManpowerRepository
     {
         return await _context.Manpowers
             .AnyAsync(m => m.PrecinctId == precinctId);
+    }
+
+    public async Task<bool> ExistsByPrecinctIdAndShiftAsync(Guid precinctId, ShiftEnum shift)
+    {
+        return await _context.Manpowers
+            .AnyAsync(m => m.PrecinctId == precinctId && m.Shift == shift);
     }
 
     public async Task<Dictionary<Guid, int>> GetTotalManpowerByPrecinctAsync()

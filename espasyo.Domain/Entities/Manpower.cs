@@ -1,25 +1,29 @@
+using espasyo.Domain.Enums;
+
 namespace espasyo.Domain.Entities;
 
 public class Manpower
 {
     protected Manpower() { }
 
-    public Manpower(Guid precinctId, int headCount)
+    public Manpower(Guid precinctId, ShiftEnum shift, int headCount)
     {
         Id = Guid.NewGuid();
         PrecinctId = precinctId;
+        Shift = shift;
         HeadCount = headCount;
         LastUpdated = DateTimeOffset.UtcNow;
     }
 
     public Guid Id { get; private set; }
     public Guid PrecinctId { get; private set; }
+    public ShiftEnum Shift { get; private set; }
     public virtual Precinct Precinct { get; set; } = null!;
     public int HeadCount { get; private set; }
     public DateTimeOffset LastUpdated { get; private set; }
 
     /// <summary>
-    /// Updates the head count for this precinct
+    /// Updates the head count for this precinct and shift
     /// </summary>
     public void UpdateHeadCount(int newHeadCount)
     {
@@ -54,5 +58,27 @@ public class Manpower
     public bool HasOverage(int requiredCount)
     {
         return HeadCount > requiredCount;
+    }
+
+    /// <summary>
+    /// Gets the display name for the shift
+    /// </summary>
+    public string GetShiftDisplayName()
+    {
+        return Shift switch
+        {
+            ShiftEnum.Morning => "Morning (6:00 AM - 2:00 PM)",
+            ShiftEnum.Evening => "Evening (2:00 PM - 10:00 PM)",
+            ShiftEnum.Night => "Night (10:00 PM - 6:00 AM)",
+            _ => Shift.ToString()
+        };
+    }
+
+    /// <summary>
+    /// Determines if this manpower allocation is for a specific shift
+    /// </summary>
+    public bool IsForShift(ShiftEnum shift)
+    {
+        return Shift == shift;
     }
 }

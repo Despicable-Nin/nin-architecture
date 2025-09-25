@@ -38,8 +38,8 @@ namespace Infrastructure.Tests.UseCase.Incidents.Commands.CreateIncident
         }
 
         [Theory]
-        [InlineData("CASE123", "123 Main St", SeverityEnum.High, CrimeTypeEnum.Homicide, MotiveEnum.Unknown, Barangay.Alabang, WeatherConditionEnum.Fog, "2023-10-01T00:00:00Z")]
-        public async Task Handle_ShouldCreateIncidentSuccessfully(string caseId, string address, SeverityEnum severity, CrimeTypeEnum crimeType, MotiveEnum motive, Barangay barangay, WeatherConditionEnum weather, DateTimeOffset timeStamp)
+        [InlineData("CASE123", "123 Main St", SeverityEnum.High, CrimeTypeEnum.Homicide, MotiveEnum.Unknown, WeatherConditionEnum.Fog, "2023-10-01T00:00:00Z")]
+        public async Task Handle_ShouldCreateIncidentSuccessfully(string caseId, string address, SeverityEnum severity, CrimeTypeEnum crimeType, MotiveEnum motive, WeatherConditionEnum weather, DateTimeOffset timeStamp)
         {
             // Arrange
             var command = new CreateIncidentCommand
@@ -49,7 +49,7 @@ namespace Infrastructure.Tests.UseCase.Incidents.Commands.CreateIncident
                 Severity = (int)severity,
                 CrimeType = (int)crimeType,
                 Motive = (int)motive,
-                Precinct = (int)barangay,
+                PrecinctId = Guid.NewGuid(),
                 AdditionalInfo = "Details about the case",
                 Weather = (int)weather,
                 TimeStamp = timeStamp
@@ -72,7 +72,7 @@ namespace Infrastructure.Tests.UseCase.Incidents.Commands.CreateIncident
             created.Severity.ShouldBe((SeverityEnum)command.Severity);
             created.CrimeType.ShouldBe((CrimeTypeEnum)command.CrimeType);
             created.Motive.ShouldBe((MotiveEnum)command.Motive);
-            created.PoliceDistrict.ShouldBe((Barangay)command.Precinct);
+            created.PrecinctId.ShouldBe(command.PrecinctId);
             created.AdditionalInformation.ShouldBe(command.AdditionalInfo);
             created.Weather.ShouldBe((WeatherConditionEnum)command.Weather);
             created.TimeStamp.ShouldBe(command.TimeStamp);
@@ -95,7 +95,7 @@ namespace Infrastructure.Tests.UseCase.Incidents.Commands.CreateIncident
                 Severity = (int)SeverityEnum.High,
                 CrimeType = (int)CrimeTypeEnum.Robbery,
                 Motive = (int)MotiveEnum.Anger,
-                Precinct = (int)Barangay.Alabang,
+                PrecinctId = Guid.NewGuid(),
                 AdditionalInfo = "Details about the case",
                 Weather = (int)WeatherConditionEnum.Clear,
                 TimeStamp = DateTimeOffset.UtcNow

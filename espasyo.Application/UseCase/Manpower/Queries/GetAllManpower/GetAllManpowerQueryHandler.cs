@@ -32,6 +32,8 @@ public class GetAllManpowerQueryHandler : IRequestHandler<GetAllManpowerQuery, I
                 PrecinctId = m.PrecinctId,
                 PrecinctName = m.Precinct?.Name ?? "Unknown",
                 PrecinctCode = m.Precinct?.Code ?? "N/A",
+                Shift = m.Shift,
+                ShiftDisplayName = m.GetShiftDisplayName(),
                 HeadCount = m.HeadCount,
                 LastUpdated = m.LastUpdated,
                 RequiredCount = standardRequirement,

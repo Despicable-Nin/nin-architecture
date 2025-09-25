@@ -19,6 +19,10 @@ public class ManpowerConfiguration : IEntityTypeConfiguration<Manpower>
         builder.Property(m => m.PrecinctId)
             .IsRequired();
 
+        builder.Property(m => m.Shift)
+            .IsRequired()
+            .HasConversion<int>();
+
         builder.Property(m => m.HeadCount)
             .IsRequired();
 
@@ -33,9 +37,9 @@ public class ManpowerConfiguration : IEntityTypeConfiguration<Manpower>
             .OnDelete(DeleteBehavior.Restrict)
             .HasConstraintName("FK_Manpower_Precinct");
 
-        // Create unique index on PrecinctId to ensure one manpower record per precinct
-        builder.HasIndex(m => m.PrecinctId)
+        // Create unique index on PrecinctId and Shift to ensure one manpower record per precinct per shift
+        builder.HasIndex(m => new { m.PrecinctId, m.Shift })
             .IsUnique()
-            .HasDatabaseName("IX_Manpower_PrecinctId");
+            .HasDatabaseName("IX_Manpower_PrecinctId_Shift");
     }
 }

@@ -1,4 +1,5 @@
-﻿using espasyo.Domain.Entities;
+using espasyo.Domain.Entities;
+using espasyo.Domain.Enums;
 using espasyo.Infrastructure.Data.Configurations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -31,5 +32,26 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .HasKey(t => new { t.UserId, t.LoginProvider, t.Name });
         
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+        
+        // Seed initial precincts
+        SeedPrecincts(modelBuilder);
+    }
+    
+    private void SeedPrecincts(ModelBuilder modelBuilder)
+    {
+        var precincts = new[]
+        {
+            new { Id = Guid.Parse("11111111-1111-1111-1111-111111111111"), Barangay = Barangay.Alabang, Code = "ALB", Population = 54000, AreaKm2 = 23.5m, IsActive = true, Description = "Commercial and business district", CreatedAt = DateTimeOffset.UtcNow },
+            new { Id = Guid.Parse("22222222-2222-2222-2222-222222222222"), Barangay = Barangay.Ayala_Alabang, Code = "AAL", Population = 25000, AreaKm2 = 8.2m, IsActive = true, Description = "High-income residential area", CreatedAt = DateTimeOffset.UtcNow },
+            new { Id = Guid.Parse("33333333-3333-3333-3333-333333333333"), Barangay = Barangay.Sucat, Code = "SUC", Population = 42000, AreaKm2 = 15.7m, IsActive = true, Description = "Mixed residential and commercial area", CreatedAt = DateTimeOffset.UtcNow },
+            new { Id = Guid.Parse("44444444-4444-4444-4444-444444444444"), Barangay = Barangay.Poblacion, Code = "POB", Population = 18000, AreaKm2 = 5.3m, IsActive = true, Description = "City center and administrative area", CreatedAt = DateTimeOffset.UtcNow },
+            new { Id = Guid.Parse("55555555-5555-5555-5555-555555555555"), Barangay = Barangay.Putatan, Code = "PUT", Population = 35000, AreaKm2 = 12.8m, IsActive = true, Description = "Residential area with moderate density", CreatedAt = DateTimeOffset.UtcNow },
+            new { Id = Guid.Parse("66666666-6666-6666-6666-666666666666"), Barangay = Barangay.Tunasan, Code = "TUN", Population = 28000, AreaKm2 = 10.4m, IsActive = true, Description = "Residential with some commercial areas", CreatedAt = DateTimeOffset.UtcNow },
+            new { Id = Guid.Parse("77777777-7777-7777-7777-777777777777"), Barangay = Barangay.Cupang, Code = "CUP", Population = 22000, AreaKm2 = 8.9m, IsActive = true, Description = "Smaller residential area", CreatedAt = DateTimeOffset.UtcNow },
+            new { Id = Guid.Parse("88888888-8888-8888-8888-888888888888"), Barangay = Barangay.Bayanan, Code = "BAY", Population = 31000, AreaKm2 = 11.6m, IsActive = true, Description = "Residential area", CreatedAt = DateTimeOffset.UtcNow },
+            new { Id = Guid.Parse("99999999-9999-9999-9999-999999999999"), Barangay = Barangay.Buli, Code = "BUL", Population = 26000, AreaKm2 = 9.8m, IsActive = true, Description = "Residential area", CreatedAt = DateTimeOffset.UtcNow }
+        };
+        
+        modelBuilder.Entity<Precinct>().HasData(precincts);
     }
 }

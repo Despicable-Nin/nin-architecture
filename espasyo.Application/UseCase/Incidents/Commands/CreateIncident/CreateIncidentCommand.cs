@@ -49,13 +49,12 @@ public class CreateIncidentCommandHandler(
             (SeverityEnum)request.Severity,
             (CrimeTypeEnum)request.CrimeType,
             (MotiveEnum)request.Motive,
-            Barangay.Alabang, // Placeholder - the real association is via PrecinctId
             (WeatherConditionEnum)request.Weather,
             request.AdditionalInfo,
             request.TimeStamp
         );
         
-        // Set the actual PrecinctId
+        // Set the PrecinctId - PoliceDistrict will be derived from Precinct.Barangay
         incident.PrecinctId = request.PrecinctId;
         
         logger.LogInformation("Getting nominatim api . . .");

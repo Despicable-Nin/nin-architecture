@@ -17,7 +17,7 @@ namespace espasyo.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.2")
+                .HasAnnotation("ProductVersion", "9.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -241,8 +241,8 @@ namespace espasyo.Infrastructure.Migrations
                     b.Property<int>("Motive")
                         .HasColumnType("int");
 
-                    b.Property<int>("PoliceDistrict")
-                        .HasColumnType("int");
+                    b.Property<Guid>("PrecinctId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("SanitizedAddress")
                         .HasColumnType("nvarchar(max)");
@@ -288,7 +288,199 @@ namespace espasyo.Infrastructure.Migrations
                         .IsUnique()
                         .HasFilter("[CaseId] IS NOT NULL");
 
+                    b.HasIndex("PrecinctId");
+
                     b.ToTable("Incident", (string)null);
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.Manpower", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("HeadCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("LastUpdated")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetimeoffset")
+                        .HasDefaultValueSql("datetime('now')");
+
+                    b.Property<Guid>("PrecinctId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Shift")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PrecinctId", "Shift")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Manpower_PrecinctId_Shift");
+
+                    b.ToTable("Manpower", (string)null);
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.Precinct", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("AreaKm2")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<int>("Barangay")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("ContactInfo")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetimeoffset")
+                        .HasDefaultValueSql("datetime('now')");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<decimal?>("Latitude")
+                        .HasColumnType("decimal(10,8)");
+
+                    b.Property<decimal?>("Longitude")
+                        .HasColumnType("decimal(11,8)");
+
+                    b.Property<int?>("Population")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Barangay")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Precinct_Barangay");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Precinct_Code");
+
+                    b.ToTable("Precinct", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
+                            AreaKm2 = 23.5m,
+                            Barangay = 0,
+                            Code = "ALB",
+                            CreatedAt = new DateTimeOffset(new DateTime(2025, 9, 25, 12, 1, 42, 237, DateTimeKind.Unspecified).AddTicks(5872), new TimeSpan(0, 0, 0, 0, 0)),
+                            Description = "Commercial and business district",
+                            IsActive = true,
+                            Population = 54000
+                        },
+                        new
+                        {
+                            Id = new Guid("22222222-2222-2222-2222-222222222222"),
+                            AreaKm2 = 8.2m,
+                            Barangay = 7,
+                            Code = "AAL",
+                            CreatedAt = new DateTimeOffset(new DateTime(2025, 9, 25, 12, 1, 42, 237, DateTimeKind.Unspecified).AddTicks(6757), new TimeSpan(0, 0, 0, 0, 0)),
+                            Description = "High-income residential area",
+                            IsActive = true,
+                            Population = 25000
+                        },
+                        new
+                        {
+                            Id = new Guid("33333333-3333-3333-3333-333333333333"),
+                            AreaKm2 = 15.7m,
+                            Barangay = 8,
+                            Code = "SUC",
+                            CreatedAt = new DateTimeOffset(new DateTime(2025, 9, 25, 12, 1, 42, 237, DateTimeKind.Unspecified).AddTicks(6759), new TimeSpan(0, 0, 0, 0, 0)),
+                            Description = "Mixed residential and commercial area",
+                            IsActive = true,
+                            Population = 42000
+                        },
+                        new
+                        {
+                            Id = new Guid("44444444-4444-4444-4444-444444444444"),
+                            AreaKm2 = 5.3m,
+                            Barangay = 4,
+                            Code = "POB",
+                            CreatedAt = new DateTimeOffset(new DateTime(2025, 9, 25, 12, 1, 42, 237, DateTimeKind.Unspecified).AddTicks(6760), new TimeSpan(0, 0, 0, 0, 0)),
+                            Description = "City center and administrative area",
+                            IsActive = true,
+                            Population = 18000
+                        },
+                        new
+                        {
+                            Id = new Guid("55555555-5555-5555-5555-555555555555"),
+                            AreaKm2 = 12.8m,
+                            Barangay = 5,
+                            Code = "PUT",
+                            CreatedAt = new DateTimeOffset(new DateTime(2025, 9, 25, 12, 1, 42, 237, DateTimeKind.Unspecified).AddTicks(6762), new TimeSpan(0, 0, 0, 0, 0)),
+                            Description = "Residential area with moderate density",
+                            IsActive = true,
+                            Population = 35000
+                        },
+                        new
+                        {
+                            Id = new Guid("66666666-6666-6666-6666-666666666666"),
+                            AreaKm2 = 10.4m,
+                            Barangay = 6,
+                            Code = "TUN",
+                            CreatedAt = new DateTimeOffset(new DateTime(2025, 9, 25, 12, 1, 42, 237, DateTimeKind.Unspecified).AddTicks(6763), new TimeSpan(0, 0, 0, 0, 0)),
+                            Description = "Residential with some commercial areas",
+                            IsActive = true,
+                            Population = 28000
+                        },
+                        new
+                        {
+                            Id = new Guid("77777777-7777-7777-7777-777777777777"),
+                            AreaKm2 = 8.9m,
+                            Barangay = 3,
+                            Code = "CUP",
+                            CreatedAt = new DateTimeOffset(new DateTime(2025, 9, 25, 12, 1, 42, 237, DateTimeKind.Unspecified).AddTicks(6764), new TimeSpan(0, 0, 0, 0, 0)),
+                            Description = "Smaller residential area",
+                            IsActive = true,
+                            Population = 22000
+                        },
+                        new
+                        {
+                            Id = new Guid("88888888-8888-8888-8888-888888888888"),
+                            AreaKm2 = 11.6m,
+                            Barangay = 1,
+                            Code = "BAY",
+                            CreatedAt = new DateTimeOffset(new DateTime(2025, 9, 25, 12, 1, 42, 237, DateTimeKind.Unspecified).AddTicks(6766), new TimeSpan(0, 0, 0, 0, 0)),
+                            Description = "Residential area",
+                            IsActive = true,
+                            Population = 31000
+                        },
+                        new
+                        {
+                            Id = new Guid("99999999-9999-9999-9999-999999999999"),
+                            AreaKm2 = 9.8m,
+                            Barangay = 2,
+                            Code = "BUL",
+                            CreatedAt = new DateTimeOffset(new DateTime(2025, 9, 25, 12, 1, 42, 237, DateTimeKind.Unspecified).AddTicks(6767), new TimeSpan(0, 0, 0, 0, 0)),
+                            Description = "Residential area",
+                            IsActive = true,
+                            Population = 26000
+                        });
                 });
 
             modelBuilder.Entity("espasyo.Domain.Entities.Product", b =>
@@ -317,13 +509,19 @@ namespace espasyo.Infrastructure.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
-                    b.Property<int>("_barangay")
-                        .HasColumnType("int")
-                        .HasColumnName("Barangay");
+                    b.Property<Guid>("PrecinctId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .HasDatabaseName("IX_Street_Name");
+
+                    b.HasIndex("PrecinctId")
+                        .HasDatabaseName("IX_Street_PrecinctId");
 
                     b.ToTable("Street", (string)null);
                 });
@@ -377,6 +575,51 @@ namespace espasyo.Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.Incident", b =>
+                {
+                    b.HasOne("espasyo.Domain.Entities.Precinct", "Precinct")
+                        .WithMany("Incidents")
+                        .HasForeignKey("PrecinctId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Incident_Precinct");
+
+                    b.Navigation("Precinct");
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.Manpower", b =>
+                {
+                    b.HasOne("espasyo.Domain.Entities.Precinct", "Precinct")
+                        .WithMany("ManpowerAllocations")
+                        .HasForeignKey("PrecinctId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Manpower_Precinct");
+
+                    b.Navigation("Precinct");
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.Street", b =>
+                {
+                    b.HasOne("espasyo.Domain.Entities.Precinct", "Precinct")
+                        .WithMany("Streets")
+                        .HasForeignKey("PrecinctId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_Street_Precinct");
+
+                    b.Navigation("Precinct");
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.Precinct", b =>
+                {
+                    b.Navigation("Incidents");
+
+                    b.Navigation("ManpowerAllocations");
+
+                    b.Navigation("Streets");
                 });
 #pragma warning restore 612, 618
         }

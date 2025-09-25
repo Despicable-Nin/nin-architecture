@@ -16,23 +16,22 @@ namespace espasyo.Domain.Entities
 
         protected Incident() { }
 
-        public Incident(string? caseId, string? address, SeverityEnum severity, CrimeTypeEnum crimeType, MotiveEnum motive, Barangay policeDistrictEnum, 
-            WeatherConditionEnum weatherCondition, string? additionalInformation, DateTimeOffset? timeStamp)
-        {
-            CaseId = caseId;
-            Address = address;
-            Severity = severity;
-            CrimeType = crimeType;
-            Motive = motive;
-            PoliceDistrict = policeDistrictEnum;
-            Weather = weatherCondition;
-            AdditionalInformation = additionalInformation;
-            TimeStamp = timeStamp ?? throw new ArgumentNullException(nameof(timeStamp));
-            _timestampInUnix = timeStamp!.Value.ToUnixTimeMilliseconds();
-            _year = timeStamp.Value.Year;
-            _month = timeStamp.Value.Month;
-            _timeOfDay = GetTimeOfDay(TimeStamp!.Value);
-        }
+    public Incident(string? caseId, string? address, SeverityEnum severity, CrimeTypeEnum crimeType, MotiveEnum motive, 
+        WeatherConditionEnum weatherCondition, string? additionalInformation, DateTimeOffset? timeStamp)
+    {
+        CaseId = caseId;
+        Address = address;
+        Severity = severity;
+        CrimeType = crimeType;
+        Motive = motive;
+        Weather = weatherCondition;
+        AdditionalInformation = additionalInformation;
+        TimeStamp = timeStamp ?? throw new ArgumentNullException(nameof(timeStamp));
+        _timestampInUnix = timeStamp!.Value.ToUnixTimeMilliseconds();
+        _year = timeStamp.Value.Year;
+        _month = timeStamp.Value.Month;
+        _timeOfDay = GetTimeOfDay(TimeStamp!.Value);
+    }
 
         public string? CaseId { get; private set; }
         public string? Address { get; private set; }
@@ -48,8 +47,8 @@ namespace espasyo.Domain.Entities
         public Guid PrecinctId { get; set; }
         public virtual Precinct Precinct { get; set; } = null!;
         
-        // Legacy enum property - can be removed after migration
-        public Barangay PoliceDistrict { get;  set; }
+        // Computed property that derives from the related Precinct's Barangay
+        public Barangay PoliceDistrict => Precinct?.Barangay ?? Barangay.Alabang;
         public string? AdditionalInformation { get; set; }
 
         public WeatherConditionEnum Weather { get;  set; }

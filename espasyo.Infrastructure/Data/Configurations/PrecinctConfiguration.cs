@@ -16,9 +16,9 @@ namespace espasyo.Infrastructure.Data.Configurations
                 .IsRequired()
                 .ValueGeneratedOnAdd();
                 
-            builder.Property(p => p.Name)
+            builder.Property(p => p.Barangay)
                 .IsRequired()
-                .HasMaxLength(100);
+                .HasConversion<int>(); // Store enum as integer
                 
             builder.Property(p => p.Code)
                 .IsRequired()
@@ -28,9 +28,9 @@ namespace espasyo.Infrastructure.Data.Configurations
                 .IsUnique()
                 .HasDatabaseName("IX_Precinct_Code");
                 
-            builder.HasIndex(p => p.Name)
+            builder.HasIndex(p => p.Barangay)
                 .IsUnique()
-                .HasDatabaseName("IX_Precinct_Name");
+                .HasDatabaseName("IX_Precinct_Barangay");
                 
             builder.Property(p => p.Population)
                 .IsRequired(false);

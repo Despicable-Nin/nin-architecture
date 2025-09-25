@@ -91,12 +91,12 @@ public class BulkCreateIncidentsCommandHandler(
                     (SeverityEnum)incidentRequest.Severity,
                     (CrimeTypeEnum)incidentRequest.CrimeType,
                     (MotiveEnum)incidentRequest.Motive,
-                    Barangay.Alabang, // Placeholder - the real association is via PrecinctId
                     (WeatherConditionEnum)incidentRequest.Weather,
                     incidentRequest.AdditionalInfo,
                     incidentRequest.TimeStamp
                 );
 
+                // Set PrecinctId - PoliceDistrict will be derived from Precinct.Barangay
                 incident.PrecinctId = incidentRequest.PrecinctId;
 
                 // Geocode the address

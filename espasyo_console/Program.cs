@@ -19,6 +19,32 @@ public class Program
         
         // Check if we should run in non-interactive mode
         var isNonInteractive = args.Contains("--non-interactive") || args.Contains("-n");
+        
+        // Parse custom wait time if provided
+        var waitTimeSeconds = 60; // default
+        var waitTimeArg = args.FirstOrDefault(arg => arg.StartsWith("--wait="));
+        if (waitTimeArg != null && int.TryParse(waitTimeArg.Substring(7), out var customWaitTime))
+        {
+            waitTimeSeconds = customWaitTime;
+        }
+        
+        // Wait for API server to be available
+        WriteLine("\n🔌 Waiting for API server to be available...");
+        var serverReady = await WaitForApiServer(Client, waitTimeSeconds);
+        if (!serverReady)
+        {
+            WriteLine("❌ API server is not available after waiting. Please start the API server first.");
+            WriteLine();
+            WriteLine("💡 To start the API server:");
+            WriteLine("   dotnet run --project espasyo.WebAPI");
+            WriteLine();
+            WriteLine("💡 Console seeder usage:");
+            WriteLine("   dotnet run --project espasyo_console              # Interactive mode, 60s wait");
+            WriteLine("   dotnet run --project espasyo_console -- -n        # Non-interactive mode");
+            WriteLine("   dotnet run --project espasyo_console -- --wait=30 # Custom wait time (30s)");
+            return;
+        }
+        WriteLine("✅ API server is ready!");
 
         try
         {
@@ -94,6 +120,42 @@ public class Program
         {
             WriteLine("Console input not available. Exiting automatically.");
         }
+    }
+    
+    private static async Task<bool> WaitForApiServer(HttpClient client, int maxWaitTimeSeconds = 60)
+    {
+        const string healthCheckUrl = "http://localhost:5041/api/manpower/precincts";
+        var startTime = DateTime.Now;
+        var maxWaitTime = TimeSpan.FromSeconds(maxWaitTimeSeconds);
+        
+        WriteLine($"⏱️ Checking API server availability (max wait: {maxWaitTimeSeconds}s)...");
+        
+        while (DateTime.Now - startTime < maxWaitTime)
+        {
+            try
+            {
+                using var response = await client.GetAsync(healthCheckUrl);
+                // We don't care about the response content, just that we can connect
+                WriteLine($"🎯 API server responded with status: {response.StatusCode}");
+                return true; // Server is responsive
+            }
+            catch (HttpRequestException)
+            {
+                // Server not ready yet, continue waiting
+                Write(".");
+                await Task.Delay(2000); // Wait 2 seconds before retrying
+            }
+            catch (TaskCanceledException)
+            {
+                // Timeout on request, continue waiting  
+                Write(".");
+                await Task.Delay(2000);
+            }
+        }
+        
+        WriteLine();
+        WriteLine($"⏰ Timeout: API server did not become available within {maxWaitTimeSeconds} seconds.");
+        return false;
     }
 }
 

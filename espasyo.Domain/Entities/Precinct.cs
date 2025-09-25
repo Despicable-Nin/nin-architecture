@@ -1,11 +1,14 @@
 using espasyo.Domain.Common;
+using espasyo.Domain.Enums;
 using espasyo.Domain.Seedwork;
 
 namespace espasyo.Domain.Entities
 {
     public class Precinct : BaseEntity, IAggregateRoot
     {
-        public string Name { get; set; } = string.Empty;
+        public Barangay Barangay { get; set; } = Barangay.Alabang;
+        
+        public string Name => Barangay.ToString().Replace("_", " "); // Convert enum to readable name
         public string Code { get; set; } = string.Empty;
         public int? Population { get; set; }
         public decimal? AreaKm2 { get; set; }
@@ -26,28 +29,28 @@ namespace espasyo.Domain.Entities
         {
         }
 
-        public Precinct(string name, string code)
-        {
-            Name = name;
-            Code = code;
-            Id = Guid.NewGuid();
-            CreatedAt = DateTimeOffset.UtcNow;
-        }
+    public Precinct(Barangay barangay, string code)
+    {
+        Barangay = barangay;
+        Code = code;
+        Id = Guid.NewGuid();
+        CreatedAt = DateTimeOffset.UtcNow;
+    }
 
-        public void UpdateDetails(string name, string code, int? population = null, 
-            decimal? areaKm2 = null, decimal? latitude = null, decimal? longitude = null,
-            string? description = null, string? contactInfo = null)
-        {
-            Name = name;
-            Code = code;
-            Population = population;
-            AreaKm2 = areaKm2;
-            Latitude = latitude;
-            Longitude = longitude;
-            Description = description;
-            ContactInfo = contactInfo;
-            UpdatedAt = DateTimeOffset.UtcNow;
-        }
+    public void UpdateDetails(Barangay barangay, string code, int? population = null, 
+        decimal? areaKm2 = null, decimal? latitude = null, decimal? longitude = null,
+        string? description = null, string? contactInfo = null)
+    {
+        Barangay = barangay;
+        Code = code;
+        Population = population;
+        AreaKm2 = areaKm2;
+        Latitude = latitude;
+        Longitude = longitude;
+        Description = description;
+        ContactInfo = contactInfo;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
 
         public void Activate()
         {

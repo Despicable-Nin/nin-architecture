@@ -177,10 +177,13 @@ public static class StreetsGenerator
     {
         // Map precinct names to JSON file names for backward compatibility
         // This assumes the JSON files are named after the old Barangay enum values
-        return precinctName.ToLower() switch
+        // Handle both original enum format and display format
+        var normalizedName = precinctName.Replace(" ", "_").ToLower();
+        
+        return normalizedName switch
         {
             "alabang" => "Alabang.json",
-            "ayala alabang" => "Ayala_Alabang.json",
+            "ayala_alabang" => "Ayala_Alabang.json",
             "sucat" => "Sucat.json",
             "poblacion" => "Poblacion.json",
             "putatan" => "Putatan.json",

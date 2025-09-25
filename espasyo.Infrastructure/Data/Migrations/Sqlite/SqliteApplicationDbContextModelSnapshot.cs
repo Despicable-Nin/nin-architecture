@@ -230,9 +230,6 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                     b.Property<int>("Motive")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("PoliceDistrict")
-                        .HasColumnType("INTEGER");
-
                     b.Property<Guid>("PrecinctId")
                         .HasColumnType("TEXT");
 
@@ -324,6 +321,9 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                     b.Property<decimal?>("AreaKm2")
                         .HasColumnType("decimal(10,2)");
 
+                    b.Property<int>("Barangay")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(10)
@@ -354,11 +354,6 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                     b.Property<decimal?>("Longitude")
                         .HasColumnType("decimal(11,8)");
 
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
                     b.Property<int?>("Population")
                         .HasColumnType("INTEGER");
 
@@ -367,15 +362,116 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Barangay")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Precinct_Barangay");
+
                     b.HasIndex("Code")
                         .IsUnique()
                         .HasDatabaseName("IX_Precinct_Code");
 
-                    b.HasIndex("Name")
-                        .IsUnique()
-                        .HasDatabaseName("IX_Precinct_Name");
-
                     b.ToTable("Precinct", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
+                            AreaKm2 = 23.5m,
+                            Barangay = 0,
+                            Code = "ALB",
+                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            Description = "Commercial and business district",
+                            IsActive = true,
+                            Population = 54000
+                        },
+                        new
+                        {
+                            Id = new Guid("22222222-2222-2222-2222-222222222222"),
+                            AreaKm2 = 8.2m,
+                            Barangay = 7,
+                            Code = "AAL",
+                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            Description = "High-income residential area",
+                            IsActive = true,
+                            Population = 25000
+                        },
+                        new
+                        {
+                            Id = new Guid("33333333-3333-3333-3333-333333333333"),
+                            AreaKm2 = 15.7m,
+                            Barangay = 8,
+                            Code = "SUC",
+                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            Description = "Mixed residential and commercial area",
+                            IsActive = true,
+                            Population = 42000
+                        },
+                        new
+                        {
+                            Id = new Guid("44444444-4444-4444-4444-444444444444"),
+                            AreaKm2 = 5.3m,
+                            Barangay = 4,
+                            Code = "POB",
+                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            Description = "City center and administrative area",
+                            IsActive = true,
+                            Population = 18000
+                        },
+                        new
+                        {
+                            Id = new Guid("55555555-5555-5555-5555-555555555555"),
+                            AreaKm2 = 12.8m,
+                            Barangay = 5,
+                            Code = "PUT",
+                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            Description = "Residential area with moderate density",
+                            IsActive = true,
+                            Population = 35000
+                        },
+                        new
+                        {
+                            Id = new Guid("66666666-6666-6666-6666-666666666666"),
+                            AreaKm2 = 10.4m,
+                            Barangay = 6,
+                            Code = "TUN",
+                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            Description = "Residential with some commercial areas",
+                            IsActive = true,
+                            Population = 28000
+                        },
+                        new
+                        {
+                            Id = new Guid("77777777-7777-7777-7777-777777777777"),
+                            AreaKm2 = 8.9m,
+                            Barangay = 3,
+                            Code = "CUP",
+                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            Description = "Smaller residential area",
+                            IsActive = true,
+                            Population = 22000
+                        },
+                        new
+                        {
+                            Id = new Guid("88888888-8888-8888-8888-888888888888"),
+                            AreaKm2 = 11.6m,
+                            Barangay = 1,
+                            Code = "BAY",
+                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            Description = "Residential area",
+                            IsActive = true,
+                            Population = 31000
+                        },
+                        new
+                        {
+                            Id = new Guid("99999999-9999-9999-9999-999999999999"),
+                            AreaKm2 = 9.8m,
+                            Barangay = 2,
+                            Code = "BUL",
+                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            Description = "Residential area",
+                            IsActive = true,
+                            Population = 26000
+                        });
                 });
 
             modelBuilder.Entity("espasyo.Domain.Entities.Product", b =>

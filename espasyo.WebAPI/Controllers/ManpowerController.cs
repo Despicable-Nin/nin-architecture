@@ -317,11 +317,12 @@ public class ManpowerController : ControllerBase
                 if (existingPrecinct == null)
                 {
                     // Create new precinct
-                    var newPrecinct = new Precinct(precinctData.Name, precinctData.Code);
+                    var barangay = MapNameToBarangay(precinctData.Name);
+                    var newPrecinct = new Precinct(barangay, precinctData.Code);
                     
                     if (precinctData.Population.HasValue || !string.IsNullOrEmpty(precinctData.Description))
                     {
-                        newPrecinct.UpdateDetails(precinctData.Name, precinctData.Code,
+                        newPrecinct.UpdateDetails(barangay, precinctData.Code,
                             precinctData.Population, precinctData.AreaKm2,
                             precinctData.Latitude, precinctData.Longitude,
                             precinctData.Description, precinctData.ContactInfo);
@@ -333,7 +334,8 @@ public class ManpowerController : ControllerBase
                 else
                 {
                     // Update existing precinct
-                    existingPrecinct.UpdateDetails(precinctData.Name, precinctData.Code,
+                    var barangay = MapNameToBarangay(precinctData.Name);
+                    existingPrecinct.UpdateDetails(barangay, precinctData.Code,
                         precinctData.Population, precinctData.AreaKm2,
                         precinctData.Latitude, precinctData.Longitude,
                         precinctData.Description, precinctData.ContactInfo);
@@ -401,6 +403,26 @@ public class ManpowerController : ControllerBase
             <= 30 => "Normal", 
             <= 50 => "Heavy",
             _ => "Critical"
+        };
+    }
+    
+    /// <summary>
+    /// Map precinct name to Barangay enum
+    /// </summary>
+    private Barangay MapNameToBarangay(string name)
+    {
+        return name?.ToLower() switch
+        {
+            "alabang" => Barangay.Alabang,
+            "ayala alabang" => Barangay.Ayala_Alabang,
+            "sucat" => Barangay.Sucat,
+            "poblacion" => Barangay.Poblacion,
+            "putatan" => Barangay.Putatan,
+            "tunasan" => Barangay.Tunasan,
+            "cupang" => Barangay.Cupang,
+            "bayanan" => Barangay.Bayanan,
+            "buli" => Barangay.Buli,
+            _ => Barangay.Alabang // Default fallback
         };
     }
 }

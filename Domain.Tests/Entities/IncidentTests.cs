@@ -5,7 +5,7 @@ namespace espasyo.Domain.Entities.Tests
     [TestClass()]
     public class IncidentTests
     {
-        private Incident incident = new(additionalInformation: "This is a test incident", address: "Test Address", caseId: "123", crimeType: CrimeTypeEnum.Homicide, motive: MotiveEnum.Anger, policeDistrictEnum: Barangay.Alabang, severity: SeverityEnum.High, timeStamp: DateTimeOffset.Now, weatherCondition: WeatherConditionEnum.Clear);
+        private Incident incident = new(additionalInformation: "This is a test incident", address: "Test Address", caseId: "123", crimeType: CrimeTypeEnum.Homicide, motive: MotiveEnum.Anger, severity: SeverityEnum.High, timeStamp: DateTimeOffset.Now, weatherCondition: WeatherConditionEnum.Clear);
 
         public IncidentTests()
         {

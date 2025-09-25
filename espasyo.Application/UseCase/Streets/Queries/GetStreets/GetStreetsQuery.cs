@@ -8,7 +8,8 @@ public record GetStreetsQuery : IRequest<GetStreetsResponse>;
 public record StreetResult
 {
     public string? Street { get; init; } 
-    public int? Barangay { get; init; } 
+    public string PrecinctId { get; init; } = string.Empty;
+    public string PrecinctName { get; init; } = string.Empty;
 }
 
 public record GetStreetsResponse

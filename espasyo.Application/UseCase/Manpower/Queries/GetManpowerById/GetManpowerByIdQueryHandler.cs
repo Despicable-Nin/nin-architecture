@@ -21,21 +21,23 @@ public class GetManpowerByIdQueryHandler : IRequestHandler<GetManpowerByIdQuery,
             return null;
         }
 
+        // For demonstration purposes, assume standard requirement of 25 officers
+        const int standardRequirement = 25;
+        var variance = manpower.CalculateVariance(standardRequirement);
+        var status = variance == 0 ? "Adequate" : 
+                    variance > 0 ? "Overage" : "Shortage";
+        
         return new ManpowerResponse
         {
             Id = manpower.Id,
             PrecinctId = manpower.PrecinctId,
             PrecinctName = manpower.Precinct?.Name ?? "Unknown",
             PrecinctCode = manpower.Precinct?.Code ?? "N/A",
-            // Map legacy enum property for backward compatibility
-            Precinct = manpower.PrecinctEnum,
-            Year = manpower.Year,
-            AllocatedCount = manpower.AllocatedCount,
-            MildThreshold = manpower.MildThreshold,
-            ModerateThreshold = manpower.ModerateThreshold,
-            CriticalThreshold = manpower.CriticalThreshold,
-            CreatedAt = manpower.CreatedAt,
-            UpdatedAt = manpower.UpdatedAt
+            HeadCount = manpower.HeadCount,
+            LastUpdated = manpower.LastUpdated,
+            RequiredCount = standardRequirement,
+            Variance = variance,
+            Status = status
         };
     }
 }

@@ -1,5 +1,4 @@
 using espasyo.Domain.Entities;
-using espasyo.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -17,33 +16,26 @@ public class ManpowerConfiguration : IEntityTypeConfiguration<Manpower>
             .IsRequired()
             .ValueGeneratedOnAdd();
 
-        builder.Property(m => m.Precinct)
+        builder.Property(m => m.PrecinctId)
+            .IsRequired();
+
+        builder.Property(m => m.HeadCount)
+            .IsRequired();
+
+        builder.Property(m => m.LastUpdated)
             .IsRequired()
-            .HasConversion<int>();
+            .HasDefaultValueSql("datetime('now')");
 
-        builder.Property(m => m.Year)
-            .IsRequired();
+        // Configure relationship with Precinct
+        builder.HasOne(m => m.Precinct)
+            .WithMany(p => p.ManpowerAllocations)
+            .HasForeignKey(m => m.PrecinctId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .HasConstraintName("FK_Manpower_Precinct");
 
-        builder.Property(m => m.AllocatedCount)
-            .IsRequired();
-
-        builder.Property(m => m.CreatedAt)
-            .IsRequired();
-
-        builder.Property(m => m.UpdatedAt)
-            .IsRequired();
-
-        // Create unique index on Precinct + Year combination
-        builder.HasIndex(m => new { m.Precinct, m.Year })
+        // Create unique index on PrecinctId to ensure one manpower record per precinct
+        builder.HasIndex(m => m.PrecinctId)
             .IsUnique()
-            .HasDatabaseName("IX_Manpower_Precinct_Year");
-
-        // Create index on Year for faster year-based queries
-        builder.HasIndex(m => m.Year)
-            .HasDatabaseName("IX_Manpower_Year");
-
-        // Create index on Precinct for faster precinct-based queries
-        builder.HasIndex(m => m.Precinct)
-            .HasDatabaseName("IX_Manpower_Precinct");
+            .HasDatabaseName("IX_Manpower_PrecinctId");
     }
 }

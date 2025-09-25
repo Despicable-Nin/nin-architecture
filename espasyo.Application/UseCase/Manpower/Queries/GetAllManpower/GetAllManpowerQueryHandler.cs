@@ -14,41 +14,30 @@ public class GetAllManpowerQueryHandler : IRequestHandler<GetAllManpowerQuery, I
 
     public async Task<IEnumerable<ManpowerResponse>> Handle(GetAllManpowerQuery request, CancellationToken cancellationToken)
     {
-        IEnumerable<espasyo.Domain.Entities.Manpower> manpowers;
+        var manpowers = await _manpowerRepository.GetAllManpowerAsync();
+        
+        // For demonstration purposes, let's assume a standard requirement of 25 officers per precinct
+        // In a real system, this would come from business rules or configuration
+        const int standardRequirement = 25;
 
-        if (request.Year.HasValue && request.Precinct.HasValue)
+        return manpowers.Select(m => 
         {
-            var singleManpower = await _manpowerRepository.GetByPrecinctAndYearAsync(request.Precinct.Value, request.Year.Value);
-            manpowers = singleManpower != null ? new[] { singleManpower } : Array.Empty<espasyo.Domain.Entities.Manpower>();
-        }
-        else if (request.Year.HasValue)
-        {
-            manpowers = await _manpowerRepository.GetByYearAsync(request.Year.Value);
-        }
-        else if (request.Precinct.HasValue)
-        {
-            manpowers = await _manpowerRepository.GetByPrecinctAsync(request.Precinct.Value);
-        }
-        else
-        {
-            manpowers = await _manpowerRepository.GetAllManpowerAsync();
-        }
-
-        return manpowers.Select(m => new ManpowerResponse
-        {
-            Id = m.Id,
-            PrecinctId = m.PrecinctId,
-            PrecinctName = m.Precinct?.Name ?? "Unknown",
-            PrecinctCode = m.Precinct?.Code ?? "N/A",
-            // Map legacy enum property for backward compatibility
-            Precinct = m.PrecinctEnum,
-            Year = m.Year,
-            AllocatedCount = m.AllocatedCount,
-            MildThreshold = m.MildThreshold,
-            ModerateThreshold = m.ModerateThreshold,
-            CriticalThreshold = m.CriticalThreshold,
-            CreatedAt = m.CreatedAt,
-            UpdatedAt = m.UpdatedAt
+            var variance = m.CalculateVariance(standardRequirement);
+            var status = variance == 0 ? "Adequate" : 
+                        variance > 0 ? "Overage" : "Shortage";
+                        
+            return new ManpowerResponse
+            {
+                Id = m.Id,
+                PrecinctId = m.PrecinctId,
+                PrecinctName = m.Precinct?.Name ?? "Unknown",
+                PrecinctCode = m.Precinct?.Code ?? "N/A",
+                HeadCount = m.HeadCount,
+                LastUpdated = m.LastUpdated,
+                RequiredCount = standardRequirement,
+                Variance = variance,
+                Status = status
+            };
         });
     }
 }

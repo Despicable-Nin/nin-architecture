@@ -20,6 +20,7 @@ namespace espasyo.Domain.Entities
         // Navigation properties
         public virtual ICollection<Incident> Incidents { get; set; } = new List<Incident>();
         public virtual ICollection<Manpower> ManpowerAllocations { get; set; } = new List<Manpower>();
+        public virtual ICollection<Street> Streets { get; set; } = new List<Street>();
 
         public Precinct()
         {

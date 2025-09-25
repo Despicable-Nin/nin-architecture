@@ -1,6 +1,5 @@
-﻿using espasyo.Application.Interfaces;
+using espasyo.Application.Interfaces;
 using espasyo.Domain.Entities;
-using espasyo.Domain.Enums;
 using MediatR;
 
 namespace espasyo.Application.UseCase.Streets.Commands.CreateStreets;
@@ -13,14 +12,15 @@ public record CreateStreetsCommand : IRequest<bool>
 public record StreetDto
 {
     public string? Street { get; init; }
-    public Barangay Barangay { get; init; }
+    public string PrecinctId { get; init; } = string.Empty;
 }
 
 public class CreateStreetsHandler(ILogger<CreateStreetsHandler> logger, IStreetRepository repository) : IRequestHandler<CreateStreetsCommand, bool>
 {
     public Task<bool> Handle(CreateStreetsCommand request, CancellationToken cancellationToken)
     {
-        var streets = request.Streets.Select(x => new Street(x.Barangay, x.Street));
+        var streets = request.Streets.Where(x => !string.IsNullOrEmpty(x.Street) && Guid.TryParse(x.PrecinctId, out _))
+            .Select(x => new Street(Guid.Parse(x.PrecinctId), x.Street!));
 
         var enumerable = streets as Street[] ?? streets.ToArray();
         if (enumerable!.Any())

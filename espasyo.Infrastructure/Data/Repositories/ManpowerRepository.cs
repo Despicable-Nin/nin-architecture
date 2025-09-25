@@ -1,6 +1,5 @@
 using espasyo.Application.Interfaces;
 using espasyo.Domain.Entities;
-using espasyo.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace espasyo.Infrastructure.Data.Repositories;
@@ -18,34 +17,15 @@ public class ManpowerRepository : IManpowerRepository
     {
         return await _context.Manpowers
             .Include(m => m.Precinct)
-            .OrderBy(m => m.Year)
-            .ThenBy(m => m.PrecinctEnum)
+            .OrderBy(m => m.Precinct.Name)
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<Manpower>> GetByYearAsync(int year)
+    public async Task<Manpower?> GetByPrecinctIdAsync(Guid precinctId)
     {
         return await _context.Manpowers
             .Include(m => m.Precinct)
-            .Where(m => m.Year == year)
-            .OrderBy(m => m.PrecinctEnum)
-            .ToListAsync();
-    }
-
-    public async Task<Manpower?> GetByPrecinctAndYearAsync(Barangay precinct, int year)
-    {
-        return await _context.Manpowers
-            .Include(m => m.Precinct)
-            .FirstOrDefaultAsync(m => m.PrecinctEnum == precinct && m.Year == year);
-    }
-
-    public async Task<IEnumerable<Manpower>> GetByPrecinctAsync(Barangay precinct)
-    {
-        return await _context.Manpowers
-            .Include(m => m.Precinct)
-            .Where(m => m.PrecinctEnum == precinct)
-            .OrderBy(m => m.Year)
-            .ToListAsync();
+            .FirstOrDefaultAsync(m => m.PrecinctId == precinctId);
     }
 
     public async Task<Manpower?> GetByIdAsync(Guid id)
@@ -82,30 +62,29 @@ public class ManpowerRepository : IManpowerRepository
         return true;
     }
 
-    public async Task<bool> ExistsAsync(Barangay precinct, int year)
+    public async Task<bool> ExistsByPrecinctIdAsync(Guid precinctId)
     {
         return await _context.Manpowers
-            .AnyAsync(m => m.PrecinctEnum == precinct && m.Year == year);
+            .AnyAsync(m => m.PrecinctId == precinctId);
     }
 
-    public async Task<Dictionary<Barangay, int>> GetTotalManpowerByPrecinctAsync(int year)
+    public async Task<Dictionary<Guid, int>> GetTotalManpowerByPrecinctAsync()
     {
         return await _context.Manpowers
-            .Where(m => m.Year == year)
-            .GroupBy(m => m.PrecinctEnum)
+            .GroupBy(m => m.PrecinctId)
             .ToDictionaryAsync(
                 g => g.Key,
-                g => g.Sum(m => m.AllocatedCount)
+                g => g.Sum(m => m.HeadCount)
             );
     }
 
-    public async Task<IEnumerable<Manpower>> GetManpowerRequiringAdjustmentAsync(int year, Dictionary<Barangay, int> predictedCaseCounts)
+    public async Task<IEnumerable<Manpower>> GetManpowerWithShortageAsync(Dictionary<Guid, int> requiredManpower)
     {
-        var manpowerData = await GetByYearAsync(year);
+        var allManpower = await GetAllManpowerAsync();
         
-        return manpowerData.Where(m => 
-            predictedCaseCounts.ContainsKey(m.PrecinctEnum) && 
-            m.RequiresManpowerAdjustment(predictedCaseCounts[m.PrecinctEnum])
+        return allManpower.Where(m => 
+            requiredManpower.ContainsKey(m.PrecinctId) && 
+            m.HasShortage(requiredManpower[m.PrecinctId])
         );
     }
 }

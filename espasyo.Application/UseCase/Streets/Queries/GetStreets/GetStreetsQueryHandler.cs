@@ -1,6 +1,5 @@
-﻿using espasyo.Application.Interfaces;
+using espasyo.Application.Interfaces;
 using espasyo.Domain.Entities;
-using espasyo.Domain.Enums;
 using MediatR;
 
 namespace espasyo.Application.UseCase.Streets.Queries.GetStreets;
@@ -16,7 +15,8 @@ public class GetStreetsQueryHandler(ILogger<GetStreetsQueryHandler> logger, IStr
         var result = streets.Select(x => new StreetResult
         {
             Street = x.Name,
-            Barangay = (int)x.GetBarangay()
+            PrecinctId = x.PrecinctId.ToString(),
+            PrecinctName = x.Precinct?.Name ?? "Unknown"
         });
 
         return new GetStreetsResponse(result);

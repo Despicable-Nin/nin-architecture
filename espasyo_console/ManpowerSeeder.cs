@@ -1,55 +1,31 @@
 using System.Text;
 using System.Text.Json;
-using espasyo.Domain.Enums;
 
 namespace espasyo_console;
 
 public static class ManpowerSeeder
 {
+    private static readonly Random Random = new();
+    
     public static async Task SeedCurrentYearManpower(HttpClient client)
     {
-        Console.WriteLine("Seeding manpower allocations for current year...");
+        Console.WriteLine("Seeding manpower allocations...");
 
-        var currentYear = DateTime.Now.Year;
-
-        // Realistic manpower allocations for all Muntinlupa barangays
-        // Based on population density, crime rates, and area coverage
-        var manpowerAllocations = new[]
+        // First, get all precincts from the API
+        var precincts = await GetPrecincts(client);
+        if (precincts == null || precincts.Length == 0)
         {
-            // Alabang - commercial/business district, higher crime potential
-            new { Precinct = Barangay.Alabang, Year = currentYear, AllocatedCount = 35, MildThreshold = 25, ModerateThreshold = 40, CriticalThreshold = 60 },
-            
-            // Ayala Alabang - high-income residential, lower crime but needs presence
-            new { Precinct = Barangay.Ayala_Alabang, Year = currentYear, AllocatedCount = 28, MildThreshold = 20, ModerateThreshold = 32, CriticalThreshold = 48 },
-            
-            // Sucat - mixed residential/commercial, moderate crime
-            new { Precinct = Barangay.Sucat, Year = currentYear, AllocatedCount = 30, MildThreshold = 22, ModerateThreshold = 35, CriticalThreshold = 52 },
-            
-            // Poblacion - city center, administrative area
-            new { Precinct = Barangay.Poblacion, Year = currentYear, AllocatedCount = 32, MildThreshold = 24, ModerateThreshold = 38, CriticalThreshold = 55 },
-            
-            // Putatan - residential area, moderate density
-            new { Precinct = Barangay.Putatan, Year = currentYear, AllocatedCount = 26, MildThreshold = 18, ModerateThreshold = 30, CriticalThreshold = 45 },
-            
-            // Tunasan - residential, some commercial
-            new { Precinct = Barangay.Tunasan, Year = currentYear, AllocatedCount = 24, MildThreshold = 17, ModerateThreshold = 28, CriticalThreshold = 42 },
-            
-            // Cupang - smaller residential area
-            new { Precinct = Barangay.Cupang, Year = currentYear, AllocatedCount = 20, MildThreshold = 14, ModerateThreshold = 24, CriticalThreshold = 36 },
-            
-            // Bayanan - residential area
-            new { Precinct = Barangay.Bayanan, Year = currentYear, AllocatedCount = 22, MildThreshold = 16, ModerateThreshold = 26, CriticalThreshold = 38 },
-            
-            // Buli - residential area  
-            new { Precinct = Barangay.Buli, Year = currentYear, AllocatedCount = 21, MildThreshold = 15, ModerateThreshold = 25, CriticalThreshold = 37 }
-        };
+            Console.WriteLine("No precincts found. Cannot seed manpower allocations.");
+            return;
+        }
 
         var successCount = 0;
-        foreach (var allocation in manpowerAllocations)
+        foreach (var precinct in precincts)
         {
-            if (await CreateManpowerAllocation(client, allocation.Precinct, allocation.Year, 
-                allocation.AllocatedCount, allocation.MildThreshold, 
-                allocation.ModerateThreshold, allocation.CriticalThreshold))
+            // Generate random head count between 15-40 officers per precinct
+            var headCount = Random.Next(15, 41);
+            
+            if (await CreateManpowerAllocation(client, precinct.Id, headCount))
             {
                 successCount++;
             }
@@ -57,20 +33,42 @@ public static class ManpowerSeeder
             await Task.Delay(100); // Small delay between requests
         }
 
-        Console.WriteLine($"Successfully seeded {successCount}/{manpowerAllocations.Length} manpower allocations for {currentYear}.");
+        Console.WriteLine($"Successfully seeded {successCount}/{precincts.Length} manpower allocations.");
     }
 
-    private static async Task<bool> CreateManpowerAllocation(HttpClient client, Barangay precinct, int year, 
-        int allocatedCount, int mildThreshold, int moderateThreshold, int criticalThreshold)
+    private static async Task<PrecinctDto[]?> GetPrecincts(HttpClient client)
+    {
+        try
+        {
+            var response = await client.GetAsync("https://localhost:5041/api/precinct");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<PrecinctDto[]>(json, new JsonSerializerOptions 
+                { 
+                    PropertyNameCaseInsensitive = true 
+                });
+            }
+            else
+            {
+                Console.WriteLine($"Failed to fetch precincts: {response.StatusCode}");
+                return null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Exception fetching precincts: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static async Task<bool> CreateManpowerAllocation(HttpClient client, string precinctId, int headCount)
     {
         var manpower = new
         {
-            Precinct = precinct,
-            Year = year,
-            AllocatedCount = allocatedCount,
-            MildThreshold = mildThreshold,
-            ModerateThreshold = moderateThreshold,
-            CriticalThreshold = criticalThreshold
+            PrecinctId = precinctId,
+            HeadCount = headCount
         };
 
         var json = JsonSerializer.Serialize(manpower);
@@ -82,25 +80,32 @@ public static class ManpowerSeeder
             
             if (response.IsSuccessStatusCode)
             {
-                Console.WriteLine($"✓ Created manpower allocation: {precinct} {year} ({allocatedCount} officers)");
+                Console.WriteLine($"✓ Created manpower allocation: Precinct {precinctId} ({headCount} officers)");
                 return true;
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
             {
-                Console.WriteLine($"⚠ Manpower allocation already exists: {precinct} {year}");
+                Console.WriteLine($"⚠ Manpower allocation already exists for precinct {precinctId}");
                 return false; // Don't count as success for new creation
             }
             else
             {
                 var error = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"✗ Failed to create manpower allocation for {precinct} {year}: {error}");
+                Console.WriteLine($"✗ Failed to create manpower allocation for precinct {precinctId}: {error}");
                 return false;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"✗ Exception creating manpower allocation for {precinct} {year}: {ex.Message}");
+            Console.WriteLine($"✗ Exception creating manpower allocation for precinct {precinctId}: {ex.Message}");
             return false;
         }
+    }
+    
+    public class PrecinctDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Code { get; set; } = string.Empty;
     }
 }

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using espasyo.Infrastructure.Data;
 
@@ -10,9 +11,11 @@ using espasyo.Infrastructure.Data;
 namespace espasyo.Infrastructure.Data.Migrations.Sqlite
 {
     [DbContext(typeof(SqliteApplicationDbContext))]
-    partial class SqliteApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250924235709_SimplifyManpowerStructure")]
+    partial class SimplifyManpowerStructure
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.8");
@@ -399,19 +402,13 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("PrecinctId")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("_barangay")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("Barangay");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .HasDatabaseName("IX_Street_Name");
-
-                    b.HasIndex("PrecinctId")
-                        .HasDatabaseName("IX_Street_PrecinctId");
 
                     b.ToTable("Street", (string)null);
                 });
@@ -491,25 +488,11 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                     b.Navigation("Precinct");
                 });
 
-            modelBuilder.Entity("espasyo.Domain.Entities.Street", b =>
-                {
-                    b.HasOne("espasyo.Domain.Entities.Precinct", "Precinct")
-                        .WithMany("Streets")
-                        .HasForeignKey("PrecinctId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("FK_Street_Precinct");
-
-                    b.Navigation("Precinct");
-                });
-
             modelBuilder.Entity("espasyo.Domain.Entities.Precinct", b =>
                 {
                     b.Navigation("Incidents");
 
                     b.Navigation("ManpowerAllocations");
-
-                    b.Navigation("Streets");
                 });
 #pragma warning restore 612, 618
         }

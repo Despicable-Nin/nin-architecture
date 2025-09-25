@@ -15,20 +15,16 @@ public class CreateManpowerCommandHandler : IRequestHandler<CreateManpowerComman
 
     public async Task<Guid> Handle(CreateManpowerCommand request, CancellationToken cancellationToken)
     {
-        // Check if manpower allocation already exists for this precinct and year
-        var exists = await _manpowerRepository.ExistsAsync(request.Precinct, request.Year);
+        // Check if manpower allocation already exists for this precinct
+        var exists = await _manpowerRepository.ExistsByPrecinctIdAsync(request.PrecinctId);
         if (exists)
         {
-            throw new InvalidOperationException($"Manpower allocation already exists for {request.Precinct} in {request.Year}");
+            throw new InvalidOperationException($"Manpower allocation already exists for precinct {request.PrecinctId}");
         }
 
         var manpower = new DomainEntities.Manpower(
-            request.Precinct,
-            request.Year,
-            request.AllocatedCount,
-            request.MildThreshold,
-            request.ModerateThreshold,
-            request.CriticalThreshold
+            request.PrecinctId,
+            request.HeadCount
         );
 
         var createdManpower = await _manpowerRepository.CreateAsync(manpower);

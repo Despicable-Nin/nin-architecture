@@ -14,55 +14,57 @@ public class AnalyzeManpowerNeedsQueryHandler : IRequestHandler<AnalyzeManpowerN
 
     public async Task<ManpowerAnalysisResponse> Handle(AnalyzeManpowerNeedsQuery request, CancellationToken cancellationToken)
     {
-        var manpowerAllocations = await _manpowerRepository.GetByYearAsync(request.Year);
-        var manpowerDict = manpowerAllocations.ToDictionary(m => m.PrecinctEnum, m => m);
+        var manpowerAllocations = await _manpowerRepository.GetAllManpowerAsync();
+        var manpowerDict = manpowerAllocations.ToDictionary(m => m.PrecinctId, m => m);
         
         var analyses = new List<PrecinctAnalysis>();
         var summary = new ManpowerSummary();
 
-        foreach (var (precinct, predictedCases) in request.PredictedCaseCounts)
+        // For simplified analysis, assume standard thresholds
+        const int mildThreshold = 15;
+        const int moderateThreshold = 30;
+        const int criticalThreshold = 45;
+
+        foreach (var (precinctId, predictedCases) in request.PredictedCaseCounts)
         {
-            if (!manpowerDict.TryGetValue(precinct, out var manpower))
+            if (!manpowerDict.TryGetValue(precinctId, out var manpower))
             {
-                // No manpower allocation for this precinct - skip or create default
+                // No manpower allocation for this precinct - skip
                 continue;
             }
 
-            var severityLevel = manpower.GetSeverityLevel(predictedCases);
-            var requiresAdjustment = manpower.RequiresManpowerAdjustment(predictedCases);
-            var recommendedAdjustment = manpower.GetRecommendedManpowerAdjustment(predictedCases);
-            var recommendedAllocation = Math.Max(1, manpower.AllocatedCount + recommendedAdjustment);
+            var severityLevel = GetSeverityLevel(predictedCases, mildThreshold, moderateThreshold, criticalThreshold);
+            var recommendedCount = CalculateRecommendedManpower(predictedCases, severityLevel);
+            var adjustment = recommendedCount - manpower.HeadCount;
+            var requiresAdjustment = adjustment != 0;
 
             var justification = GenerateJustification(
                 severityLevel, 
                 predictedCases, 
-                manpower.AllocatedCount, 
-                recommendedAdjustment,
-                manpower.MildThreshold,
-                manpower.ModerateThreshold,
-                manpower.CriticalThreshold
+                manpower.HeadCount, 
+                adjustment
             );
 
             analyses.Add(new PrecinctAnalysis
             {
-                Precinct = precinct,
-                PrecinctName = precinct.ToString(),
-                CurrentAllocation = manpower.AllocatedCount,
+                PrecinctId = precinctId,
+                PrecinctName = manpower.Precinct?.Name ?? "Unknown",
+                CurrentAllocation = manpower.HeadCount,
                 PredictedCases = predictedCases,
                 SeverityLevel = severityLevel,
                 RequiresAdjustment = requiresAdjustment,
-                RecommendedAdjustment = recommendedAdjustment,
-                RecommendedAllocation = recommendedAllocation,
+                RecommendedAdjustment = adjustment,
+                RecommendedAllocation = recommendedCount,
                 Justification = justification
             });
 
             // Update summary
-            summary.TotalCurrentManpower += manpower.AllocatedCount;
-            summary.TotalRecommendedManpower += recommendedAllocation;
+            summary.TotalCurrentManpower += manpower.HeadCount;
+            summary.TotalRecommendedManpower += recommendedCount;
             
-            if (recommendedAdjustment > 0)
+            if (adjustment > 0)
                 summary.PrecinctRequiringIncrease++;
-            else if (recommendedAdjustment < 0)
+            else if (adjustment < 0)
                 summary.PrecinctRequiringDecrease++;
             else
                 summary.PrecinctWithoutChange++;
@@ -78,14 +80,35 @@ public class AnalyzeManpowerNeedsQueryHandler : IRequestHandler<AnalyzeManpowerN
         };
     }
 
+    private static string GetSeverityLevel(int predictedCases, int mildThreshold, int moderateThreshold, int criticalThreshold)
+    {
+        if (predictedCases <= mildThreshold)
+            return "Mild";
+        if (predictedCases <= moderateThreshold)
+            return "Moderate";
+        if (predictedCases <= criticalThreshold)
+            return "High";
+        return "Critical";
+    }
+    
+    private static int CalculateRecommendedManpower(int predictedCases, string severityLevel)
+    {
+        // Simple calculation based on severity level
+        return severityLevel switch
+        {
+            "Mild" => Math.Max(10, (int)Math.Ceiling(predictedCases / 2.0)),
+            "Moderate" => Math.Max(15, (int)Math.Ceiling(predictedCases / 1.5)),
+            "High" => Math.Max(20, (int)Math.Ceiling(predictedCases / 1.2)),
+            "Critical" => Math.Max(25, (int)Math.Ceiling(predictedCases / 1.0)),
+            _ => 15
+        };
+    }
+
     private static string GenerateJustification(
         string severityLevel, 
         int predictedCases, 
         int currentAllocation, 
-        int adjustment,
-        int mildThreshold,
-        int moderateThreshold,
-        int criticalThreshold)
+        int adjustment)
     {
         if (adjustment == 0)
         {
@@ -94,9 +117,9 @@ public class AnalyzeManpowerNeedsQueryHandler : IRequestHandler<AnalyzeManpowerN
 
         if (adjustment > 0)
         {
-            return $"Increase by {adjustment} officers. {severityLevel} severity with {predictedCases} predicted cases (exceeds {criticalThreshold} critical threshold) requires additional resources.";
+            return $"Increase by {adjustment} officers. {severityLevel} severity with {predictedCases} predicted cases requires additional resources.";
         }
 
-        return $"Potential reduction of {Math.Abs(adjustment)} officers. {severityLevel} severity with {predictedCases} predicted cases (below {mildThreshold} mild threshold) indicates over-allocation.";
+        return $"Potential reduction of {Math.Abs(adjustment)} officers. {severityLevel} severity with {predictedCases} predicted cases indicates over-allocation.";
     }
 }

@@ -71,11 +71,7 @@ namespace espasyo.Infrastructure.Data.Configurations
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("FK_Incident_Precinct");
                 
-            builder.HasMany(p => p.ManpowerAllocations)
-                .WithOne(m => m.Precinct)
-                .HasForeignKey(m => m.PrecinctId)
-                .OnDelete(DeleteBehavior.Restrict)
-                .HasConstraintName("FK_Manpower_Precinct");
+            // Note: Manpower relationship is configured in ManpowerConfiguration to avoid conflicts
         }
     }
 }

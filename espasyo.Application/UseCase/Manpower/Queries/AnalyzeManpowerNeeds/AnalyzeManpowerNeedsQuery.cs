@@ -1,4 +1,3 @@
-using espasyo.Domain.Enums;
 using MediatR;
 
 namespace espasyo.Application.UseCase.Manpower.Queries.AnalyzeManpowerNeeds;
@@ -6,7 +5,7 @@ namespace espasyo.Application.UseCase.Manpower.Queries.AnalyzeManpowerNeeds;
 public class AnalyzeManpowerNeedsQuery : IRequest<ManpowerAnalysisResponse>
 {
     public int Year { get; set; }
-    public Dictionary<Barangay, int> PredictedCaseCounts { get; set; } = new();
+    public Dictionary<Guid, int> PredictedCaseCounts { get; set; } = new();
 }
 
 public class ManpowerAnalysisResponse
@@ -18,7 +17,7 @@ public class ManpowerAnalysisResponse
 
 public class PrecinctAnalysis
 {
-    public Barangay Precinct { get; set; }
+    public Guid PrecinctId { get; set; }
     public string PrecinctName { get; set; } = string.Empty;
     public int CurrentAllocation { get; set; }
     public int PredictedCases { get; set; }

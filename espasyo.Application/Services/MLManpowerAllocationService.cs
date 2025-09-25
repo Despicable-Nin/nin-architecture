@@ -326,7 +326,7 @@ public class MLManpowerAllocationService
         var endYear = _mlSettings.HistoricalData.IncludeCurrentYear ? currentYear : currentYear - 1;
         for (int year = startYear; year <= endYear; year++)
         {
-            var yearlyData = await _manpowerRepository.GetByYearAsync(year);
+            var yearlyData = await _manpowerRepository.GetAllManpowerAsync();
             foreach (var data in yearlyData)
             {
                 // Create monthly records (simplified - in real implementation, 
@@ -335,10 +335,10 @@ public class MLManpowerAllocationService
                 {
                     manpowerData.Add(new HistoricalManpowerData
                     {
-                        Precinct = data.PrecinctEnum,
+                        Precinct = Barangay.Alabang, // Simplified - use default precinct
                         Year = year,
                         Month = month,
-                        StaffingLevel = data.AllocatedCount
+                        StaffingLevel = data.HeadCount
                     });
                 }
             }

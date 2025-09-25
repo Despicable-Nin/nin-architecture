@@ -20,13 +20,8 @@ public class UpdateManpowerCommandHandler : IRequestHandler<UpdateManpowerComman
             throw new InvalidOperationException($"Manpower allocation with ID {request.Id} not found");
         }
 
-        // Update both allocation and thresholds
-        manpower.UpdateAllocationAndThresholds(
-            request.AllocatedCount,
-            request.MildThreshold,
-            request.ModerateThreshold,
-            request.CriticalThreshold
-        );
+        // Update head count
+        manpower.UpdateHeadCount(request.HeadCount);
         
         var updatedManpower = await _manpowerRepository.UpdateAsync(manpower);
         return updatedManpower != null;

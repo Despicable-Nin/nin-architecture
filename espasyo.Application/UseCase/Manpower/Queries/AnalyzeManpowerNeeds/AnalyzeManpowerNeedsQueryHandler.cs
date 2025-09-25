@@ -25,13 +25,13 @@ public class AnalyzeManpowerNeedsQueryHandler : IRequestHandler<AnalyzeManpowerN
         const int moderateThreshold = 30;
         const int criticalThreshold = 45;
 
-        foreach (var (precinctId, predictedCases) in request.PredictedCaseCounts)
+        // Iterate through ALL precincts with manpower data, not just those in request
+        foreach (var manpower in manpowerAllocations)
         {
-            if (!manpowerDict.TryGetValue(precinctId, out var manpower))
-            {
-                // No manpower allocation for this precinct - skip
-                continue;
-            }
+            // Get predicted cases for this precinct (default to 0 if not provided)
+            var predictedCases = request.PredictedCaseCounts.TryGetValue(manpower.PrecinctId, out var cases) 
+                ? cases 
+                : 0; // Default to 0 cases if no prediction provided
 
             var severityLevel = GetSeverityLevel(predictedCases, mildThreshold, moderateThreshold, criticalThreshold);
             var recommendedCount = CalculateRecommendedManpower(predictedCases, severityLevel);
@@ -47,8 +47,8 @@ public class AnalyzeManpowerNeedsQueryHandler : IRequestHandler<AnalyzeManpowerN
 
             analyses.Add(new PrecinctAnalysis
             {
-                PrecinctId = precinctId,
-                PrecinctName = manpower.Precinct?.Name ?? "Unknown",
+                PrecinctId = manpower.PrecinctId,
+                PrecinctName = manpower.Precinct?.Name ?? GetPrecinctNameFromBarangay(manpower.Precinct?.Barangay),
                 CurrentAllocation = manpower.HeadCount,
                 PredictedCases = predictedCases,
                 SeverityLevel = severityLevel,
@@ -121,5 +121,12 @@ public class AnalyzeManpowerNeedsQueryHandler : IRequestHandler<AnalyzeManpowerN
         }
 
         return $"Potential reduction of {Math.Abs(adjustment)} officers. {severityLevel} severity with {predictedCases} predicted cases indicates over-allocation.";
+    }
+    
+    private static string GetPrecinctNameFromBarangay(Domain.Enums.Barangay? barangay)
+    {
+        if (barangay == null) return "Unknown";
+        
+        return barangay.Value.ToString().Replace("_", " ");
     }
 }

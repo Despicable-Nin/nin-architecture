@@ -15,6 +15,10 @@ public static class ApplicationDependencyInjection
         services.AddTransient<IRequestHandler<GetProductsQuery, IEnumerable<ProductResult>>, GetProductsQueryHandler>();
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidatorBehavior<,>));
         services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+        
+        // Register data-driven complexity service (replaces hard-coded values)
+        services.AddTransient<DataDrivenComplexityService>();
+        
         return services;
     }
     

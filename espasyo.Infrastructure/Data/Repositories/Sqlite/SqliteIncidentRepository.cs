@@ -30,7 +30,7 @@ public class SqliteIncidentRepository(SqliteApplicationDbContext context) : IInc
     {
         dateRange ??= new (DateOnly.FromDateTime(DateTime.Now), DateOnly.FromDateTime(DateTime.Now));
 
-        var query = context.Incidents.AsNoTracking();
+        IQueryable<Incident> query = context.Incidents.AsNoTracking().Include(i => i.Precinct);
 
         var startDate = dateRange.Value.Key.ToDateTime(TimeOnly.MinValue);
         var endDate = dateRange.Value.Value.ToDateTime(TimeOnly.MaxValue);
@@ -57,8 +57,26 @@ public class SqliteIncidentRepository(SqliteApplicationDbContext context) : IInc
 
         if (policeDistricts is { Length: > 0 })
         {
-            var precincts = ConvertToEnumArray<Barangay>(policeDistricts);
-            query = query.Where(i => precincts.Contains(i.PoliceDistrict));
+            // Prefer filtering by PrecinctId (GUIDs). Fallback to Barangay names/ints for backward compatibility.
+            var precinctGuidList = new List<Guid>();
+            foreach (var s in policeDistricts)
+            {
+                if (Guid.TryParse(s, out var gid))
+                {
+                    precinctGuidList.Add(gid);
+                }
+            }
+
+            if (precinctGuidList.Count > 0)
+            {
+                query = query.Where(i => precinctGuidList.Contains(i.PrecinctId));
+            }
+            else
+            {
+                var precinctEnums = ConvertToEnumArray<Barangay>(policeDistricts);
+                // Ensure Precinct is loaded and filter via its Barangay
+                query = query.Where(i => precinctEnums.Contains(i.Precinct.Barangay));
+            }
         }
 
         if (severities is { Length: > 0 })
@@ -72,7 +90,7 @@ public class SqliteIncidentRepository(SqliteApplicationDbContext context) : IInc
 
     public async Task<(IEnumerable<Incident>, int count)> GetPaginatedIncidentsAsync(string search, int pageNumber, int pageSize)
     {
-        var query = context.Incidents.AsNoTracking();
+        IQueryable<Incident> query = context.Incidents.AsNoTracking().Include(i => i.Precinct);
 
         if (!string.IsNullOrEmpty(search))
         {

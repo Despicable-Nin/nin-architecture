@@ -114,22 +114,18 @@ public class FeatureEngineeringSettings
 public class ComplexitySettings
 {
     /// <summary>
-    /// Crime types considered highly complex
+    /// Crime types considered highly complex - calculated dynamically from data
+    /// Use DataDrivenComplexityService.CalculateComplexCrimeTypesAsync() instead
     /// </summary>
-    public HashSet<string> ComplexCrimeTypes { get; set; } = new()
-    {
-        "Murder", "Homicide", "HumanTrafficking", "Corruption"
-    };
+    [Obsolete("Use DataDrivenComplexityService.CalculateComplexCrimeTypesAsync() for data-driven complexity calculation")]
+    public HashSet<string> ComplexCrimeTypes { get; set; } = new();
 
     /// <summary>
-    /// Geographic complexity factors by precinct
-    /// Dictionary of precinct name to complexity multiplier
+    /// Geographic complexity factors by precinct - calculated dynamically from data
+    /// Use DataDrivenComplexityService.CalculateGeographicComplexityFactorsAsync() instead
     /// </summary>
-    public Dictionary<string, float> GeographicComplexityFactors { get; set; } = new()
-    {
-        { "Alabang", 1.2f },
-        { "Ayala_Alabang", 0.8f }
-    };
+    [Obsolete("Use DataDrivenComplexityService.CalculateGeographicComplexityFactorsAsync() for data-driven complexity calculation")]
+    public Dictionary<string, float> GeographicComplexityFactors { get; set; } = new();
 
     /// <summary>
     /// Default geographic complexity factor for precincts not specified

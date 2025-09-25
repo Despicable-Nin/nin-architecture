@@ -97,22 +97,25 @@ public class MLConfigurationValidator
             return;
         }
 
-        if (complexity.ComplexCrimeTypes == null || !complexity.ComplexCrimeTypes.Any())
+        // Note: ComplexCrimeTypes and GeographicComplexityFactors are now calculated dynamically
+        // by DataDrivenComplexityService, so we only validate they are initialized (can be empty)
+        if (complexity.ComplexCrimeTypes == null)
         {
-            errors.Add("ComplexCrimeTypes must contain at least one crime type.");
+            errors.Add("ComplexCrimeTypes must be initialized (can be empty for data-driven calculation).");
         }
 
         if (complexity.GeographicComplexityFactors == null)
         {
-            errors.Add("GeographicComplexityFactors dictionary is required.");
+            errors.Add("GeographicComplexityFactors must be initialized (can be empty for data-driven calculation).");
         }
         else
         {
+            // Only validate manually configured factors (if any)
             foreach (var kvp in complexity.GeographicComplexityFactors)
             {
                 if (kvp.Value < 0.1f || kvp.Value > 5.0f)
                 {
-                    errors.Add($"GeographicComplexityFactor for '{kvp.Key}' must be between 0.1 and 5.0 (found: {kvp.Value}).");
+                    errors.Add($"Manual GeographicComplexityFactor for '{kvp.Key}' must be between 0.1 and 5.0 (found: {kvp.Value}).");
                 }
             }
         }

@@ -32,7 +32,7 @@ public static class StreetsGenerator
         try
         {
             // Delete existing streets (if any)
-            await DeleteAllStreets(httpClient);
+            //await DeleteAllStreets(httpClient);
             
             // Seed new streets
             return await SeedAllStreets(httpClient);

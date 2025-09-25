@@ -18,7 +18,7 @@ public class SqliteManpowerRepository : IManpowerRepository
     {
         return await _context.Manpowers
             .Include(m => m.Precinct)
-            .OrderBy(m => m.Precinct.Name)
+            .OrderBy(m => m.Precinct.Code)
             .ToListAsync();
     }
 

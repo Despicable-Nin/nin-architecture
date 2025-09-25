@@ -282,7 +282,7 @@ public class ManpowerController : ControllerBase
                     p.AreaKm2,
                     p.IsActive
                 })
-                .OrderBy(p => p.Name)
+                .OrderBy(p => p.Code)
                 .ToListAsync();
             
             return Ok(precincts);

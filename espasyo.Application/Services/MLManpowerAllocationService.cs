@@ -1,6 +1,7 @@
 using Microsoft.ML;
 using Microsoft.ML.Data;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using espasyo.Domain.Entities;
 using espasyo.Domain.Enums;
 using espasyo.Application.Interfaces;
@@ -9,7 +10,9 @@ using espasyo.Application.Configuration;
 namespace espasyo.Application.Services;
 
 /// <summary>
-/// ML.NET-based manpower allocation service that learns optimal staffing patterns from historical data
+/// ML.NET-based manpower allocation service that learns optimal staffing patterns from historical data.
+/// Trained models are persisted to disk so training only happens once per environment setup.
+/// On subsequent runs (including after restarts), models are loaded instantly from disk.
 /// </summary>
 public class MLManpowerAllocationService
 {
@@ -18,19 +21,33 @@ public class MLManpowerAllocationService
     private readonly IManpowerRepository _manpowerRepository;
     private readonly MLSettings _mlSettings;
     private readonly DataDrivenComplexityService _complexityService;
-    
+    private readonly ILogger<MLManpowerAllocationService> _logger;
+
     private ITransformer? _complexityModel;
     private ITransformer? _workloadModel;
     private ITransformer? _optimizationModel;
 
+    // -------------------------------------------------------------------------
+    // Model file paths
+    // These .zip files are written once after training and loaded on every
+    // subsequent startup, completely avoiding on-the-fly training during requests.
+    // During development: delete these files to force a re-train on next startup.
+    // -------------------------------------------------------------------------
+    private static readonly string ModelsDirectory = Path.Combine(AppContext.BaseDirectory, "MLModels");
+    private static readonly string ComplexityModelPath   = Path.Combine(ModelsDirectory, "complexity_model.zip");
+    private static readonly string WorkloadModelPath     = Path.Combine(ModelsDirectory, "workload_model.zip");
+    private static readonly string OptimizationModelPath = Path.Combine(ModelsDirectory, "optimization_model.zip");
+
     public MLManpowerAllocationService(
-        IIncidentRepository incidentRepository, 
+        IIncidentRepository incidentRepository,
         IManpowerRepository manpowerRepository,
         IOptions<MLSettings> mlSettings,
-        DataDrivenComplexityService complexityService)
+        DataDrivenComplexityService complexityService,
+        ILogger<MLManpowerAllocationService> logger)
     {
         _mlSettings = mlSettings.Value ?? throw new ArgumentNullException(nameof(mlSettings));
-        
+        _logger = logger;
+
         // Validate configuration on startup
         var validationErrors = MLConfigurationValidator.ValidateConfiguration(_mlSettings);
         if (validationErrors.Any())
@@ -38,26 +55,73 @@ public class MLManpowerAllocationService
             throw new InvalidOperationException(
                 $"ML configuration validation failed: {string.Join("; ", validationErrors)}");
         }
-        
+
         _mlContext = new MLContext(seed: _mlSettings.Training.RandomSeed);
         _incidentRepository = incidentRepository;
         _manpowerRepository = manpowerRepository;
         _complexityService = complexityService;
+
+        // Try to load pre-trained models from disk immediately.
+        // If this succeeds, no training is ever needed during a request.
+        TryLoadModelsFromDisk();
+    }
+
+    /// <summary>
+    /// Attempts to load all three ML models from their persisted .zip files.
+    /// Returns true if all models were loaded successfully; false if any are missing.
+    /// </summary>
+    private bool TryLoadModelsFromDisk()
+    {
+        try
+        {
+            if (!File.Exists(ComplexityModelPath) ||
+                !File.Exists(WorkloadModelPath) ||
+                !File.Exists(OptimizationModelPath))
+            {
+                _logger.LogInformation(
+                    "Pre-trained ML models not found on disk. Models will be trained and saved on the first request.");
+                return false;
+            }
+
+            _complexityModel   = _mlContext.Model.Load(ComplexityModelPath,   out _);
+            _workloadModel     = _mlContext.Model.Load(WorkloadModelPath,     out _);
+            _optimizationModel = _mlContext.Model.Load(OptimizationModelPath, out _);
+
+            _logger.LogInformation(
+                "Pre-trained ML models loaded from disk successfully. Training will be skipped.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // If loading fails (e.g., corrupt file), fall back to training on next request.
+            _logger.LogWarning(ex, "Failed to load ML models from disk. They will be retrained.");
+            _complexityModel = _workloadModel = _optimizationModel = null;
+            return false;
+        }
     }
 
     /// <summary>
     /// Train ML models using historical incident and manpower data
     /// </summary>
+    /// <summary>
+    /// Trains all three ML models from historical data and persists them to disk.
+    /// In production, this should be triggered by a background/scheduled service, NOT by a user request.
+    /// In development, this runs automatically on the first request if no model files exist on disk.
+    /// Once saved, the app will load the .zip files on every subsequent startup instead of retraining.
+    /// To force a re-train: delete the files in the MLModels/ directory and restart the application.
+    /// </summary>
     public async Task<MLTrainingResult> TrainModelsAsync()
     {
         var result = new MLTrainingResult();
-        
+
         try
         {
+            _logger.LogInformation("Starting ML model training...");
+
             // 1. Get historical data
             var incidents = await GetHistoricalIncidentData();
             var manpowerData = await GetHistoricalManpowerData();
-            
+
             if (incidents.Count < _mlSettings.Training.MinimumTrainingDataPoints || !manpowerData.Any())
             {
                 result.Success = false;
@@ -65,25 +129,29 @@ public class MLManpowerAllocationService
                 return result;
             }
 
-            // 2. Train crime complexity analysis model
-            result.ComplexityModelMetrics = await TrainCrimeComplexityModel(incidents);
-            
-            // 3. Train workload prediction model
-            result.WorkloadModelMetrics = await TrainWorkloadPredictionModel(incidents, manpowerData);
-            
-            // 4. Train manpower optimization model
+            // 2. Train all three models
+            result.ComplexityModelMetrics   = await TrainCrimeComplexityModel(incidents);
+            result.WorkloadModelMetrics     = await TrainWorkloadPredictionModel(incidents, manpowerData);
             result.OptimizationModelMetrics = await TrainManpowerOptimizationModel(manpowerData, incidents);
-            
+
+            // 3. Persist models to disk so future startups skip training entirely
+            Directory.CreateDirectory(ModelsDirectory);
+            _mlContext.Model.Save(_complexityModel,   null, ComplexityModelPath);
+            _mlContext.Model.Save(_workloadModel,     null, WorkloadModelPath);
+            _mlContext.Model.Save(_optimizationModel, null, OptimizationModelPath);
+            _logger.LogInformation("ML models saved to disk at: {Directory}", ModelsDirectory);
+
             result.Success = true;
             result.TrainingDataPoints = incidents.Count;
             result.TrainedAt = DateTime.UtcNow;
-            
+
             return result;
         }
         catch (Exception ex)
         {
             result.Success = false;
             result.ErrorMessage = $"Training failed: {ex.Message}";
+            _logger.LogError(ex, "ML model training failed.");
             return result;
         }
     }
@@ -98,8 +166,14 @@ public class MLManpowerAllocationService
         IEnumerable<HistoricalIncidentData> historicalData,
         int currentYear)
     {
+        // Models are loaded from disk in the constructor.
+        // If they are still null here, it means no model files were found on disk (first-ever run in this environment).
+        // We train once now and save to disk so subsequent requests are instant.
         if (_complexityModel == null || _workloadModel == null || _optimizationModel == null)
         {
+            _logger.LogWarning(
+                "ML models not loaded. Running one-time training. " +
+                "This will not happen again until the model files are manually deleted from disk.");
             await TrainModelsAsync();
         }
 

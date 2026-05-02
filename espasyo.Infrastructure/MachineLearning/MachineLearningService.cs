@@ -15,10 +15,11 @@ public class MachineLearningService(
     {
         try
         {
-            // Default to all features if none provided
+            // Default to spatial features and a primary categorical feature if none provided
+            // This prevents the curse of dimensionality and ensures geographic proximity is weighted appropriately
             if (features == null || features.Length == 0)
             {
-                features = ["CrimeType", "Severity", "PoliceDistrict", "Weather", "CrimeMotive"];
+                features = ["Latitude", "Longitude", "CrimeType"];
             }
 
             logger.LogInformation($"Performing KMeansClustering with features: {features}");
@@ -113,10 +114,11 @@ public class MachineLearningService(
     {
         try
         {
-            // Default to all features if none provided.
+            // Default to spatial features and a primary categorical feature if none provided.
+            // This prevents the curse of dimensionality and ensures geographic proximity is weighted appropriately
             if (features == null || features.Length == 0)
             {
-                features = ["CrimeType", "Severity", "PoliceDistrict", "Weather", "Motive"];
+                features = ["Latitude", "Longitude", "CrimeType"];
             }
 
             logger.LogInformation("Performing KMeansClustering with features: {Features}", features);
@@ -326,6 +328,10 @@ public class MachineLearningService(
                 if (timeSeriesData.Count < 12) // Need at least 12 months of data
                 {
                     logger.LogWarning("Insufficient data for precinct {Precinct}, crime type {CrimeType}. Skipping forecasting.", precinct, crimeType);
+                    
+                    // TODO (Improvement): To handle sparse data, implement a fallback that aggregates this data 
+                    // to a higher level (e.g., all crimes in this precinct, or grouping similar crime types) 
+                    // before attempting to run Singular Spectrum Analysis (SSA), which requires dense time series.
                     continue;
                 }
 

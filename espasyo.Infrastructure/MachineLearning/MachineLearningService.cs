@@ -350,7 +350,8 @@ public class MachineLearningService(
                 });
             }
 
-            var metrics = CalculateOverallMetrics(forecastSeries);
+            // Calculate real accuracy metrics using a holdout pass over each series
+            var metrics = await CalculateRealMetricsAsync(groupedData, parameters);
 
             return new ForecastResponse
             {
@@ -578,14 +579,17 @@ public class MachineLearningService(
             var errorMargin = recentAverage * (parameters.WeightRecentData ? 0.15 : 0.2);
             
             var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, precinct);
-            
+
+            // Confidence decays with horizon: linear trend is less reliable further ahead (10% decay per month)
+            var decayedConfidence = parameters.ConfidenceLevel * 0.8 * Math.Pow(0.90, i);
+
             forecasts.Add(new ForecastPoint
             {
                 Timestamp = lastDate.AddMonths(i + 1),
                 Forecast = forecastValue,
-                LowerBound = Math.Max(0, forecastValue - errorMargin),
-                UpperBound = forecastValue + errorMargin,
-                Confidence = parameters.ConfidenceLevel * 0.8, // Lower confidence for fallback
+                LowerBound = Math.Max(0, forecastValue - errorMargin * (1 + i * 0.1)),
+                UpperBound = forecastValue + errorMargin * (1 + i * 0.1),
+                Confidence = Math.Max(0.1, decayedConfidence),
                 Trend = trend,
                 RiskLevel = riskLevel
             });
@@ -628,13 +632,17 @@ public class MachineLearningService(
             // Determine trend and risk level
             var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, precinct);
 
+            // SSA is the best model available; apply a gentle 3% confidence decay per month
+            // to honestly represent that uncertainty compounds further into the future
+            var decayedConfidence = parameters.ConfidenceLevel * Math.Pow(0.97, i);
+
             forecasts.Add(new ForecastPoint
             {
                 Timestamp = forecastDate,
                 Forecast = Math.Max(0, forecastValue),
                 LowerBound = Math.Max(0, lowerBound),
                 UpperBound = Math.Max(0, upperBound),
-                Confidence = parameters.ConfidenceLevel,
+                Confidence = Math.Max(0.1, decayedConfidence),
                 Trend = trend,
                 RiskLevel = riskLevel
             });
@@ -681,18 +689,21 @@ public class MachineLearningService(
             var seasonalMultiplier = monthlyAverages.GetValueOrDefault(forecastDate.Month, recentAverage) / recentAverage;
             var forecastValue = Math.Max(0, trendValue * seasonalMultiplier);
             
-            // Calculate confidence bounds based on historical variance
-            var errorMargin = recentAverage * (parameters.IncludeSeasonality ? 0.25 : 0.2);
+            // Confidence bounds widen with horizon; seasonal multiplier adds extra uncertainty
+            var errorMargin = recentAverage * (parameters.IncludeSeasonality ? 0.25 : 0.2) * (1 + i * 0.08);
             
             var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, precinct);
-            
+
+            // Seasonal model: 7% confidence decay per month
+            var decayedConfidence = parameters.ConfidenceLevel * 0.9 * Math.Pow(0.93, i);
+
             forecasts.Add(new ForecastPoint
             {
                 Timestamp = forecastDate,
                 Forecast = forecastValue,
                 LowerBound = Math.Max(0, forecastValue - errorMargin),
                 UpperBound = forecastValue + errorMargin,
-                Confidence = parameters.ConfidenceLevel * 0.9, // Slightly lower confidence for seasonal
+                Confidence = Math.Max(0.1, decayedConfidence),
                 Trend = trend,
                 RiskLevel = riskLevel
             });
@@ -881,17 +892,69 @@ public class MachineLearningService(
         }
     }
 
-    private ForecastMetrics CalculateOverallMetrics(List<ForecastSeries> series)
+    /// <summary>
+    /// Calculates real forecast accuracy metrics by performing a holdout validation pass.
+    /// For each precinct/crime-type group with sufficient data, the last 3 months are held
+    /// out as a test set. A forecast is generated on the remaining history, then MAE, RMSE,
+    /// and MAPE are computed by comparing the predictions to the held-out actuals.
+    /// All per-group metrics are averaged to produce the overall result.
+    /// Falls back to a clearly-labelled N/A result when insufficient data is available.
+    /// </summary>
+    private async Task<ForecastMetrics> CalculateRealMetricsAsync(
+        Dictionary<(int, int), List<TimeSeriesData>> groupedData,
+        ForecastParameters parameters)
     {
-        // For now, return default metrics since we don't have test data
-        // In a real implementation, you'd calculate these from validation
-        return new ForecastMetrics
+        const int HoldoutMonths = 3;
+        const int MinTrainMonths = 6; // need at least 6 months of training data
+
+        var allMetrics = new List<ForecastMetrics>();
+
+        foreach (var (_, timeSeriesData) in groupedData)
         {
-            MeanAbsoluteError = 0.0,
-            RootMeanSquareError = 0.0,
-            MeanAbsolutePercentageError = 15.0, // Estimated based on model type
-            ModelAccuracy = 0.85
-        };
+            if (timeSeriesData.Count < MinTrainMonths + HoldoutMonths)
+                continue; // not enough data for a meaningful holdout
+
+            var trainData = timeSeriesData.Take(timeSeriesData.Count - HoldoutMonths).ToList();
+            var testData  = timeSeriesData.Skip(timeSeriesData.Count - HoldoutMonths).ToList();
+
+            try
+            {
+                // Forecast exactly HoldoutMonths into the future using training data only
+                var holdoutParams = parameters with { Horizon = HoldoutMonths };
+                var predictions = await GenerateForecastForSeries(trainData, holdoutParams, Enumerable.Empty<ClusterGroup>());
+
+                if (predictions.Count == testData.Count)
+                {
+                    var m = CalculateValidationMetrics(testData, predictions);
+                    allMetrics.Add(m);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Holdout validation failed for one series — skipping it in metric aggregation.");
+            }
+        }
+
+        if (allMetrics.Count == 0)
+        {
+            // Return clearly zeroed metrics so the frontend knows no measurement was possible
+            logger.LogWarning("No series had sufficient data for holdout validation. Returning zeroed metrics.");
+            return new ForecastMetrics
+            {
+                MeanAbsoluteError = 0,
+                RootMeanSquareError = 0,
+                MeanAbsolutePercentageError = 0,
+                ModelAccuracy = 0
+            };
+        }
+
+        var result = AverageMetrics(allMetrics);
+        logger.LogInformation(
+            "Forecast accuracy from {Count} series holdout — MAE: {MAE:F2}, RMSE: {RMSE:F2}, MAPE: {MAPE:F1}%, Accuracy: {Acc:P0}",
+            allMetrics.Count, result.MeanAbsoluteError, result.RootMeanSquareError,
+            result.MeanAbsolutePercentageError, result.ModelAccuracy);
+
+        return result;
     }
 
     private ForecastMetrics CalculateValidationMetrics(List<TimeSeriesData> actual, List<ForecastPoint> predicted)

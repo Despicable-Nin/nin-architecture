@@ -85,6 +85,21 @@ public class GenerateStatisticalForecastCommandHandler(
     
     private ForecastSummary GenerateForecastSummary(List<ForecastPoint> allForecasts, ForecastResponse forecast)
     {
+        if (!allForecasts.Any())
+        {
+            return new ForecastSummary
+            {
+                TotalForecasts = 0,
+                HighRiskPredictions = 0,
+                CriticalRiskPredictions = 0,
+                OverallTrend = "stable",
+                DominantRiskLevel = "low",
+                AverageConfidence = 0,
+                KeyInsight = "Not enough historical data per precinct/crime type to generate reliable forecasts. At least 12 months of data per combination is required.",
+                RecommendedActions = ["Collect more incident data before running forecasts", "Ensure incidents are recorded consistently across all precincts"]
+            };
+        }
+
         var highRiskCount = allForecasts.Count(f => f.RiskLevel == "high");
         var criticalRiskCount = allForecasts.Count(f => f.RiskLevel == "critical");
         var increasingTrends = allForecasts.Count(f => f.Trend == "increasing");

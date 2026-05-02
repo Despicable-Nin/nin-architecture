@@ -1,17 +1,19 @@
-﻿using espasyo.Application.Interfaces;
+﻿using System.Net.Http.Json;
+using espasyo.Application.Interfaces;
 
 namespace espasyo.Infrastructure.Geocoding
 {
-    public class AddressGeocodeService : IGeocodeService
+    public class AddressGeocodeService(
+        HttpClient httpClient,
+        ILogger<AddressGeocodeService> logger)
+        : IGeocodeService
     {
-        private readonly HttpClient httpClient;
-        private readonly ILogger<AddressGeocodeService> logger;
+        // Global request gate
+        private static readonly SemaphoreSlim RequestGate = new(1, 1);
+        private static DateTime _lastRequestUtc = DateTime.MinValue;
 
-        public AddressGeocodeService(HttpClient httpClient, ILogger<AddressGeocodeService> logger)
-        {
-            this.httpClient = httpClient;
-            this.logger = logger;
-        }
+        // Nominatim recommends low request rates
+        private static readonly TimeSpan MinimumInterval = TimeSpan.FromSeconds(1);
 
         public async Task<(double? Latitude, double? Longitude, string NewAddress)> GetLatLongAsync(string address)
         {
@@ -22,13 +24,14 @@ namespace espasyo.Infrastructure.Geocoding
             for (var i = 0; i < addressParts.Length; i++)
             {
                 var currentAddress = string.Join(" ", addressParts.Skip(i));
-                var requestUrl = $"https://nominatim.openstreetmap.org/search?format=json&q={Uri.EscapeDataString(currentAddress)}";
+                var requestUrl =
+                    $"https://nominatim.openstreetmap.org/search?format=json&q={Uri.EscapeDataString(currentAddress)}";
 
                 var coordinates = await GetCoordinatesAsync(requestUrl);
 
                 if (coordinates != null)
                 {
-                    return (coordinates.Value.Item1, coordinates.Value.Item2,currentAddress);
+                    return (coordinates.Value.Item1, coordinates.Value.Item2, currentAddress);
                 }
             }
 
@@ -37,9 +40,24 @@ namespace espasyo.Infrastructure.Geocoding
 
         private async Task<(double, double)?> GetCoordinatesAsync(string requestUrl)
         {
+            await RequestGate.WaitAsync();
+
             try
             {
-                var response = await httpClient.GetFromJsonAsync<NominatimResult[]>(requestUrl);
+                var elapsed = DateTime.UtcNow - _lastRequestUtc;
+
+                if (elapsed < MinimumInterval)
+                {
+                    var delay = MinimumInterval - elapsed;
+                    logger.LogInformation("Rate guard active. Waiting {DelayMs}ms", delay.TotalMilliseconds);
+
+                    await Task.Delay(delay);
+                }
+
+                _lastRequestUtc = DateTime.UtcNow;
+
+                var response =
+                    await httpClient.GetFromJsonAsync<NominatimResult[]>(requestUrl);
 
                 if (response == null || response.FirstOrDefault() == null)
                 {
@@ -56,6 +74,10 @@ namespace espasyo.Infrastructure.Geocoding
             catch (Exception ex)
             {
                 logger.LogError(ex, "Exception occurred while making Nominatim request");
+            }
+            finally
+            {
+                RequestGate.Release();
             }
 
             return null;

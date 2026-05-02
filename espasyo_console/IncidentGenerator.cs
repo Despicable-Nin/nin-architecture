@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using espasyo.Domain.Enums;
@@ -108,9 +108,9 @@ public static class IncidentGenerator
     
     private static async Task<bool> SendIncidentRequestWithId(string url, string caseId, HttpClient client, SemaphoreSlim semaphore)
     {
-        // First, get a random precinct ID from the API
-        var precinctId = await GetRandomPrecinctId(client);
-        if (precinctId == null)
+        // Fetch the real precinct data (id + barangay enum) to keep address geographically aligned
+        var precinctData = await GetRandomPrecinctWithBarangay(client);
+        if (precinctData == null)
         {
             Console.WriteLine($"❌ Failed to get precinct for incident {caseId}. Stopping seeding.");
             return false;
@@ -122,8 +122,8 @@ public static class IncidentGenerator
             severity = EnumHelper.GetRandomEnumValue<SeverityEnum>(),
             crimeType = EnumHelper.GetRandomEnumValue<CrimeTypeEnum>(),
             motive = EnumHelper.GetRandomEnumValue<MotiveEnum>(),
-            precinct = (Barangay)new Random().Next(0, 7), // Keep for address generation
-            precinctId = precinctId, // Add new PrecinctId field
+            precinct = precinctData?.Barangay ?? Barangay.Alabang,        // must match the precinctId's geography
+            precinctId = precinctData.Value.Id,
             otherMotive = "xxxxx",
             weather = EnumHelper.GetRandomEnumValue<WeatherConditionEnum>(),
             timeStamp = GenerateRandomTimestamp()
@@ -202,9 +202,9 @@ public static class IncidentGenerator
 
     private static async Task<bool> SendIncidentRequest(string url, int i, HttpClient client, SemaphoreSlim semaphore)
     {
-        // First, get a random precinct ID from the API
-        var precinctId = await GetRandomPrecinctId(client);
-        if (precinctId == null)
+        // Fetch the real precinct data (id + barangay enum) to keep address geographically aligned
+        var precinctData = await GetRandomPrecinctWithBarangay(client);
+        if (precinctData == null)
         {
             Console.WriteLine($"❌ Failed to get precinct for incident {i}. Stopping seeding.");
             return false;
@@ -216,8 +216,8 @@ public static class IncidentGenerator
             severity = EnumHelper.GetRandomEnumValue<SeverityEnum>(),
             crimeType = EnumHelper.GetRandomEnumValue<CrimeTypeEnum>(),
             motive = EnumHelper.GetRandomEnumValue<MotiveEnum>(),
-            precinct = (Barangay)new Random().Next(0,7), // Keep for address generation
-            precinctId = precinctId, // Add new PrecinctId field
+            precinct = precinctData.Value.Barangay,        // must match the precinctId's geography
+            precinctId = precinctData.Value.Id,
             otherMotive = "xxxxx",
             weather = EnumHelper.GetRandomEnumValue<WeatherConditionEnum>(),
             timeStamp = GenerateRandomTimestamp()
@@ -261,25 +261,45 @@ public static class IncidentGenerator
     }
 
     private static string GenerateRandomAddress(Barangay barangay) => AddressGenerator.GenerateRandomAddress(barangay);
-    
-    private static async Task<string?> GetRandomPrecinctId(HttpClient client)
+
+    /// <summary>
+    /// Fetches a random precinct from the API and maps its Code to the correct Barangay enum
+    /// so that address generation is geographically consistent with the chosen precinct.
+    /// </summary>
+    private static async Task<(string Id, Barangay Barangay)?> GetRandomPrecinctWithBarangay(HttpClient client)
     {
+        // Map precinct code → Barangay enum value (must match SqliteApplicationDbContext seed)
+        var codeToBarangay = new Dictionary<string, Barangay>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["ALB"] = Barangay.Alabang,
+            ["AAL"] = Barangay.Ayala_Alabang,
+            ["SUC"] = Barangay.Sucat,
+            ["POB"] = Barangay.Poblacion,
+            ["PUT"] = Barangay.Putatan,
+            ["TUN"] = Barangay.Tunasan,
+            ["CUP"] = Barangay.Cupang,
+            ["BAY"] = Barangay.Bayanan,
+            ["BUL"] = Barangay.Buli,
+        };
+
         try
         {
             var response = await client.GetAsync("http://localhost:5041/api/manpower/precincts");
-            
             if (response.IsSuccessStatusCode)
             {
                 var json = await response.Content.ReadAsStringAsync();
-                var precincts = JsonSerializer.Deserialize<PrecinctInfo[]>(json, new JsonSerializerOptions 
-                { 
-                    PropertyNameCaseInsensitive = true 
-                });
-                
+                var precincts = JsonSerializer.Deserialize<PrecinctInfoFull[]>(json,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
                 if (precincts != null && precincts.Length > 0)
                 {
-                    var randomIndex = new Random().Next(0, precincts.Length);
-                    return precincts[randomIndex].Id;
+                    var chosen = precincts[new Random().Next(0, precincts.Length)];
+                    if (codeToBarangay.TryGetValue(chosen.Code, out var barangay))
+                        return (chosen.Id, barangay);
+
+                    // Fallback: if code not in map use first known barangay
+                    Console.WriteLine($"⚠️ Precinct code '{chosen.Code}' not in barangay map, defaulting to Alabang");
+                    return (chosen.Id, Barangay.Alabang);
                 }
             }
             else
@@ -291,11 +311,19 @@ public static class IncidentGenerator
         {
             Console.WriteLine($"Exception fetching precincts: {ex.Message}");
         }
-        
+
         return null;
     }
-    
+
+    // Keep the old ID-only version for backward compatibility but it is no longer called
+    private static async Task<string?> GetRandomPrecinctId(HttpClient client)
+    {
+        var result = await GetRandomPrecinctWithBarangay(client);
+        return result?.Id;
+    }
+
     private record PrecinctInfo(string Id, string Name, string Code);
+    private record PrecinctInfoFull(string Id, string Name, string Code);
 
     private static string GenerateRandomTimestamp()
     {

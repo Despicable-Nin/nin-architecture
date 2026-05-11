@@ -72,7 +72,21 @@ public class SqliteApplicationDbContext(DbContextOptions<SqliteApplicationDbCont
             .HasConversion(
                 v => v.ToString("O"),
                 v => DateTimeOffset.Parse(v));
-            
+
+        // Configure DateTimeOffset for AnalysisRun
+        modelBuilder.Entity<AnalysisRun>()
+            .Property(e => e.CreatedAt)
+            .HasConversion(
+                v => v.ToString("O"),
+                v => DateTimeOffset.Parse(v));
+
+        // Configure DateTimeOffset for ManpowerRecommendation
+        modelBuilder.Entity<ManpowerRecommendation>()
+            .Property(e => e.CreatedAt)
+            .HasConversion(
+                v => v.ToString("O"),
+                v => DateTimeOffset.Parse(v));
+
         // Also configure LockoutEnd from Identity for SQLite
         modelBuilder.Entity<IdentityUser>()
             .Property(e => e.LockoutEnd)

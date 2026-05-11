@@ -220,6 +220,40 @@ namespace espasyo.Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("espasyo.Domain.Entities.AnalysisRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ClusterGroupsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CreatedById")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ParametersJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("QualityMetricsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("IX_AnalysisRun_CreatedAt");
+
+                    b.ToTable("AnalysisRun", (string)null);
+                });
+
             modelBuilder.Entity("espasyo.Domain.Entities.ForecastResult", b =>
                 {
                     b.Property<Guid>("Id")
@@ -423,6 +457,51 @@ namespace espasyo.Infrastructure.Migrations
                     b.ToTable("Manpower", (string)null);
                 });
 
+            modelBuilder.Entity("espasyo.Domain.Entities.ManpowerRecommendation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<float>("ComplexityScore")
+                        .HasColumnType("real");
+
+                    b.Property<float>("Confidence")
+                        .HasColumnType("real");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("ForecastRunId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Justification")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<Guid>("PrecinctId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<float>("PredictedWorkloadHours")
+                        .HasColumnType("real");
+
+                    b.Property<int>("RecommendedHeadCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Shift")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ForecastRunId")
+                        .HasDatabaseName("IX_ManpowerRecommendation_ForecastRunId");
+
+                    b.HasIndex("PrecinctId");
+
+                    b.ToTable("ManpowerRecommendation", (string)null);
+                });
+
             modelBuilder.Entity("espasyo.Domain.Entities.Precinct", b =>
                 {
                     b.Property<Guid>("Id")
@@ -489,7 +568,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 23.5m,
                             Barangay = 0,
                             Code = "ALB",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(5482), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 10, 5, 32, 237, DateTimeKind.Unspecified).AddTicks(2808), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Commercial and business district",
                             IsActive = true,
                             Population = 54000
@@ -500,7 +579,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 8.2m,
                             Barangay = 7,
                             Code = "AAL",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7205), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 10, 5, 32, 237, DateTimeKind.Unspecified).AddTicks(3724), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "High-income residential area",
                             IsActive = true,
                             Population = 25000
@@ -511,7 +590,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 15.7m,
                             Barangay = 8,
                             Code = "SUC",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7208), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 10, 5, 32, 237, DateTimeKind.Unspecified).AddTicks(3725), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Mixed residential and commercial area",
                             IsActive = true,
                             Population = 42000
@@ -522,7 +601,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 5.3m,
                             Barangay = 4,
                             Code = "POB",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7209), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 10, 5, 32, 237, DateTimeKind.Unspecified).AddTicks(3726), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "City center and administrative area",
                             IsActive = true,
                             Population = 18000
@@ -533,7 +612,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 12.8m,
                             Barangay = 5,
                             Code = "PUT",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7211), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 10, 5, 32, 237, DateTimeKind.Unspecified).AddTicks(3727), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Residential area with moderate density",
                             IsActive = true,
                             Population = 35000
@@ -544,7 +623,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 10.4m,
                             Barangay = 6,
                             Code = "TUN",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7212), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 10, 5, 32, 237, DateTimeKind.Unspecified).AddTicks(3728), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Residential with some commercial areas",
                             IsActive = true,
                             Population = 28000
@@ -555,7 +634,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 8.9m,
                             Barangay = 3,
                             Code = "CUP",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7213), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 10, 5, 32, 237, DateTimeKind.Unspecified).AddTicks(3729), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Smaller residential area",
                             IsActive = true,
                             Population = 22000
@@ -566,7 +645,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 11.6m,
                             Barangay = 1,
                             Code = "BAY",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7214), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 10, 5, 32, 237, DateTimeKind.Unspecified).AddTicks(3730), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Residential area",
                             IsActive = true,
                             Population = 31000
@@ -577,7 +656,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 9.8m,
                             Barangay = 2,
                             Code = "BUL",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7216), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 10, 5, 32, 237, DateTimeKind.Unspecified).AddTicks(3731), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Residential area",
                             IsActive = true,
                             Population = 26000
@@ -787,6 +866,27 @@ namespace espasyo.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("FK_Manpower_Precinct");
+
+                    b.Navigation("Precinct");
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.ManpowerRecommendation", b =>
+                {
+                    b.HasOne("espasyo.Domain.Entities.ForecastRun", "ForecastRun")
+                        .WithMany()
+                        .HasForeignKey("ForecastRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_ManpowerRecommendation_ForecastRun");
+
+                    b.HasOne("espasyo.Domain.Entities.Precinct", "Precinct")
+                        .WithMany()
+                        .HasForeignKey("PrecinctId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_ManpowerRecommendation_Precinct");
+
+                    b.Navigation("ForecastRun");
 
                     b.Navigation("Precinct");
                 });

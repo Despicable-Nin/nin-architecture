@@ -2,6 +2,7 @@ using espasyo.Application.Incidents.Commands.CreateIncident;
 using espasyo.Application.Incidents.Commands.BulkCreateIncidents;
 using espasyo.Application.Incidents.Queries.GetClusters;
 using espasyo.Application.Incidents.Queries.GetPaginatedList;
+using espasyo.Application.Incidents.Queries.GetIncidentById;
 using espasyo.Application.Products.Queries.GetEnums;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -49,6 +50,16 @@ public class IncidentController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> GetPaginated(string search = "", int pageNumber = 1, int pageSize = 10)
     {
         return Ok(await mediator.Send(new GetPaginatedListQuery(search, pageNumber, pageSize)));
+    }
+
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetById(Guid id)
+    {
+        var result = await mediator.Send(new GetIncidentByIdQuery(id));
+        if (result == null) return NotFound();
+        return Ok(result);
     }
     
     [HttpGet("enums")]

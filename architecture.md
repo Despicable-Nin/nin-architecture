@@ -3,6 +3,10 @@
 ## Overview
 The backend for the Espasyo application is built using ASP.NET Core (.NET 8) and strictly follows **Clean Architecture** principles. It utilizes **.NET Aspire** for local orchestration and development hosting.
 
+## Related Documents
+- `D:\hobby\espasyo\architecture.md` — Frontend + overall system architecture
+- `D:\hobby\espasyo\espasyo-review-plan.md` — Comprehensive gap analysis and remediation plan (aligned with this document)
+
 ## Clean Architecture Layers
 
 ### 1. Domain Layer (`espasyo.Domain`)
@@ -81,4 +85,55 @@ The backend for the Espasyo application is built using ASP.NET Core (.NET 8) and
   - If no `.zip` files exist (first-ever run in this environment), the service trains all three models on the first API request and **saves them to disk** automatically.
   - All subsequent requests — including after application restarts — load from disk instantly, with no retraining.
   - **To force a retrain** (e.g., after collecting significant new data): delete the `.zip` files from the `MLModels/` directory and restart the application.
-  - *In production*: move training invocation to a scheduled `IHostedService` (e.g., weekly) to fully decouple it from request handling.
+   - *In production*: move training invocation to a scheduled `IHostedService` (e.g., weekly) to fully decouple it from request handling.
+
+---
+
+## Known Gaps & Remediation (aligned with `espasyo-review-plan.md`)
+
+### Critical (P0)
+
+| ID | Gap | Location | Fix |
+|---|---|---|---|
+| G1 | Manpower training data hardcodes `Barangay.Alabang` with zero variance | `MLManpowerAllocationService.cs:415` | Replace with actual precinct-level monthly staffing data |
+| G2 | No pipeline orchestrator — no single endpoint connects Analysis→Forecast→Manpower | Missing service | Create `PipelineOrchestratorService` |
+| G3 | Forecast output never fed into manpower optimizer | No code path | Wire `ForecastSeries` → `predictedCrimeCounts` → `CalculateOptimalManpowerAsync` |
+| G4 | Manpower recommendations not persisted to DB | Missing entity + repository | Create `ManpowerRecommendation` entity |
+
+### High (P1)
+
+| ID | Gap | Location | Fix |
+|---|---|---|---|
+| G5 | Clustering results not persisted (localStorage only) | Missing `AnalysisRun` entity | Create entity, repository, API endpoints |
+| G6 | K-Means lacks auto K-selection and validation metrics | `MachineLearningService.cs` | Add silhouette/elbow + expose metrics |
+| G7 | Cluster assignments not used by forecasting engine | `GenerateStatisticalForecast` | Add `ClusterId` as grouping dimension |
+| G8 | No hotspot prediction endpoint | Missing | `POST /api/forecast/hotspots` with GeoJSON output |
+| G9 | Anomaly detection unimplemented (B5) | Documented pending | Implement IQR/Z-score/moving average detection |
+| G10 | `DataDrivenComplexityService` has sync wrappers that bypass async | `MLManpowerAllocationService.cs:572-588` | Refactor to proper async/await |
+
+### Medium (P2)
+
+| ID | Gap | Location | Fix |
+|---|---|---|---|
+| G11 | Scheduled forecast `IHostedService` unimplemented (B6) | Documented pending | Implement `ScheduledForecastService` |
+| G12 | No model retraining scheduler | Missing | Weekly retraining with model versioning |
+| G13 | Forecast endpoints on `IncidentController` (architectural smell) | `IncidentController.cs` | Extract to `ForecastController` |
+| G14 | No API versioning | All controllers | Add `v1` prefix |
+| G15 | No structured error responses | All controllers | RFC 7807 Problem Details |
+| G16 | No custom health checks for ML model status | Missing | Custom health check probes |
+
+### Remediation Priority
+
+| Phase | Focus | Tasks | Est. Effort |
+|---|---|---|---|
+| P1 | Data Infrastructure | G1, G5, G12, G4 | 10 days |
+| P2 | Pipeline Integration | G2, G3, G8, G7, G6 | 15 days |
+| P3 | Analytics | G9, G11, G10 | 10 days |
+| P4 | Production | G13, G14, G15, G16 | 8 days |
+
+**Full details:** `D:\hobby\espasyo\espasyo-review-plan.md`
+
+---
+
+## Savepoint: 2026-05-11
+Current state reflects the `second-space-backend` branch. All ML, controller, and persistence architecture documented above. See `espasyo-review-plan.md` for comprehensive gap analysis.

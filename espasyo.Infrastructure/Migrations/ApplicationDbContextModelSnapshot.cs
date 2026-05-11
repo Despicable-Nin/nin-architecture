@@ -220,6 +220,107 @@ namespace espasyo.Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("espasyo.Domain.Entities.ForecastResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<double>("Confidence")
+                        .HasColumnType("float");
+
+                    b.Property<int>("CrimeType")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ForecastRunId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<double>("LowerBound")
+                        .HasColumnType("float");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Precinct")
+                        .HasColumnType("int");
+
+                    b.Property<double>("PredictedValue")
+                        .HasColumnType("float");
+
+                    b.Property<string>("RiskLevel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Trend")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<double>("UpperBound")
+                        .HasColumnType("float");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ForecastRunId")
+                        .HasDatabaseName("IX_ForecastResult_ForecastRunId");
+
+                    b.HasIndex("ForecastRunId", "Precinct", "Month", "Year")
+                        .HasDatabaseName("IX_ForecastResult_Run_Precinct_Month_Year");
+
+                    b.ToTable("ForecastResult", (string)null);
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.ForecastRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<double>("ConfidenceLevel")
+                        .HasColumnType("float");
+
+                    b.Property<string>("GeneratedById")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Horizon")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ModelType")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("PrecinctId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("RunAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalSeries")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PrecinctId");
+
+                    b.HasIndex("RunAt")
+                        .HasDatabaseName("IX_ForecastRun_RunAt");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_ForecastRun_Status");
+
+                    b.ToTable("ForecastRun", (string)null);
+                });
+
             modelBuilder.Entity("espasyo.Domain.Entities.Incident", b =>
                 {
                     b.Property<Guid>("Id")
@@ -388,7 +489,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 23.5m,
                             Barangay = 0,
                             Code = "ALB",
-                            CreatedAt = new DateTimeOffset(new DateTime(2025, 9, 25, 12, 1, 42, 237, DateTimeKind.Unspecified).AddTicks(5872), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 2, 47, 16, 820, DateTimeKind.Unspecified).AddTicks(4120), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Commercial and business district",
                             IsActive = true,
                             Population = 54000
@@ -399,7 +500,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 8.2m,
                             Barangay = 7,
                             Code = "AAL",
-                            CreatedAt = new DateTimeOffset(new DateTime(2025, 9, 25, 12, 1, 42, 237, DateTimeKind.Unspecified).AddTicks(6757), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 2, 47, 16, 820, DateTimeKind.Unspecified).AddTicks(5052), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "High-income residential area",
                             IsActive = true,
                             Population = 25000
@@ -410,7 +511,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 15.7m,
                             Barangay = 8,
                             Code = "SUC",
-                            CreatedAt = new DateTimeOffset(new DateTime(2025, 9, 25, 12, 1, 42, 237, DateTimeKind.Unspecified).AddTicks(6759), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 2, 47, 16, 820, DateTimeKind.Unspecified).AddTicks(5054), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Mixed residential and commercial area",
                             IsActive = true,
                             Population = 42000
@@ -421,7 +522,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 5.3m,
                             Barangay = 4,
                             Code = "POB",
-                            CreatedAt = new DateTimeOffset(new DateTime(2025, 9, 25, 12, 1, 42, 237, DateTimeKind.Unspecified).AddTicks(6760), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 2, 47, 16, 820, DateTimeKind.Unspecified).AddTicks(5055), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "City center and administrative area",
                             IsActive = true,
                             Population = 18000
@@ -432,7 +533,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 12.8m,
                             Barangay = 5,
                             Code = "PUT",
-                            CreatedAt = new DateTimeOffset(new DateTime(2025, 9, 25, 12, 1, 42, 237, DateTimeKind.Unspecified).AddTicks(6762), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 2, 47, 16, 820, DateTimeKind.Unspecified).AddTicks(5056), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Residential area with moderate density",
                             IsActive = true,
                             Population = 35000
@@ -443,7 +544,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 10.4m,
                             Barangay = 6,
                             Code = "TUN",
-                            CreatedAt = new DateTimeOffset(new DateTime(2025, 9, 25, 12, 1, 42, 237, DateTimeKind.Unspecified).AddTicks(6763), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 2, 47, 16, 820, DateTimeKind.Unspecified).AddTicks(5057), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Residential with some commercial areas",
                             IsActive = true,
                             Population = 28000
@@ -454,7 +555,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 8.9m,
                             Barangay = 3,
                             Code = "CUP",
-                            CreatedAt = new DateTimeOffset(new DateTime(2025, 9, 25, 12, 1, 42, 237, DateTimeKind.Unspecified).AddTicks(6764), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 2, 47, 16, 820, DateTimeKind.Unspecified).AddTicks(5058), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Smaller residential area",
                             IsActive = true,
                             Population = 22000
@@ -465,7 +566,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 11.6m,
                             Barangay = 1,
                             Code = "BAY",
-                            CreatedAt = new DateTimeOffset(new DateTime(2025, 9, 25, 12, 1, 42, 237, DateTimeKind.Unspecified).AddTicks(6766), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 2, 47, 16, 820, DateTimeKind.Unspecified).AddTicks(5059), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Residential area",
                             IsActive = true,
                             Population = 31000
@@ -476,7 +577,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 9.8m,
                             Barangay = 2,
                             Code = "BUL",
-                            CreatedAt = new DateTimeOffset(new DateTime(2025, 9, 25, 12, 1, 42, 237, DateTimeKind.Unspecified).AddTicks(6767), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 2, 47, 16, 820, DateTimeKind.Unspecified).AddTicks(5059), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Residential area",
                             IsActive = true,
                             Population = 26000
@@ -524,6 +625,71 @@ namespace espasyo.Infrastructure.Migrations
                         .HasDatabaseName("IX_Street_PrecinctId");
 
                     b.ToTable("Street", (string)null);
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.UserForecastPreference", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<double>("DefaultConfidenceLevel")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("float")
+                        .HasDefaultValue(0.94999999999999996);
+
+                    b.Property<int>("DefaultHorizon")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(6);
+
+                    b.Property<string>("DefaultModelType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("SSA");
+
+                    b.Property<bool>("EnabledTimeAnimation")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("PreferredCrimeTypes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("PreferredPrecincts")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("PreferredTopN")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(10);
+
+                    b.Property<bool>("ShowEnsembleView")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("ShowHotspotTimeline")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_UserForecastPreference_UserId");
+
+                    b.ToTable("UserForecastPreference", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -575,6 +741,30 @@ namespace espasyo.Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.ForecastResult", b =>
+                {
+                    b.HasOne("espasyo.Domain.Entities.ForecastRun", "ForecastRun")
+                        .WithMany()
+                        .HasForeignKey("ForecastRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_ForecastResult_ForecastRun");
+
+                    b.Navigation("ForecastRun");
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.ForecastRun", b =>
+                {
+                    b.HasOne("espasyo.Domain.Entities.Precinct", "Precinct")
+                        .WithMany()
+                        .HasForeignKey("PrecinctId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_ForecastRun_Precinct");
+
+                    b.Navigation("Precinct");
                 });
 
             modelBuilder.Entity("espasyo.Domain.Entities.Incident", b =>

@@ -67,9 +67,12 @@ public class ForecastPreferencesController : ControllerBase
         if (prefs == null)
         {
             prefs = new UserForecastPreference(userId);
-            GetContext().GetType() == typeof(SqliteApplicationDbContext)
-                ? _sqliteContext.UserForecastPreferences.Add(prefs)
-                : _sqlServerContext.UserForecastPreferences.Add(prefs);
+            var dbProvider = HttpContext.RequestServices
+                .GetRequiredService<IConfiguration>()["DatabaseProvider"] ?? "SqlServer";
+            if (dbProvider.ToLower() == "sqlite")
+                _sqliteContext.UserForecastPreferences.Add(prefs);
+            else
+                _sqlServerContext.UserForecastPreferences.Add(prefs);
         }
 
         prefs.DefaultHorizon = request.DefaultHorizon;

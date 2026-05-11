@@ -67,9 +67,8 @@ public class EvaluateForecastRunQueryHandler(
                 i.TimeStamp.HasValue &&
                 i.TimeStamp.Value.Year == year &&
                 i.TimeStamp.Value.Month == month &&
-                i.PrecinctId.HasValue &&
-                _precinctCodes.TryGetValue(precinct, out var code) &&
-                i.Precinct.Barangay == precinct &&
+                i.PrecinctId != Guid.Empty &&
+                i.Precinct?.Barangay == precinct &&
                 (int)i.CrimeType == crimeTypeCode);
 
             var absError = Math.Abs(result.PredictedValue - actualCount);

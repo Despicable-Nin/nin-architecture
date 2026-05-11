@@ -715,7 +715,6 @@ public class MachineLearningService(
     
     private List<ForecastPoint> GenerateEnsembleForecast(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData, int? precinct = null)
     {
-        var logger = this.logger;
         logger.LogInformation("Generating ensemble forecast for precinct {Precinct}", precinct);
 
         var modelTypes = new[] { "ssa", "seasonal", "linear" };
@@ -753,7 +752,7 @@ public class MachineLearningService(
         {
             var values = allResults.Values
                 .Select(r => r.ElementAtOrDefault(i))
-                .Where(p => p != null)
+                .OfType<ForecastPoint>()
                 .ToList();
 
             if (values.Count == 0) break;

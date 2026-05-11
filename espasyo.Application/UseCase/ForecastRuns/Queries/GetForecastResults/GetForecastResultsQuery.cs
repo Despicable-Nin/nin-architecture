@@ -13,6 +13,7 @@ public record ForecastResultDto
     public Guid Id { get; init; }
     public string Precinct { get; init; } = string.Empty;
     public string CrimeType { get; init; } = string.Empty;
+    public uint ClusterId { get; init; }
     public int Month { get; init; }
     public int Year { get; init; }
     public double PredictedValue { get; init; }
@@ -35,6 +36,7 @@ public class GetForecastResultsQueryHandler(IForecastRepository forecastReposito
             Id = r.Id,
             Precinct = r.Precinct.ToString(),
             CrimeType = r.CrimeType.ToString(),
+            ClusterId = r.ClusterId,
             Month = r.Month,
             Year = r.Year,
             PredictedValue = r.PredictedValue,

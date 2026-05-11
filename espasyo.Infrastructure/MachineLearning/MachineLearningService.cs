@@ -198,7 +198,8 @@ public class MachineLearningService(
                         Year = GetYear(trainer.TimeStampUnix),
                         TimeOfDay = GetTimeOfDay(trainer.TimeStampUnix),
                         Precinct = (Domain.Enums.Barangay)trainer.PoliceDistrict,
-                        CrimeType = (Domain.Enums.CrimeTypeEnum)trainer.CrimeType
+                        CrimeType = (Domain.Enums.CrimeTypeEnum)trainer.CrimeType,
+                        ClusterId = item.ClusterId
                     });
                 }
             }
@@ -323,11 +324,11 @@ public class MachineLearningService(
 
             foreach (var (key, timeSeriesData) in groupedData)
             {
-                var (precinct, crimeType) = key;
+                var (precinct, crimeType, clusterId) = key;
 
                 if (timeSeriesData.Count < 12) // Need at least 12 months of data
                 {
-                    logger.LogWarning("Insufficient data for precinct {Precinct}, crime type {CrimeType}. Skipping forecasting.", precinct, crimeType);
+                    logger.LogWarning("Insufficient data for precinct {Precinct}, crime type {CrimeType}, cluster {ClusterId}. Skipping forecasting.", precinct, crimeType, clusterId);
                     
                     // TODO (Improvement): To handle sparse data, implement a fallback that aggregates this data 
                     // to a higher level (e.g., all crimes in this precinct, or grouping similar crime types) 
@@ -341,6 +342,7 @@ public class MachineLearningService(
                 {
                     Precinct = precinct,
                     CrimeType = crimeType,
+                    ClusterId = clusterId,
                     Forecasts = forecasts,
                     Metadata = new Dictionary<string, object>
                     {
@@ -383,7 +385,7 @@ public class MachineLearningService(
             {
                 if (timeSeriesData.Count < 24) // Need at least 24 months for validation
                 {
-                    warnings.Add($"Insufficient data for reliable validation (Precinct: {key.Item1}, Crime: {key.Item2})");
+                    warnings.Add($"Insufficient data for reliable validation (Precinct: {key.Item1}, Crime: {key.Item2}, Cluster: {key.Item3})");
                     continue;
                 }
 
@@ -487,15 +489,15 @@ public class MachineLearningService(
         }
     }
 
-    private Dictionary<(int, int), List<TimeSeriesData>> GroupClusterDataForForecasting(IEnumerable<ClusterGroup> clusterData)
+    private Dictionary<(int, int, uint), List<TimeSeriesData>> GroupClusterDataForForecasting(IEnumerable<ClusterGroup> clusterData)
     {
-        var grouped = new Dictionary<(int, int), List<TimeSeriesData>>();
+        var grouped = new Dictionary<(int, int, uint), List<TimeSeriesData>>();
 
         foreach (var cluster in clusterData)
         {
             foreach (var item in cluster.ClusterItems)
             {
-                var key = ((int)item.Precinct, (int)item.CrimeType);
+                var key = ((int)item.Precinct, (int)item.CrimeType, item.ClusterId);
                 
                 if (!grouped.ContainsKey(key))
                     grouped[key] = new List<TimeSeriesData>();
@@ -971,7 +973,7 @@ public class MachineLearningService(
     /// Falls back to a clearly-labelled N/A result when insufficient data is available.
     /// </summary>
     private async Task<ForecastMetrics> CalculateRealMetricsAsync(
-        Dictionary<(int, int), List<TimeSeriesData>> groupedData,
+        Dictionary<(int, int, uint), List<TimeSeriesData>> groupedData,
         ForecastParameters parameters)
     {
         const int HoldoutMonths = 3;

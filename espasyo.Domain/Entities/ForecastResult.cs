@@ -17,7 +17,8 @@ public class ForecastResult
         double upperBound,
         double confidence,
         string riskLevel,
-        string trend)
+        string trend,
+        uint clusterId = 0)
     {
         Id = Guid.NewGuid();
         ForecastRunId = forecastRunId;
@@ -31,6 +32,7 @@ public class ForecastResult
         Confidence = confidence;
         RiskLevel = riskLevel;
         Trend = trend;
+        ClusterId = clusterId;
     }
 
     public Guid Id { get; private set; }
@@ -38,6 +40,7 @@ public class ForecastResult
     public virtual ForecastRun ForecastRun { get; set; } = null!;
     public Barangay Precinct { get; private set; }
     public CrimeTypeEnum CrimeType { get; private set; }
+    public uint ClusterId { get; private set; }
     public int Month { get; private set; }
     public int Year { get; private set; }
     public double PredictedValue { get; private set; }

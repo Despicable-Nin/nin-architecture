@@ -178,7 +178,8 @@ public class PipelineOrchestratorService
                     point.UpperBound,
                     point.Confidence,
                     point.RiskLevel,
-                    point.Trend));
+                    point.Trend,
+                    series.ClusterId));
             }
         }
 

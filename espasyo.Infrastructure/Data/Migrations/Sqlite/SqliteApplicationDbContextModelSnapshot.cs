@@ -219,7 +219,8 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("CreatedById")
@@ -248,6 +249,11 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
+
+                    b.Property<uint>("ClusterId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0u);
 
                     b.Property<double>("Confidence")
                         .HasColumnType("float");
@@ -460,7 +466,8 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                     b.Property<float>("Confidence")
                         .HasColumnType("real");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("ForecastRunId")

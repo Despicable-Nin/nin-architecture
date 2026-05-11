@@ -14,6 +14,7 @@ public class ForecastResultConfiguration : IEntityTypeConfiguration<ForecastResu
         builder.Property(r => r.ForecastRunId).IsRequired();
         builder.Property(r => r.Precinct).IsRequired().HasConversion<int>();
         builder.Property(r => r.CrimeType).IsRequired().HasConversion<int>();
+        builder.Property(r => r.ClusterId).IsRequired().HasDefaultValue(0u);
         builder.Property(r => r.Month).IsRequired();
         builder.Property(r => r.Year).IsRequired();
         builder.Property(r => r.PredictedValue).IsRequired().HasColumnType("float");

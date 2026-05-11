@@ -65,7 +65,8 @@ public class SaveForecastRunCommandHandler(
                         point.UpperBound,
                         point.Confidence,
                         point.RiskLevel,
-                        point.Trend));
+                        point.Trend,
+                        series.ClusterId));
                 }
             }
 

@@ -10,5 +10,7 @@ public record GetGroupedClustersQuery : IRequest<GroupedClusterResponse>
     public string[]? Features { get; init; } = [];
     public int NumberOfClusters { get; init; } = 3;
     public int NumberOfRuns { get; init; } = 1;
+    public bool AutoSelectK { get; init; } = false;
+    public int? Seed { get; init; }
     public Filter Filters { get; init; } = new();
 }

@@ -57,10 +57,20 @@ public record ClusterGroup
     public int ClusterCount => ClusterItems.Count;
 }
 
+public record ClusterQualityMetrics
+{
+    public int OptimalK { get; init; }
+    public int SelectedK { get; init; }
+    public Dictionary<int, double> SilhouetteScores { get; init; } = [];
+    public Dictionary<int, double> DaviesBouldinScores { get; init; } = [];
+    public Dictionary<int, double> CalinskiHarabaszScores { get; init; } = [];
+}
+
 public record GroupedClusterResponse
 {
    public IEnumerable<ClusterGroup> ClusterGroups { get; init; } = [];
    public IEnumerable<string> Filters { get; init; } = [];
+   public ClusterQualityMetrics? QualityMetrics { get; init; }
 }
 
 // Statistical Forecasting Models

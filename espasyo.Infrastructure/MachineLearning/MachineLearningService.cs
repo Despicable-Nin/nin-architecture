@@ -113,6 +113,11 @@ public class MachineLearningService(
     /// <returns>An enumerable of ClusterResponse objects with the desired structure.</returns>
     public GroupedClusterResponse PerformKMeansAndGetGroupedClusters(IEnumerable<TrainerModel> data, string[]? features, int numberOfClusters = 3, int runs = 10)
     {
+        return PerformKMeansAndGetGroupedClusters(data, features, numberOfClusters, runs, autoSelectK: false, seed: null);
+    }
+
+    public GroupedClusterResponse PerformKMeansAndGetGroupedClusters(IEnumerable<TrainerModel> data, string[]? features, int numberOfClusters, int runs, bool autoSelectK, int? seed)
+    {
         try
         {
             // Default to spatial features and a primary categorical feature if none provided.
@@ -122,102 +127,29 @@ public class MachineLearningService(
                 features = ["Latitude", "Longitude", "CrimeType"];
             }
 
-            logger.LogInformation("Performing KMeansClustering with features: {Features}", features);
+            logger.LogInformation("Performing KMeansClustering with features: {Features}, autoSelectK: {AutoSelect}, seed: {Seed}", features, autoSelectK, seed);
             // Materialize data once for reuse
             var trainerModels = data as TrainerModel[] ?? data.ToArray();
             logger.LogInformation("Total input records: {Count}", trainerModels.Length);
 
-            var dataView = mlContext.Data.LoadFromEnumerable(trainerModels);
-
-            // Build pipeline only once
-            IEstimator<ITransformer>? pipeline = AppendPipeline(mlContext, features, null);
-            var selectedFeatureColumns = features.Select(f => IsCategoricalFeature(f) || IsFloat(f) ? $"{f}Encoded" : f).ToArray();
-            pipeline = pipeline.Append(mlContext.Transforms.Concatenate("Features", selectedFeatureColumns))
-                               .Append(mlContext.Transforms.NormalizeMeanVariance("Features"))
-                               .Append(mlContext.Clustering.Trainers.KMeans(numberOfClusters: numberOfClusters));
-
-            double bestScore = double.MaxValue;
-            ITransformer? bestModel = null;
-
-            // Run multiple iterations to select the best model.
-            for (int i = 0; i < runs; i++)
+            // Auto-select optimal k if requested
+            if (autoSelectK || numberOfClusters < 2)
             {
-                var model = pipeline.Fit(dataView);
-                var predictions = model.Transform(dataView);
-                var metrics = mlContext.Clustering.Evaluate(predictions, scoreColumnName: "Score");
-
-                if (metrics.AverageDistance < bestScore)
-                {
-                    bestScore = metrics.AverageDistance;
-                    bestModel = model;
-                }
+                numberOfClusters = FindOptimalK(trainerModels, features, seed);
+                logger.LogInformation("Auto-selected optimal k: {OptimalK}", numberOfClusters);
             }
 
-            // Transform the data using the best model.
-            var finalPredictions = bestModel!.Transform(dataView);
-            // Use a dictionary for fast CaseId lookup
-            var caseIdToTrainer = trainerModels.ToDictionary(x => x.CaseId ?? string.Empty);
-            var clusterPredictions = mlContext.Data
-                .CreateEnumerable<ClusteredModel>(finalPredictions, reuseRowObject: false, ignoreMissingColumns: true)
-                .ToList();
+            // Run final clustering with the selected k
+            var (clusterGroups, clusterPredictions) = RunKMeans(trainerModels, features!, numberOfClusters, runs, null);
 
-            logger.LogInformation("Total records after prediction: {Count}", clusterPredictions.Count);
-
-//#if DEBUG
-//            foreach (var prediction in clusterPredictions)
-//            {
-//                if (caseIdToTrainer.TryGetValue(prediction.CaseId, out var cluster))
-//                {
-//                    Console.WriteLine($"CaseId: {prediction.CaseId}, " +
-//                                      $"CrimeType: {cluster.CrimeType}, " +
-//                                      $"Severity: {cluster.Severity}, " +
-//                                      $"Motive: {cluster.Motive}, " +
-//                                      $"Weather: {cluster.Weather}, " +
-//                                      $"Precinct: {cluster.PoliceDistrict}, " +
-//                                      $"Assigned Cluster: {prediction.ClusterId}");
-//                }
-//            }
-//#endif
-
-            // Group predictions by clusterId efficiently
-            var groupedClusters = new Dictionary<uint, List<ClusterItem>>();
-            foreach (var item in clusterPredictions)
-            {
-                if (!groupedClusters.TryGetValue(item.ClusterId, out var list))
-                {
-                    list = new List<ClusterItem>();
-                    groupedClusters[item.ClusterId] = list;
-                }
-                if (caseIdToTrainer.TryGetValue(item.CaseId, out var trainer))
-                {
-                    list.Add(new ClusterItem
-                    {
-                        CaseId = item.CaseId,
-                        Latitude = item.Latitude,
-                        Longitude = item.Longitude,
-                        Month = GetMonth(trainer.TimeStampUnix),
-                        Year = GetYear(trainer.TimeStampUnix),
-                        TimeOfDay = GetTimeOfDay(trainer.TimeStampUnix),
-                        Precinct = (Domain.Enums.Barangay)trainer.PoliceDistrict,
-                        CrimeType = (Domain.Enums.CrimeTypeEnum)trainer.CrimeType,
-                        ClusterId = item.ClusterId
-                    });
-                }
-            }
-
-            var clusterGroups = groupedClusters
-                .OrderBy(kvp => kvp.Key)
-                .Select(kvp => new ClusterGroup
-                {
-                    ClusterId = kvp.Key,
-                    ClusterItems = kvp.Value
-                })
-                .ToList();
+            // Compute quality metrics
+            var qualityMetrics = ComputeQualityMetrics(trainerModels, features!, clusterPredictions, numberOfClusters);
 
             return new GroupedClusterResponse
             {
                 Filters = [],
-                ClusterGroups = clusterGroups
+                ClusterGroups = clusterGroups,
+                QualityMetrics = qualityMetrics
             };
         }
         catch (Exception ex)
@@ -225,6 +157,170 @@ public class MachineLearningService(
             logger.LogError(ex, "An error occurred while performing KMeans clustering with features: {Features}, number of clusters: {NumberOfClusters}, runs: {Runs}.", features, numberOfClusters, runs);
             throw;
         }
+    }
+
+    private (List<ClusterGroup> clusterGroups, List<ClusteredModel> clusterPredictions) RunKMeans(
+        TrainerModel[] trainerModels, string[] features, int numberOfClusters, int runs, int? seed)
+    {
+        var dataView = mlContext.Data.LoadFromEnumerable(trainerModels);
+
+        var selectedFeatureColumns = features.Select(f => IsCategoricalFeature(f) || IsFloat(f) ? $"{f}Encoded" : f).ToArray();
+        IEstimator<ITransformer>? pipeline = AppendPipeline(mlContext, features, null);
+        pipeline = pipeline.Append(mlContext.Transforms.Concatenate("Features", selectedFeatureColumns))
+                           .Append(mlContext.Transforms.NormalizeMeanVariance("Features"))
+                           .Append(mlContext.Clustering.Trainers.KMeans(numberOfClusters: numberOfClusters));
+
+        double bestScore = double.MaxValue;
+        ITransformer? bestModel = null;
+
+        for (int i = 0; i < runs; i++)
+        {
+            var model = pipeline.Fit(dataView);
+            var predictions = model.Transform(dataView);
+            var metrics = mlContext.Clustering.Evaluate(predictions, scoreColumnName: "Score");
+
+            if (metrics.AverageDistance < bestScore)
+            {
+                bestScore = metrics.AverageDistance;
+                bestModel = model;
+            }
+        }
+
+        var finalPredictions = bestModel!.Transform(dataView);
+        var caseIdToTrainer = trainerModels.ToDictionary(x => x.CaseId ?? string.Empty);
+        var clusterPredictions = mlContext.Data
+            .CreateEnumerable<ClusteredModel>(finalPredictions, reuseRowObject: false, ignoreMissingColumns: true)
+            .ToList();
+
+        logger.LogInformation("Total records after prediction: {Count}", clusterPredictions.Count);
+
+        var groupedClusters = new Dictionary<uint, List<ClusterItem>>();
+        foreach (var item in clusterPredictions)
+        {
+            if (!groupedClusters.TryGetValue(item.ClusterId, out var list))
+            {
+                list = new List<ClusterItem>();
+                groupedClusters[item.ClusterId] = list;
+            }
+            if (caseIdToTrainer.TryGetValue(item.CaseId, out var trainer))
+            {
+                list.Add(new ClusterItem
+                {
+                    CaseId = item.CaseId,
+                    Latitude = item.Latitude,
+                    Longitude = item.Longitude,
+                    Month = GetMonth(trainer.TimeStampUnix),
+                    Year = GetYear(trainer.TimeStampUnix),
+                    TimeOfDay = GetTimeOfDay(trainer.TimeStampUnix),
+                    Precinct = (Domain.Enums.Barangay)trainer.PoliceDistrict,
+                    CrimeType = (Domain.Enums.CrimeTypeEnum)trainer.CrimeType,
+                    ClusterId = item.ClusterId
+                });
+            }
+        }
+
+        var clusterGroups = groupedClusters
+            .OrderBy(kvp => kvp.Key)
+            .Select(kvp => new ClusterGroup
+            {
+                ClusterId = kvp.Key,
+                ClusterItems = kvp.Value
+            })
+            .ToList();
+
+        return (clusterGroups, clusterPredictions);
+    }
+
+    private int FindOptimalK(TrainerModel[] trainerModels, string[] features, int? seed)
+    {
+        var maxK = Math.Min(15, trainerModels.Length / 2);
+        if (maxK < 2) return 2;
+
+        var scores = new Dictionary<int, double>();
+
+        for (int k = 2; k <= maxK; k++)
+        {
+            try
+            {
+                var (_, predictions) = RunKMeans(trainerModels, features, k, runs: 1, null);
+                var assignments = ExtractFeatureVectors(trainerModels, features, predictions);
+                var result = ClusteringMetricsCalculator.Compute(assignments, k);
+                scores[k] = result.SilhouetteScores.GetValueOrDefault(k, -1);
+            }
+            catch
+            {
+                scores[k] = -1;
+            }
+        }
+
+        if (scores.Count == 0) return 3;
+        return scores.OrderByDescending(s => s.Value).First().Key;
+    }
+
+    private static List<(double[] features, uint clusterId)> ExtractFeatureVectors(
+        TrainerModel[] trainerModels, string[] features, List<ClusteredModel> predictions)
+    {
+        var caseIdToCluster = predictions.ToDictionary(p => p.CaseId ?? string.Empty, p => p.ClusterId);
+        var result = new List<(double[] features, uint clusterId)>();
+
+        var featureMin = new Dictionary<string, double>();
+        var featureMax = new Dictionary<string, double>();
+
+        foreach (var f in features)
+        {
+            if (IsCategoricalFeature(f) || IsFloat(f)) continue;
+            var values = trainerModels.Select(t => (double)typeof(TrainerModel).GetProperty(f)?.GetValue(t)!).ToList();
+            featureMin[f] = values.Min();
+            featureMax[f] = values.Max();
+        }
+
+        foreach (var model in trainerModels)
+        {
+            if (model.CaseId == null || !caseIdToCluster.TryGetValue(model.CaseId, out var clusterId))
+                continue;
+
+            var vector = BuildFeatureVector(model, features, featureMin, featureMax);
+            result.Add((vector, clusterId));
+        }
+
+        return result;
+    }
+
+    private static double[] BuildFeatureVector(TrainerModel model, string[] features,
+        Dictionary<string, double> min, Dictionary<string, double> max)
+    {
+        var parts = new List<double>();
+
+        foreach (var f in features)
+        {
+            if (IsCategoricalFeature(f))
+            {
+                var val = (int)(typeof(TrainerModel).GetProperty(f)?.GetValue(model) ?? 0);
+                for (int i = 0; i <= 13; i++)
+                    parts.Add(i == val ? 1.0 : 0.0);
+            }
+            else if (IsFloat(f))
+            {
+                parts.Add((double)(typeof(TrainerModel).GetProperty(f)?.GetValue(model) ?? 0.0));
+            }
+            else
+            {
+                var val = (double)(typeof(TrainerModel).GetProperty(f)?.GetValue(model) ?? 0.0);
+                var mn = min.GetValueOrDefault(f, 0.0);
+                var mx = max.GetValueOrDefault(f, 1.0);
+                parts.Add(mx > mn ? (val - mn) / (mx - mn) : 0.5);
+            }
+        }
+
+        return parts.ToArray();
+    }
+
+    private static ClusterQualityMetrics ComputeQualityMetrics(
+        TrainerModel[] trainerModels, string[] features,
+        List<ClusteredModel> predictions, int selectedK)
+    {
+        var assignments = ExtractFeatureVectors(trainerModels, features, predictions);
+        return ClusteringMetricsCalculator.Compute(assignments, selectedK);
     }
 
     // Helper methods for extracting Month, Year, and TimeOfDay from Unix timestamp

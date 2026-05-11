@@ -46,7 +46,7 @@ public class GetGroupedClustersQueryHandler(
             TimeStampUnix = x.TimeStamp!.Value.ToUnixTimeSeconds()
         }).ToArray();
 
-        var result = kMeansService.PerformKMeansAndGetGroupedClusters(trainerModels, request.Features, request.NumberOfClusters, request.NumberOfRuns);
+        var result = kMeansService.PerformKMeansAndGetGroupedClusters(trainerModels, request.Features, request.NumberOfClusters, request.NumberOfRuns, request.AutoSelectK, request.Seed);
 
         // Build dictionary with capacity for better performance
         var trainerModelDict = new Dictionary<string, TrainerModel>(trainerModels.Length);

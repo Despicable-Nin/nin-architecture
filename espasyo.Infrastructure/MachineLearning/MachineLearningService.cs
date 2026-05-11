@@ -540,6 +540,7 @@ public class MachineLearningService(
                 {
                     "linear" => GenerateLinearTrendForecast(data, parameters, clusterData, precinct),
                     "seasonal" => GenerateSeasonalForecast(data, parameters, clusterData, precinct),
+                    "ensemble" => GenerateEnsembleForecast(data, parameters, clusterData, precinct),
                     "ssa" or _ => GenerateSSAForecast(data, parameters, clusterData, precinct)
                 };
             }
@@ -712,6 +713,73 @@ public class MachineLearningService(
         return forecasts;
     }
     
+    private List<ForecastPoint> GenerateEnsembleForecast(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData, int? precinct = null)
+    {
+        var logger = this.logger;
+        logger.LogInformation("Generating ensemble forecast for precinct {Precinct}", precinct);
+
+        var modelTypes = new[] { "ssa", "seasonal", "linear" };
+        var allResults = new Dictionary<string, List<ForecastPoint>>();
+
+        foreach (var modelType in modelTypes)
+        {
+            try
+            {
+                var modelParams = parameters with { ModelType = modelType };
+                allResults[modelType] = modelType switch
+                {
+                    "ssa" => GenerateSSAForecast(data, modelParams, clusterData, precinct),
+                    "seasonal" => GenerateSeasonalForecast(data, modelParams, clusterData, precinct),
+                    "linear" => GenerateLinearTrendForecast(data, modelParams, clusterData, precinct),
+                    _ => throw new InvalidOperationException($"Unknown model type: {modelType}")
+                };
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "{ModelType} model failed in ensemble, skipping", modelType);
+            }
+        }
+
+        if (allResults.Count == 0)
+        {
+            logger.LogWarning("All ensemble models failed for precinct {Precinct}, falling back to linear trend", precinct);
+            return GenerateLinearTrendForecast(data, parameters, clusterData, precinct);
+        }
+
+        var horizon = parameters.Horizon;
+        var forecasts = new List<ForecastPoint>();
+
+        for (int i = 0; i < horizon; i++)
+        {
+            var values = allResults.Values
+                .Select(r => r.ElementAtOrDefault(i))
+                .Where(p => p != null)
+                .ToList();
+
+            if (values.Count == 0) break;
+
+            var ensembleForecast = values.Average(p => p.Forecast);
+            var ensembleLower = values.Min(p => p.LowerBound);
+            var ensembleUpper = values.Max(p => p.UpperBound);
+            var ensembleConfidence = values.Max(p => p.Confidence);
+            var ensembleTrend = values.GroupBy(p => p.Trend).OrderByDescending(g => g.Count()).First().Key;
+            var ensembleRisk = values.GroupBy(p => p.RiskLevel).OrderByDescending(g => g.Count()).First().Key;
+
+            forecasts.Add(new ForecastPoint
+            {
+                Timestamp = values[0].Timestamp,
+                Forecast = Math.Max(0, ensembleForecast),
+                LowerBound = Math.Max(0, ensembleLower),
+                UpperBound = Math.Max(0, ensembleUpper),
+                Confidence = ensembleConfidence,
+                Trend = ensembleTrend,
+                RiskLevel = ensembleRisk
+            });
+        }
+
+        return forecasts;
+    }
+
     private (string trend, string riskLevel) AnalyzeForecastTrend(
         double forecastValue, 
         double recentAverage, 

@@ -604,17 +604,20 @@ public class MachineLearningService(
         var forecasts = new List<ForecastPoint>();
         var dataView = mlContext.Data.LoadFromEnumerable(data);
 
+        // Ensure the window size satisfies SSA's constraint: trainSize > 2 * windowSize
+        var windowSize = Math.Min(12, Math.Max(1, (data.Count - 1) / 2));
+
         // Use ML.NET's SSA (Singular Spectrum Analysis) for time series forecasting
         var pipeline = mlContext.Forecasting.ForecastBySsa(
             outputColumnName: "ForecastedValues",
             inputColumnName: nameof(TimeSeriesData.Value),
-            windowSize: Math.Min(12, data.Count / 2), // Seasonal window
+            windowSize: windowSize,
             seriesLength: data.Count,
             trainSize: data.Count,
             horizon: parameters.Horizon,
             confidenceLevel: (float)parameters.ConfidenceLevel,
-            confidenceLowerBoundColumn: "LowerBound",
-            confidenceUpperBoundColumn: "UpperBound");
+            confidenceLowerBoundColumn: "LowerBoundValues",
+            confidenceUpperBoundColumn: "UpperBoundValues");
 
         var model = pipeline.Fit(dataView);
         var forecastEngine = model.CreateTimeSeriesEngine<TimeSeriesData, ForecastOutput>(mlContext);

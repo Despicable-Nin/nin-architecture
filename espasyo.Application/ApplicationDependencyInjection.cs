@@ -18,7 +18,10 @@ public static class ApplicationDependencyInjection
         
         // Register data-driven complexity service (replaces hard-coded values)
         services.AddTransient<DataDrivenComplexityService>();
-        
+
+        // Register pipeline orchestrator
+        services.AddTransient<PipelineOrchestratorService>();
+
         return services;
     }
     

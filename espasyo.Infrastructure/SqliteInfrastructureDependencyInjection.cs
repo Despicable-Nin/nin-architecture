@@ -38,8 +38,9 @@ public static class SqliteInfrastructureDependencyInjection
         services.AddScoped<IStreetRepository, SqliteStreetRepository>();
         services.AddScoped<IManpowerRepository, SqliteManpowerRepository>();
         services.AddScoped<IForecastRepository, SqliteForecastRepository>();
-        
-        // These services don't depend on database provider, so they remain the same
+        services.AddScoped<IAnalysisRunRepository, SqliteAnalysisRunRepository>();
+        services.AddScoped<IManpowerRecommendationRepository, SqliteManpowerRecommendationRepository>();
+        services.AddScoped<IPrecinctRepository, SqlitePrecinctRepository>();
         services.AddTransient<IGeocodeService, AddressGeocodeService>();
         services.AddTransient<IMachineLearningService, MachineLearningService>();
 

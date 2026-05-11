@@ -17,6 +17,8 @@ public class SqliteApplicationDbContext(DbContextOptions<SqliteApplicationDbCont
     public DbSet<ForecastRun> ForecastRuns { get; set; }
     public DbSet<ForecastResult> ForecastResults { get; set; }
     public DbSet<UserForecastPreference> UserForecastPreferences { get; set; }
+    public DbSet<AnalysisRun> AnalysisRuns { get; set; }
+    public DbSet<ManpowerRecommendation> ManpowerRecommendations { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

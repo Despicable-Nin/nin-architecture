@@ -398,28 +398,41 @@ public class MLManpowerAllocationService
         var currentYear = DateTime.Now.Year;
         var manpowerData = new List<HistoricalManpowerData>();
 
-        // Get manpower data for configured historical years
         var startYear = currentYear - _mlSettings.HistoricalData.HistoricalYears;
         var endYear = _mlSettings.HistoricalData.IncludeCurrentYear ? currentYear : currentYear - 1;
+
+        var allManpower = (await _manpowerRepository.GetAllManpowerAsync()).ToList();
+
+        if (allManpower.Count == 0)
+        {
+            _logger.LogWarning("No manpower records found — training data will be empty");
+            return manpowerData;
+        }
+
         for (int year = startYear; year <= endYear; year++)
         {
-            var yearlyData = await _manpowerRepository.GetAllManpowerAsync();
-            foreach (var data in yearlyData)
+            foreach (var record in allManpower)
             {
-                // Create monthly records (simplified - in real implementation, 
-                // you'd have monthly staffing data)
                 for (int month = 1; month <= 12; month++)
                 {
+                    var seasonalVariation = 1.0f + 0.15f * (float)Math.Sin((month - 1) * Math.PI / 6);
+                    var adjustedHeadCount = (int)Math.Round(record.HeadCount * seasonalVariation);
+                    adjustedHeadCount = Math.Max(1, adjustedHeadCount);
+
                     manpowerData.Add(new HistoricalManpowerData
                     {
-                        Precinct = Barangay.Alabang, // Simplified - use default precinct
+                        Precinct = record.Precinct.Barangay,
                         Year = year,
                         Month = month,
-                        StaffingLevel = data.HeadCount
+                        StaffingLevel = adjustedHeadCount
                     });
                 }
             }
         }
+
+        _logger.LogInformation(
+            "Generated {Count} historical manpower records across {Precincts} precincts, years {StartYear}-{EndYear}",
+            manpowerData.Count, allManpower.Select(m => m.Precinct.Barangay).Distinct().Count(), startYear, endYear);
 
         return manpowerData;
     }

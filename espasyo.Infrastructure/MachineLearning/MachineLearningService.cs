@@ -4,6 +4,7 @@ using espasyo.Application.Interfaces;
 using espasyo.Domain.Enums;
 using Microsoft.ML.Data;
 using Microsoft.ML.Transforms.TimeSeries;
+using System.Collections.Concurrent;
 
 namespace espasyo.Infrastructure.MachineLearning;
 
@@ -1402,6 +1403,210 @@ public class MachineLearningService(
         }
 
         return hull;
+    }
+
+    public async Task<List<AnomalyResult>> DetectAnomaliesAsync(IEnumerable<ClusterGroup> clusterData, AnomalyDetectionRequest request)
+    {
+        return await Task.Run(() =>
+        {
+            var items = clusterData.SelectMany(g => g.ClusterItems).ToList();
+            if (items.Count < 4) return new List<AnomalyResult>();
+
+            var monthlyCounts = items
+                .GroupBy(i => new { i.Precinct, i.CrimeType, i.Year, i.Month })
+                .Select(g => new
+                {
+                    g.Key.Precinct,
+                    g.Key.CrimeType,
+                    g.Key.Year,
+                    g.Key.Month,
+                    Count = g.Count()
+                })
+                .OrderBy(x => x.Year).ThenBy(x => x.Month)
+                .ToList();
+
+            var series = monthlyCounts
+                .GroupBy(x => new { x.Precinct, x.CrimeType })
+                .ToList();
+
+            var methods = request.Method.ToLowerInvariant() switch
+            {
+                "iqr" => new[] { "iqr" },
+                "zscore" => new[] { "zscore" },
+                "movingavg" => new[] { "movingavg" },
+                _ => new[] { "iqr", "zscore", "movingavg" }
+            };
+
+            var results = new ConcurrentBag<AnomalyResult>();
+
+            Parallel.ForEach(series, s =>
+            {
+                var dataPoints = s.Select(x => (x.Year, x.Month, (float)x.Count)).ToList();
+                var detected = new HashSet<(int Year, int Month, string Method)>();
+
+                foreach (var method in methods)
+                {
+                    List<(int Year, int Month, float Count, double Deviation)> flagged = method switch
+                    {
+                        "iqr" => DetectIqr(dataPoints),
+                        "zscore" => DetectZScore(dataPoints),
+                        "movingavg" => DetectMovingAvg(dataPoints),
+                        _ => new List<(int, int, float, double)>()
+                    };
+
+                    foreach (var (year, month, count, deviation) in flagged)
+                    {
+                        if (detected.Add((year, month, method)))
+                        {
+                            var factors = GetContributingFactors(dataPoints, year, month, count, deviation);
+                            var severity = ClassifySeverity(deviation);
+
+                            results.Add(new AnomalyResult
+                            {
+                                Precinct = s.Key.Precinct.ToString(),
+                                CrimeType = s.Key.CrimeType.ToString(),
+                                Year = year,
+                                Month = month,
+                                ActualCount = count,
+                                ExpectedCount = count - deviation,
+                                Deviation = deviation,
+                                Method = method,
+                                Severity = severity,
+                                ContributingFactors = factors
+                            });
+                        }
+                    }
+                }
+            });
+
+            return results.OrderBy(r => r.Year).ThenBy(r => r.Month).ThenBy(r => r.Severity).ToList();
+        }, CancellationToken.None);
+    }
+
+    private static List<(int Year, int Month, float Count, double Deviation)> DetectIqr(
+        List<(int Year, int Month, float Count)> dataPoints)
+    {
+        if (dataPoints.Count < 4) return new List<(int, int, float, double)>();
+
+        var sorted = dataPoints.Select(d => d.Count).OrderBy(v => v).ToList();
+        var q1 = sorted[sorted.Count / 4];
+        var q3 = sorted[3 * sorted.Count / 4];
+        var iqr = q3 - q1;
+        var lowerBound = q1 - 1.5f * iqr;
+        var upperBound = q3 + 1.5f * iqr;
+
+        return dataPoints
+            .Where(d => d.Count < lowerBound || d.Count > upperBound)
+            .Select(d =>
+            {
+                var baseline = d.Count < lowerBound ? q1 : q3;
+                return (d.Year, d.Month, d.Count, (double)(d.Count - baseline));
+            })
+            .ToList();
+    }
+
+    private static List<(int Year, int Month, float Count, double Deviation)> DetectZScore(
+        List<(int Year, int Month, float Count)> dataPoints)
+    {
+        if (dataPoints.Count < 3) return new List<(int, int, float, double)>();
+
+        var mean = dataPoints.Average(d => d.Count);
+        var stdDev = Math.Sqrt(dataPoints.Sum(d => Math.Pow(d.Count - mean, 2)) / dataPoints.Count);
+        if (stdDev < 1e-10) return new List<(int, int, float, double)>();
+
+        const double threshold = 2.5;
+
+        return dataPoints
+            .Where(d => Math.Abs((d.Count - mean) / stdDev) > threshold)
+            .Select(d => (d.Year, d.Month, d.Count, (double)(d.Count - mean)))
+            .ToList();
+    }
+
+    private static List<(int Year, int Month, float Count, double Deviation)> DetectMovingAvg(
+        List<(int Year, int Month, float Count)> dataPoints)
+    {
+        if (dataPoints.Count < 4) return new List<(int, int, float, double)>();
+
+        const int window = 3;
+        var flagged = new List<(int Year, int Month, float Count, double Deviation)>();
+
+        for (int i = window; i < dataPoints.Count; i++)
+        {
+            var windowValues = dataPoints.Skip(i - window).Take(window).Select(d => d.Count).ToList();
+            var movingAvg = windowValues.Average();
+            var variance = windowValues.Sum(v => Math.Pow(v - movingAvg, 2)) / window;
+            var movingStd = Math.Sqrt(variance);
+            if (movingStd < 1e-10) continue;
+
+            var current = dataPoints[i];
+            var deviation = current.Count - movingAvg;
+
+            if (Math.Abs(deviation) > 2 * movingStd)
+            {
+                flagged.Add((current.Year, current.Month, current.Count, deviation));
+            }
+        }
+
+        return flagged;
+    }
+
+    private static List<string> GetContributingFactors(
+        List<(int Year, int Month, float Count)> dataPoints,
+        int year, int month, float count, double deviation)
+    {
+        var factors = new List<string>();
+        var absDeviation = Math.Abs(deviation);
+
+        var mean = dataPoints.Average(d => d.Count);
+        var deviationRatio = absDeviation / Math.Max(mean, 1);
+
+        if (deviationRatio > 2.0)
+            factors.Add("Extreme deviation from historical average");
+        else if (deviationRatio > 1.0)
+            factors.Add("Significant deviation from historical average");
+
+        var prevPoint = dataPoints.FirstOrDefault(d => d.Year == year && d.Month == month - 1);
+        if (prevPoint == default)
+            prevPoint = dataPoints.FirstOrDefault(d => d.Year == year - 1 && d.Month == 12);
+
+        if (prevPoint != default && prevPoint.Count > 0)
+        {
+            var monthOverMonthChange = Math.Abs(count - prevPoint.Count) / prevPoint.Count;
+            if (monthOverMonthChange > 1.0)
+                factors.Add($"Sharp {(count > prevPoint.Count ? "increase" : "decrease")} from previous month ({(monthOverMonthChange * 100):F0}%)");
+        }
+
+        var sameMonthHistorical = dataPoints
+            .Where(d => d.Month == month && !(d.Year == year && d.Month == month))
+            .Select(d => d.Count)
+            .ToList();
+
+        if (sameMonthHistorical.Count >= 2)
+        {
+            var seasonalMean = sameMonthHistorical.Average();
+            var seasonalStd = Math.Sqrt(sameMonthHistorical.Sum(d => Math.Pow(d - seasonalMean, 2)) / sameMonthHistorical.Count);
+            if (seasonalStd > 1e-10 && Math.Abs(count - seasonalMean) / seasonalStd > 2.0)
+                factors.Add("Unusual for this time of year (seasonal anomaly)");
+        }
+
+        if (deviation > 0)
+            factors.Add("Higher than expected incident count");
+        else
+            factors.Add("Lower than expected incident count");
+
+        return factors;
+    }
+
+    private static string ClassifySeverity(double deviation)
+    {
+        var absDev = Math.Abs(deviation);
+        return absDev switch
+        {
+            > 20 => "critical",
+            > 10 => "high",
+            > 5 => "medium",
+            _ => "low"
+        };
     }
 
     private static List<(double lon, double lat)> ExpandHull(List<(double lon, double lat)> hull, double buffer)

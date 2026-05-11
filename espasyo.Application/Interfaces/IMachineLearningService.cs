@@ -17,4 +17,5 @@ public interface IMachineLearningService
     Task<ForecastValidationResult> ValidateForecastModel(IEnumerable<ClusterGroup> clusterData, ForecastParameters parameters);
     Task<DataQualityAssessment> AssessDataQuality(IEnumerable<ClusterGroup> clusterData);
     Task<GeoJsonFeatureCollection> PredictHotspotsAsync(IEnumerable<ClusterGroup> clusterData, HotspotPredictionRequest request);
+    Task<List<AnomalyResult>> DetectAnomaliesAsync(IEnumerable<ClusterGroup> clusterData, AnomalyDetectionRequest request);
 }

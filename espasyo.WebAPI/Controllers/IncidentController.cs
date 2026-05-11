@@ -13,6 +13,7 @@ using espasyo.Application.Common.Models.ML;
 using espasyo.Application.UseCase.Incidents.Commands.GenerateStatisticalForecast;
 using espasyo.Application.UseCase.Incidents.Commands.ValidateForecastModel;
 using espasyo.Application.UseCase.Incidents.Commands.AssessDataQuality;
+using espasyo.Application.UseCase.Incidents.Commands.PredictHotspots;
 
 namespace espasyo.WebAPI.Controllers;
 
@@ -178,6 +179,22 @@ public class IncidentController(IMediator mediator) : ControllerBase
         catch (Exception ex)
         {
             return BadRequest($"Failed to assess data quality: {ex.Message}");
+        }
+    }
+
+    [HttpPost("forecast/hotspots")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> PredictHotspots([FromBody] PredictHotspotsCommand command)
+    {
+        try
+        {
+            var hotspots = await mediator.Send(command);
+            return Ok(hotspots);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to predict hotspots: {ex.Message}");
         }
     }
 

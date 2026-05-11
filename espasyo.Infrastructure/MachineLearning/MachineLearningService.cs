@@ -1,6 +1,7 @@
 using Microsoft.ML;
 using espasyo.Application.Common.Models.ML;
 using espasyo.Application.Interfaces;
+using espasyo.Domain.Enums;
 using Microsoft.ML.Data;
 using Microsoft.ML.Transforms.TimeSeries;
 
@@ -1194,4 +1195,133 @@ public class MachineLearningService(
     }
 
     #endregion
+
+    public async Task<GeoJsonFeatureCollection> PredictHotspotsAsync(
+        IEnumerable<ClusterGroup> clusterData,
+        HotspotPredictionRequest request)
+    {
+        var clusterList = clusterData.ToList();
+
+        var forecastParams = new ForecastParameters
+        {
+            Horizon = request.Horizon,
+            ConfidenceLevel = request.ConfidenceLevel,
+            ModelType = request.ModelType,
+            IncludeSeasonality = request.IncludeSeasonality,
+            WeightRecentData = request.WeightRecentData
+        };
+
+        var forecast = await GenerateStatisticalForecast(clusterList, forecastParams);
+
+        var features = new List<GeoJsonFeature>();
+
+        foreach (var series in forecast.Series)
+        {
+            var totalPredicted = series.Forecasts.Sum(f => f.Forecast);
+            var avgConfidence = series.Forecasts.Average(f => f.Confidence);
+
+            if (totalPredicted < 1) continue;
+
+            var clusterGroup = clusterList.FirstOrDefault(c => c.ClusterId == series.ClusterId);
+            if (clusterGroup?.ClusterItems.Count == 0) continue;
+
+            var points = clusterGroup!.ClusterItems
+                .Select(i => (i.Longitude, i.Latitude))
+                .Distinct()
+                .ToList();
+
+            if (points.Count < 3) continue;
+
+            var hull = ComputeConvexHull(points);
+            var expandedHull = ExpandHull(hull, 0.002);
+
+            var severity = totalPredicted switch
+            {
+                > 50 => "critical",
+                > 20 => "high",
+                > 10 => "medium",
+                _ => "low"
+            };
+
+            features.Add(new GeoJsonFeature
+            {
+                Geometry = new GeoJsonGeometry
+                {
+                    Type = "Polygon",
+                    Coordinates = new List<List<List<double>>>
+                    {
+                        expandedHull.Select(p => new List<double> { p.lon, p.lat }).ToList()
+                    }
+                },
+                Properties = new Dictionary<string, object>
+                {
+                    ["precinct"] = ((Barangay)series.Precinct).ToString(),
+                    ["crimeType"] = ((CrimeTypeEnum)series.CrimeType).ToString(),
+                    ["clusterId"] = (int)series.ClusterId,
+                    ["totalPredicted"] = Math.Round(totalPredicted, 1),
+                    ["confidence"] = Math.Round(avgConfidence, 2),
+                    ["severity"] = severity,
+                    ["riskLevel"] = series.Forecasts.MaxBy(f => f.Forecast)?.RiskLevel ?? "medium",
+                    ["trend"] = series.Forecasts.LastOrDefault()?.Trend ?? "stable",
+                    ["forecastPoints"] = series.Forecasts.Select(f => new
+                    {
+                        month = f.Timestamp.Month,
+                        year = f.Timestamp.Year,
+                        value = Math.Round(f.Forecast, 1),
+                        lower = Math.Round(f.LowerBound, 1),
+                        upper = Math.Round(f.UpperBound, 1)
+                    }).Cast<object>().ToList()
+                }
+            });
+        }
+
+        return new GeoJsonFeatureCollection { Features = features };
+    }
+
+    private static List<(double lon, double lat)> ComputeConvexHull(List<(double lon, double lat)> points)
+    {
+        if (points.Count < 3) return points;
+
+        var sorted = points.OrderBy(p => p.lat).ThenBy(p => p.lon).ToList();
+        var origin = sorted[0];
+
+        var sortedByAngle = sorted.Skip(1)
+            .OrderBy(p => Math.Atan2(p.lat - origin.lat, p.lon - origin.lon))
+            .ThenBy(p => (p.lon - origin.lon) * (p.lon - origin.lon) + (p.lat - origin.lat) * (p.lat - origin.lat))
+            .ToList();
+
+        var hull = new List<(double lon, double lat)> { origin };
+
+        foreach (var point in sortedByAngle)
+        {
+            while (hull.Count >= 2)
+            {
+                var a = hull[^2];
+                var b = hull[^1];
+                var cross = (b.lon - a.lon) * (point.lat - a.lat) - (b.lat - a.lat) * (point.lon - a.lon);
+                if (cross > 0) break;
+                hull.RemoveAt(hull.Count - 1);
+            }
+            hull.Add(point);
+        }
+
+        return hull;
+    }
+
+    private static List<(double lon, double lat)> ExpandHull(List<(double lon, double lat)> hull, double buffer)
+    {
+        if (hull.Count < 3) return hull;
+
+        var centroid = (lon: hull.Average(p => p.lon), lat: hull.Average(p => p.lat));
+
+        return hull.Select(p =>
+        {
+            var dx = p.lon - centroid.lon;
+            var dy = p.lat - centroid.lat;
+            var dist = Math.Sqrt(dx * dx + dy * dy);
+            if (dist < 1e-10) return p;
+            var scale = 1.0 + buffer / dist;
+            return (lon: centroid.lon + dx * scale, lat: centroid.lat + dy * scale);
+        }).ToList();
+    }
 }

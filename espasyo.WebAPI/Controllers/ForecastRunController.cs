@@ -1,6 +1,7 @@
 using espasyo.Application.UseCase.ForecastRuns.Commands.SaveForecastRun;
 using espasyo.Application.UseCase.ForecastRuns.Queries.GetForecastResults;
 using espasyo.Application.UseCase.ForecastRuns.Queries.GetForecastRuns;
+using espasyo.Application.UseCase.ForecastRuns.Queries.EvaluateForecastRun;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -56,5 +57,26 @@ public class ForecastRunController : ControllerBase
             return NotFound($"No results found for forecast run {id}");
 
         return Ok(results);
+    }
+
+    [HttpGet("{id:guid}/evaluate")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> EvaluateForecastRun(Guid id)
+    {
+        try
+        {
+            var query = new EvaluateForecastRunQuery { ForecastRunId = id };
+            var result = await _mediator.Send(query);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to evaluate forecast run: {ex.Message}");
+        }
     }
 }

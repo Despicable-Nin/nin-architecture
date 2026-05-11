@@ -17,7 +17,7 @@ namespace espasyo.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.8")
+                .HasAnnotation("ProductVersion", "10.0.0")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -489,7 +489,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 23.5m,
                             Barangay = 0,
                             Code = "ALB",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 2, 47, 16, 820, DateTimeKind.Unspecified).AddTicks(4120), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(5482), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Commercial and business district",
                             IsActive = true,
                             Population = 54000
@@ -500,7 +500,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 8.2m,
                             Barangay = 7,
                             Code = "AAL",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 2, 47, 16, 820, DateTimeKind.Unspecified).AddTicks(5052), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7205), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "High-income residential area",
                             IsActive = true,
                             Population = 25000
@@ -511,7 +511,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 15.7m,
                             Barangay = 8,
                             Code = "SUC",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 2, 47, 16, 820, DateTimeKind.Unspecified).AddTicks(5054), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7208), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Mixed residential and commercial area",
                             IsActive = true,
                             Population = 42000
@@ -522,7 +522,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 5.3m,
                             Barangay = 4,
                             Code = "POB",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 2, 47, 16, 820, DateTimeKind.Unspecified).AddTicks(5055), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7209), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "City center and administrative area",
                             IsActive = true,
                             Population = 18000
@@ -533,7 +533,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 12.8m,
                             Barangay = 5,
                             Code = "PUT",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 2, 47, 16, 820, DateTimeKind.Unspecified).AddTicks(5056), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7211), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Residential area with moderate density",
                             IsActive = true,
                             Population = 35000
@@ -544,7 +544,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 10.4m,
                             Barangay = 6,
                             Code = "TUN",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 2, 47, 16, 820, DateTimeKind.Unspecified).AddTicks(5057), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7212), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Residential with some commercial areas",
                             IsActive = true,
                             Population = 28000
@@ -555,7 +555,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 8.9m,
                             Barangay = 3,
                             Code = "CUP",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 2, 47, 16, 820, DateTimeKind.Unspecified).AddTicks(5058), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7213), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Smaller residential area",
                             IsActive = true,
                             Population = 22000
@@ -566,7 +566,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 11.6m,
                             Barangay = 1,
                             Code = "BAY",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 2, 47, 16, 820, DateTimeKind.Unspecified).AddTicks(5059), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7214), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Residential area",
                             IsActive = true,
                             Population = 31000
@@ -577,7 +577,7 @@ namespace espasyo.Infrastructure.Migrations
                             AreaKm2 = 9.8m,
                             Barangay = 2,
                             Code = "BUL",
-                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 2, 47, 16, 820, DateTimeKind.Unspecified).AddTicks(5059), new TimeSpan(0, 0, 0, 0, 0)),
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7216), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Residential area",
                             IsActive = true,
                             Population = 26000

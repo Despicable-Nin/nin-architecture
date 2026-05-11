@@ -56,18 +56,25 @@ builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("AllowFrontend", builder =>
     {
-        builder.WithOrigins("http://localhost:3000", "http://127.0.0.1:3000")
+        builder.WithOrigins(
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
+                "https://localhost:17000",
+                "http://localhost:17001",
+                "https://127.0.0.1:17000",
+                "http://127.0.0.1:17001")
                .AllowAnyHeader()
                .AllowAnyMethod()
                .AllowCredentials();
     });
     
-    // Fallback policy for development
+    // Fallback policy for development — allow any origin with credentials support
     opt.AddPolicy("AllowAll", builder =>
     {
         builder.AllowAnyHeader()
                .AllowAnyMethod()
-               .AllowAnyOrigin();
+               .AllowCredentials()
+               .SetIsOriginAllowed(_ => true);
     });
 });
 

@@ -1,7 +1,7 @@
 # Backend Architecture (nin-architecture)
 
 ## Overview
-The backend for the Espasyo application is built using ASP.NET Core (.NET 8) and strictly follows **Clean Architecture** principles. It utilizes **.NET Aspire** for local orchestration and development hosting.
+The backend for the Espasyo application is built using ASP.NET Core (.NET 10) and strictly follows **Clean Architecture** principles. It utilizes **.NET Aspire** for local orchestration and development hosting.
 
 ## Related Documents
 - `D:\hobby\espasyo\architecture.md` — Frontend + overall system architecture
@@ -128,8 +128,8 @@ The backend for the Espasyo application is built using ASP.NET Core (.NET 8) and
 |---|---|---|---|
 | P1 | Data Infrastructure | ✅ **DONE** | — |
 | P2 | Pipeline Integration | ✅ **DONE** | G10 (sync wrappers, minor) |
-| P3 | Analytics | ✅ **DONE** | — |
-| P4 | Production | ❌ **NOT STARTED** | G13 (forecast controller), G14 (versioning), G15 (error responses), G16 (ML health checks) |
+| P3 | Analytics | ✅ **DONE (backend)** | Frontend gaps 18, 19 remain (tracked in frontend architecture.md) |
+| P4 | Production | ❌ **NOT STARTED** | G12 (retraining), G13 (forecast controller), G14 (versioning), G15 (error responses), G16 (ML health checks) |
 
 **Full details:** `D:\hobby\espasyo\espasyo-review-plan.md`
 

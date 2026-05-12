@@ -4,6 +4,7 @@ using espasyo.Infrastructure.Data.Interceptors;
 using espasyo.Infrastructure.Data.Repositories.Sqlite;
 using espasyo.Infrastructure.Geocoding;
 using espasyo.Infrastructure.MachineLearning;
+using espasyo.Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -45,6 +46,7 @@ public static class SqliteInfrastructureDependencyInjection
         services.AddTransient<IMachineLearningService, MachineLearningService>();
 
         services.AddHttpClient<AddressGeocodeService>();
+        services.AddHostedService<ScheduledForecastService>();
 
         return services;
     }

@@ -15,7 +15,6 @@ builder.AddServiceDefaults();
 // Add services to the container.
 
 builder.Services.AddApplication();
-builder.Services.AddMLServices(builder.Configuration);
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -82,24 +81,22 @@ var app = builder.Build();
 
 app.MapDefaultEndpoints();
 
-// Apply pending migrations automatically
+// Ensure database is created (development mode — recreates if schema changed)
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     
-    // Get the database provider from configuration
     var databaseProvider = builder.Configuration["DatabaseProvider"] ?? "SqlServer";
     
-    // Apply migrations based on the database provider
     if (databaseProvider.ToLower() == "sqlite")
     {
         var sqliteContext = services.GetService<espasyo.Infrastructure.Data.SqliteApplicationDbContext>();
-        sqliteContext?.Database.Migrate();
+        sqliteContext?.Database.EnsureCreated();
     }
     else
     {
         var sqlServerContext = services.GetService<ApplicationDbContext>();
-        sqlServerContext?.Database.Migrate();
+        sqlServerContext?.Database.EnsureCreated();
     }
     
     try

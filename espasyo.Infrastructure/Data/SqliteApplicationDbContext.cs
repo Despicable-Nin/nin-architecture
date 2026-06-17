@@ -18,8 +18,6 @@ public class SqliteApplicationDbContext(DbContextOptions<SqliteApplicationDbCont
     public DbSet<ForecastResult> ForecastResults { get; set; }
     public DbSet<UserForecastPreference> UserForecastPreferences { get; set; }
     public DbSet<AnalysisRun> AnalysisRuns { get; set; }
-    public DbSet<ManpowerRecommendation> ManpowerRecommendations { get; set; }
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder); // Always call base method for Identity
@@ -75,13 +73,6 @@ public class SqliteApplicationDbContext(DbContextOptions<SqliteApplicationDbCont
 
         // Configure DateTimeOffset for AnalysisRun
         modelBuilder.Entity<AnalysisRun>()
-            .Property(e => e.CreatedAt)
-            .HasConversion(
-                v => v.ToString("O"),
-                v => DateTimeOffset.Parse(v));
-
-        // Configure DateTimeOffset for ManpowerRecommendation
-        modelBuilder.Entity<ManpowerRecommendation>()
             .Property(e => e.CreatedAt)
             .HasConversion(
                 v => v.ToString("O"),

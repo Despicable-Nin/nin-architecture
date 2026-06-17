@@ -40,7 +40,6 @@ public static class SqliteInfrastructureDependencyInjection
         services.AddScoped<IManpowerRepository, SqliteManpowerRepository>();
         services.AddScoped<IForecastRepository, SqliteForecastRepository>();
         services.AddScoped<IAnalysisRunRepository, SqliteAnalysisRunRepository>();
-        services.AddScoped<IManpowerRecommendationRepository, SqliteManpowerRecommendationRepository>();
         services.AddScoped<IPrecinctRepository, SqlitePrecinctRepository>();
         services.AddTransient<IGeocodeService, AddressGeocodeService>();
         services.AddTransient<IMachineLearningService, MachineLearningService>();

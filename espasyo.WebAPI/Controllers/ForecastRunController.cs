@@ -1,4 +1,5 @@
 using espasyo.Application.UseCase.ForecastRuns.Commands.SaveForecastRun;
+using espasyo.Application.UseCase.ForecastRuns.Commands.SaveForecastSnapshot;
 using espasyo.Application.UseCase.ForecastRuns.Queries.GetForecastResults;
 using espasyo.Application.UseCase.ForecastRuns.Queries.GetForecastRuns;
 using espasyo.Application.UseCase.ForecastRuns.Queries.EvaluateForecastRun;
@@ -33,6 +34,25 @@ public class ForecastRunController : ControllerBase
         catch (Exception ex)
         {
             return BadRequest($"Failed to save forecast run: {ex.Message}");
+        }
+    }
+
+    [HttpPost("snapshot")]
+    [AllowAnonymous]
+    [ProducesResponseType(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<SaveForecastSnapshotResponse>> SaveSnapshot(
+        [FromBody] SaveForecastSnapshotCommand command,
+        CancellationToken ct)
+    {
+        try
+        {
+            var result = await _mediator.Send(command, ct);
+            return Created($"api/forecastrun/{result.Id}", result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to save forecast snapshot: {ex.Message}");
         }
     }
 

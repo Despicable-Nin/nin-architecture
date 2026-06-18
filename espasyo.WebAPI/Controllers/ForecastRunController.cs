@@ -1,5 +1,6 @@
 using espasyo.Application.UseCase.ForecastRuns.Commands.SaveForecastRun;
 using espasyo.Application.UseCase.ForecastRuns.Commands.SaveForecastSnapshot;
+using espasyo.Application.UseCase.ForecastRuns.Commands.DeleteForecastRun;
 using espasyo.Application.UseCase.ForecastRuns.Queries.GetForecastResults;
 using espasyo.Application.UseCase.ForecastRuns.Queries.GetForecastRuns;
 using espasyo.Application.UseCase.ForecastRuns.Queries.EvaluateForecastRun;
@@ -97,6 +98,26 @@ public class ForecastRunController : ControllerBase
         catch (Exception ex)
         {
             return BadRequest($"Failed to evaluate forecast run: {ex.Message}");
+        }
+    }
+
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> DeleteForecastRun(Guid id)
+    {
+        try
+        {
+            var deleted = await _mediator.Send(new DeleteForecastRunCommand(id));
+            if (!deleted)
+                return NotFound($"Forecast run {id} not found");
+
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to delete forecast run: {ex.Message}");
         }
     }
 }

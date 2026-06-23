@@ -15,7 +15,6 @@ builder.AddServiceDefaults();
 // Add services to the container.
 
 builder.Services.AddApplication();
-builder.Services.AddMLServices(builder.Configuration);
 
 builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -56,18 +55,25 @@ builder.Services.AddCors(opt =>
 {
     opt.AddPolicy("AllowFrontend", builder =>
     {
-        builder.WithOrigins("http://localhost:3000", "http://127.0.0.1:3000")
+        builder.WithOrigins(
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
+                "https://localhost:17000",
+                "http://localhost:17001",
+                "https://127.0.0.1:17000",
+                "http://127.0.0.1:17001")
                .AllowAnyHeader()
                .AllowAnyMethod()
                .AllowCredentials();
     });
     
-    // Fallback policy for development
+    // Fallback policy for development — allow any origin with credentials support
     opt.AddPolicy("AllowAll", builder =>
     {
         builder.AllowAnyHeader()
                .AllowAnyMethod()
-               .AllowAnyOrigin();
+               .AllowCredentials()
+               .SetIsOriginAllowed(_ => true);
     });
 });
 
@@ -75,24 +81,22 @@ var app = builder.Build();
 
 app.MapDefaultEndpoints();
 
-// Apply pending migrations automatically
+// Ensure database is created (development mode — recreates if schema changed)
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     
-    // Get the database provider from configuration
     var databaseProvider = builder.Configuration["DatabaseProvider"] ?? "SqlServer";
     
-    // Apply migrations based on the database provider
     if (databaseProvider.ToLower() == "sqlite")
     {
         var sqliteContext = services.GetService<espasyo.Infrastructure.Data.SqliteApplicationDbContext>();
-        sqliteContext?.Database.Migrate();
+        sqliteContext?.Database.EnsureCreated();
     }
     else
     {
         var sqlServerContext = services.GetService<ApplicationDbContext>();
-        sqlServerContext?.Database.Migrate();
+        sqlServerContext?.Database.EnsureCreated();
     }
     
     try
@@ -112,9 +116,31 @@ using (var scope = app.Services.CreateScope())
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    app.UseSwaggerUI(o =>
+
+    app.MapGet("/", () => Results.Redirect("/openapi/v1.json"));
+    app.MapGet("/swagger", async (HttpContext context) =>
     {
-        o.SwaggerEndpoint("/openapi/v1.json", "OpenAPI");
+        context.Response.ContentType = "text/html";
+        await context.Response.WriteAsync(@"
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Swagger UI</title>
+    <meta charset=""utf-8""/>
+    <link rel=""stylesheet"" href=""https://unpkg.com/swagger-ui-dist@5/swagger-ui.css"" />
+</head>
+<body>
+    <div id=""swagger-ui""></div>
+    <script src=""https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js""></script>
+    <script>
+        SwaggerUIBundle({
+            url: '/openapi/v1.json',
+            dom_id: '#swagger-ui'
+        });
+    </script>
+</body>
+</html>
+");
     });
 }
 

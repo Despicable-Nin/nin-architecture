@@ -2,43 +2,52 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using espasyo.Infrastructure.Data;
 
 #nullable disable
 
-namespace espasyo.Infrastructure.Data.Migrations.Sqlite
+namespace espasyo.Infrastructure.Migrations
 {
-    [DbContext(typeof(SqliteApplicationDbContext))]
-    partial class SqliteApplicationDbContextModelSnapshot : ModelSnapshot
+    [DbContext(typeof(ApplicationDbContext))]
+    [Migration("20260511031638_AddForecastPersistence")]
+    partial class AddForecastPersistence
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "9.0.8");
+            modelBuilder
+                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+
+            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
                         .HasMaxLength(256)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("NormalizedName")
                         .HasMaxLength(256)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(256)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedName")
                         .IsUnique()
-                        .HasDatabaseName("RoleNameIndex");
+                        .HasDatabaseName("RoleNameIndex")
+                        .HasFilter("[NormalizedName] IS NOT NULL");
 
                     b.ToTable("AspNetRoles", (string)null);
                 });
@@ -47,17 +56,19 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("ClaimType")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ClaimValue")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("RoleId")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
 
@@ -69,54 +80,54 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUser", b =>
                 {
                     b.Property<string>("Id")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<int>("AccessFailedCount")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Email")
                         .HasMaxLength(256)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<bool>("EmailConfirmed")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bit");
 
                     b.Property<bool>("LockoutEnabled")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bit");
 
-                    b.Property<string>("LockoutEnd")
-                        .HasColumnType("TEXT");
+                    b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("NormalizedUserName")
                         .HasMaxLength(256)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("PasswordHash")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PhoneNumber")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("PhoneNumberConfirmed")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bit");
 
                     b.Property<string>("SecurityStamp")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("TwoFactorEnabled")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bit");
 
                     b.Property<string>("UserName")
                         .HasMaxLength(256)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(256)");
 
                     b.HasKey("Id");
 
@@ -125,7 +136,8 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
 
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
-                        .HasDatabaseName("UserNameIndex");
+                        .HasDatabaseName("UserNameIndex")
+                        .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
                 });
@@ -134,17 +146,19 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("ClaimType")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ClaimValue")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("UserId")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
 
@@ -156,17 +170,17 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
                     b.Property<string>("LoginProvider")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("ProviderKey")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("ProviderDisplayName")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("UserId")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("LoginProvider", "ProviderKey");
 
@@ -178,10 +192,10 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<string>", b =>
                 {
                     b.Property<string>("UserId")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("RoleId")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("UserId", "RoleId");
 
@@ -193,89 +207,190 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
                 {
                     b.Property<string>("UserId")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("LoginProvider")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Name")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Value")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("espasyo.Domain.Entities.ForecastResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<double>("Confidence")
+                        .HasColumnType("float");
+
+                    b.Property<int>("CrimeType")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ForecastRunId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<double>("LowerBound")
+                        .HasColumnType("float");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Precinct")
+                        .HasColumnType("int");
+
+                    b.Property<double>("PredictedValue")
+                        .HasColumnType("float");
+
+                    b.Property<string>("RiskLevel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Trend")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<double>("UpperBound")
+                        .HasColumnType("float");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ForecastRunId")
+                        .HasDatabaseName("IX_ForecastResult_ForecastRunId");
+
+                    b.HasIndex("ForecastRunId", "Precinct", "Month", "Year")
+                        .HasDatabaseName("IX_ForecastResult_Run_Precinct_Month_Year");
+
+                    b.ToTable("ForecastResult", (string)null);
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.ForecastRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<double>("ConfidenceLevel")
+                        .HasColumnType("float");
+
+                    b.Property<string>("GeneratedById")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Horizon")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ModelType")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("PrecinctId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("RunAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TotalSeries")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PrecinctId");
+
+                    b.HasIndex("RunAt")
+                        .HasDatabaseName("IX_ForecastRun_RunAt");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_ForecastRun_Status");
+
+                    b.ToTable("ForecastRun", (string)null);
+                });
+
             modelBuilder.Entity("espasyo.Domain.Entities.Incident", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("AdditionalInformation")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Address")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("CaseId")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<int>("CrimeType")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<int>("Motive")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<Guid>("PrecinctId")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("SanitizedAddress")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("Severity")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
-                    b.Property<string>("TimeStamp")
-                        .IsRequired()
-                        .HasColumnType("TEXT")
+                    b.Property<DateTimeOffset>("TimeStamp")
+                        .HasColumnType("datetimeoffset")
                         .HasColumnName("IncidentDateTime");
 
                     b.Property<int>("Weather")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<double?>("_latitude")
-                        .HasColumnType("REAL")
+                        .HasColumnType("float")
                         .HasColumnName("Latitude");
 
                     b.Property<double?>("_longitude")
-                        .HasColumnType("REAL")
+                        .HasColumnType("float")
                         .HasColumnName("Longitude");
 
                     b.Property<int>("_month")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("Month");
 
                     b.Property<string>("_timeOfDay")
                         .IsRequired()
-                        .HasColumnType("TEXT")
+                        .HasColumnType("nvarchar(max)")
                         .HasColumnName("TimeOfDay");
 
                     b.Property<long>("_timestampInUnix")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("bigint")
                         .HasColumnName("TimestampInUnix");
 
                     b.Property<int>("_year")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("Year");
 
                     b.HasKey("Id");
 
                     b.HasIndex("CaseId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[CaseId] IS NOT NULL");
 
                     b.HasIndex("PrecinctId");
 
@@ -286,22 +401,21 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("HeadCount")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
-                    b.Property<string>("LastUpdated")
-                        .IsRequired()
+                    b.Property<DateTimeOffset>("LastUpdated")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT")
+                        .HasColumnType("datetimeoffset")
                         .HasDefaultValueSql("datetime('now')");
 
                     b.Property<Guid>("PrecinctId")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("Shift")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -316,36 +430,35 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal?>("AreaKm2")
                         .HasColumnType("decimal(10,2)");
 
                     b.Property<int>("Barangay")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(10)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(10)");
 
                     b.Property<string>("ContactInfo")
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(200)");
 
-                    b.Property<string>("CreatedAt")
-                        .IsRequired()
+                    b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT")
+                        .HasColumnType("datetimeoffset")
                         .HasDefaultValueSql("datetime('now')");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("bit")
                         .HasDefaultValue(true);
 
                     b.Property<decimal?>("Latitude")
@@ -355,10 +468,10 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                         .HasColumnType("decimal(11,8)");
 
                     b.Property<int?>("Population")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
-                    b.Property<string>("UpdatedAt")
-                        .HasColumnType("TEXT");
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
 
                     b.HasKey("Id");
 
@@ -379,7 +492,7 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                             AreaKm2 = 23.5m,
                             Barangay = 0,
                             Code = "ALB",
-                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(5482), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Commercial and business district",
                             IsActive = true,
                             Population = 54000
@@ -390,7 +503,7 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                             AreaKm2 = 8.2m,
                             Barangay = 7,
                             Code = "AAL",
-                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7205), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "High-income residential area",
                             IsActive = true,
                             Population = 25000
@@ -401,7 +514,7 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                             AreaKm2 = 15.7m,
                             Barangay = 8,
                             Code = "SUC",
-                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7208), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Mixed residential and commercial area",
                             IsActive = true,
                             Population = 42000
@@ -412,7 +525,7 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                             AreaKm2 = 5.3m,
                             Barangay = 4,
                             Code = "POB",
-                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7209), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "City center and administrative area",
                             IsActive = true,
                             Population = 18000
@@ -423,7 +536,7 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                             AreaKm2 = 12.8m,
                             Barangay = 5,
                             Code = "PUT",
-                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7211), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Residential area with moderate density",
                             IsActive = true,
                             Population = 35000
@@ -434,7 +547,7 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                             AreaKm2 = 10.4m,
                             Barangay = 6,
                             Code = "TUN",
-                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7212), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Residential with some commercial areas",
                             IsActive = true,
                             Population = 28000
@@ -445,7 +558,7 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                             AreaKm2 = 8.9m,
                             Barangay = 3,
                             Code = "CUP",
-                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7213), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Smaller residential area",
                             IsActive = true,
                             Population = 22000
@@ -456,7 +569,7 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                             AreaKm2 = 11.6m,
                             Barangay = 1,
                             Code = "BAY",
-                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7214), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Residential area",
                             IsActive = true,
                             Population = 31000
@@ -467,7 +580,7 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                             AreaKm2 = 9.8m,
                             Barangay = 2,
                             Code = "BUL",
-                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            CreatedAt = new DateTimeOffset(new DateTime(2026, 5, 11, 3, 16, 36, 261, DateTimeKind.Unspecified).AddTicks(7216), new TimeSpan(0, 0, 0, 0, 0)),
                             Description = "Residential area",
                             IsActive = true,
                             Population = 26000
@@ -478,14 +591,14 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("Price")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 
@@ -496,15 +609,15 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<Guid>("PrecinctId")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
@@ -515,6 +628,71 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                         .HasDatabaseName("IX_Street_PrecinctId");
 
                     b.ToTable("Street", (string)null);
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.UserForecastPreference", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<double>("DefaultConfidenceLevel")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("float")
+                        .HasDefaultValue(0.94999999999999996);
+
+                    b.Property<int>("DefaultHorizon")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(6);
+
+                    b.Property<string>("DefaultModelType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("SSA");
+
+                    b.Property<bool>("EnabledTimeAnimation")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("PreferredCrimeTypes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("PreferredPrecincts")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("PreferredTopN")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(10);
+
+                    b.Property<bool>("ShowEnsembleView")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("ShowHotspotTimeline")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_UserForecastPreference_UserId");
+
+                    b.ToTable("UserForecastPreference", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -566,6 +744,30 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.ForecastResult", b =>
+                {
+                    b.HasOne("espasyo.Domain.Entities.ForecastRun", "ForecastRun")
+                        .WithMany()
+                        .HasForeignKey("ForecastRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_ForecastResult_ForecastRun");
+
+                    b.Navigation("ForecastRun");
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.ForecastRun", b =>
+                {
+                    b.HasOne("espasyo.Domain.Entities.Precinct", "Precinct")
+                        .WithMany()
+                        .HasForeignKey("PrecinctId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_ForecastRun_Precinct");
+
+                    b.Navigation("Precinct");
                 });
 
             modelBuilder.Entity("espasyo.Domain.Entities.Incident", b =>

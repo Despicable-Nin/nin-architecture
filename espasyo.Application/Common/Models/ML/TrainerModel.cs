@@ -40,6 +40,7 @@ public record ClusterItem
     public string TimeOfDay { get; set; }
     public Barangay Precinct { get; set; }
     public CrimeTypeEnum CrimeType { get; set; }
+    public uint ClusterId { get; set; }
 }
 
 public record ClusterGroup
@@ -56,10 +57,20 @@ public record ClusterGroup
     public int ClusterCount => ClusterItems.Count;
 }
 
+public record ClusterQualityMetrics
+{
+    public int OptimalK { get; init; }
+    public int SelectedK { get; init; }
+    public Dictionary<int, double> SilhouetteScores { get; init; } = [];
+    public Dictionary<int, double> DaviesBouldinScores { get; init; } = [];
+    public Dictionary<int, double> CalinskiHarabaszScores { get; init; } = [];
+}
+
 public record GroupedClusterResponse
 {
    public IEnumerable<ClusterGroup> ClusterGroups { get; init; } = [];
    public IEnumerable<string> Filters { get; init; } = [];
+   public ClusterQualityMetrics? QualityMetrics { get; init; }
 }
 
 // Statistical Forecasting Models
@@ -87,6 +98,7 @@ public record ForecastSeries
 {
     public int Precinct { get; init; }
     public int CrimeType { get; init; }
+    public uint ClusterId { get; init; }
     public List<ForecastPoint> Forecasts { get; init; } = new();
     public Dictionary<string, object> Metadata { get; init; } = new();
 }

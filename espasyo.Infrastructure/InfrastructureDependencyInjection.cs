@@ -4,6 +4,7 @@ using espasyo.Infrastructure.Data.Interceptors;
 using espasyo.Infrastructure.Data.Repositories;
 using espasyo.Infrastructure.Geocoding;
 using espasyo.Infrastructure.MachineLearning;
+using espasyo.Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -54,10 +55,15 @@ public static class InfrastructureDependencyInjection
         services.AddScoped<IIncidentRepository, IncidentRepository>();
         services.AddScoped<IStreetRepository, StreetRepository>();
         services.AddScoped<IManpowerRepository, ManpowerRepository>();
+        services.AddScoped<IForecastRepository, ForecastRepository>();
+        services.AddScoped<IAnalysisRunRepository, AnalysisRunRepository>();
+        services.AddScoped<IPrecinctRepository, PrecinctRepository>();
         services.AddTransient<IGeocodeService, AddressGeocodeService>();
         services.AddTransient<IMachineLearningService, MachineLearningService>();
 
         services.AddHttpClient<AddressGeocodeService>();
+
+        services.AddHostedService<ScheduledForecastService>();
 
         return services;
     }

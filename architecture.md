@@ -1,7 +1,11 @@
 # Backend Architecture (nin-architecture)
 
 ## Overview
-The backend for the Espasyo application is built using ASP.NET Core (.NET 8) and strictly follows **Clean Architecture** principles. It utilizes **.NET Aspire** for local orchestration and development hosting.
+The backend for the Espasyo application is built using ASP.NET Core (.NET 10) and strictly follows **Clean Architecture** principles. It utilizes **.NET Aspire** for local orchestration and development hosting.
+
+## Related Documents
+- `D:\hobby\espasyo\architecture.md` — Frontend + overall system architecture
+- `D:\hobby\espasyo\espasyo-review-plan.md` — Comprehensive gap analysis and remediation plan (aligned with this document)
 
 ## Clean Architecture Layers
 
@@ -81,4 +85,55 @@ The backend for the Espasyo application is built using ASP.NET Core (.NET 8) and
   - If no `.zip` files exist (first-ever run in this environment), the service trains all three models on the first API request and **saves them to disk** automatically.
   - All subsequent requests — including after application restarts — load from disk instantly, with no retraining.
   - **To force a retrain** (e.g., after collecting significant new data): delete the `.zip` files from the `MLModels/` directory and restart the application.
-  - *In production*: move training invocation to a scheduled `IHostedService` (e.g., weekly) to fully decouple it from request handling.
+   - *In production*: move training invocation to a scheduled `IHostedService` (e.g., weekly) to fully decouple it from request handling.
+
+---
+
+## Known Gaps & Remediation (aligned with `espasyo-review-plan.md`)
+
+### Critical (P0) — All Resolved ✅
+
+| ID | Gap | Status | Evidence |
+|---|---|---|---|
+| G1 | Manpower training data hardcodes `Barangay.Alabang` with zero variance | **DONE** | `MLManpowerAllocationService.cs:414` — now reads from `_manpowerRepository.GetAllManpowerAsync()` using real DB records |
+| G2 | No pipeline orchestrator | **DONE** | `PipelineOrchestratorService` at `Application/Services/PipelineOrchestratorService.cs`, registered in DI, exposed via `PipelineController` (`POST api/pipeline/run`) |
+| G3 | Forecast output never fed into manpower optimizer | **DONE** | `PipelineOrchestratorService.cs:191-258` — forecast series grouped by precinct, fed into `CalculateOptimalManpowerAsync` |
+| G4 | Manpower recommendations not persisted | **DONE** | `ManpowerRecommendation` entity, repository, DbSet in both DbContexts, saved in pipeline |
+
+### High (P1) — Mostly Resolved
+
+| ID | Gap | Status | Evidence |
+|---|---|---|---|
+| G5 | Clustering results not persisted (localStorage only) | **DONE** | `AnalysisRun` entity, `AnalysisRunController` CRUD, `IAnalysisRunRepository`, persisted in pipeline |
+| G6 | K-Means lacks auto K-selection and validation metrics | **DONE** | `FindOptimalK()` iterates k=2..maxK, computes silhouette scores, selects max. Exposed via `autoSelectK` param |
+| G7 | Cluster assignments not used by forecasting | **DONE** | `GroupClusterDataForForecasting()` groups by `(Precinct, CrimeType, ClusterId)` |
+| G8 | No hotspot prediction endpoint | **DONE** | `PredictHotspotsAsync()`, `POST api/Incident/forecast/hotspots`, returns GeoJSON with convex hulls |
+| G9 | Anomaly detection unimplemented (B5) | **DONE** | `DetectAnomaliesAsync()`, `POST api/Incident/anomalies`, supports IQR/Z-score/moving average |
+| G10 | Sync wrappers bypassing async | **PARTIAL** | Sync fallbacks still present at `MLManpowerAllocationService.cs:584-601` (`IsComplexCrimeType`, `GetGeographicComplexityFactor`) — not refactored to proper async |
+
+### Medium (P2) — Not Yet Implemented
+
+| ID | Gap | Status | Location |
+|---|---|---|---|
+| G11 | Scheduled forecast `IHostedService` (B6) | **DONE** | `ScheduledForecastService` at `Infrastructure/Services/ScheduledForecastService.cs`, registered via `AddHostedService`, configurable interval/defaults in `appsettings.json:ScheduledForecast` |
+| G12 | No model retraining scheduler | **NOT_DONE** | Missing — `MLManpowerAllocationService` only trains on first request |
+| G13 | Forecast endpoints on `IncidentController` | **NOT_DONE** | `IncidentController.cs:111-218` — extract to dedicated controller |
+| G14 | No API versioning | **NOT_DONE** | All controllers — add `v1` prefix |
+| G15 | No structured error responses | **NOT_DONE** | `MyExceptionFilter` returns anonymous JSON, not RFC 7807 `ProblemDetails` |
+| G16 | No custom health checks for ML | **NOT_DONE** | Only default Aspire `"self"` check — no ML model status probes |
+
+### Updated Status
+
+| Phase | Focus | Status | Remaining |
+|---|---|---|---|
+| P1 | Data Infrastructure | ✅ **DONE** | — |
+| P2 | Pipeline Integration | ✅ **DONE** | G10 (sync wrappers, minor) |
+| P3 | Analytics | ✅ **DONE (backend)** | Frontend gaps 18, 19 remain (tracked in frontend architecture.md) |
+| P4 | Production | ❌ **NOT STARTED** | G12 (retraining), G13 (forecast controller), G14 (versioning), G15 (error responses), G16 (ML health checks) |
+
+**Full details:** `D:\hobby\espasyo\espasyo-review-plan.md`
+
+---
+
+## Savepoint: 2026-05-12
+Validated all gaps against actual codebase state. All P0 and P1 items resolved (except G10 sync wrappers partial). G11 (scheduled forecast IHostedService) implemented. P2 items G12-G16 remain. See `espasyo-review-plan.md` for comprehensive gap analysis.

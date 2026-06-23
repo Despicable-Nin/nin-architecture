@@ -2,6 +2,7 @@ using espasyo.Application.Incidents.Commands.CreateIncident;
 using espasyo.Application.Incidents.Commands.BulkCreateIncidents;
 using espasyo.Application.Incidents.Queries.GetClusters;
 using espasyo.Application.Incidents.Queries.GetPaginatedList;
+using espasyo.Application.Incidents.Queries.GetIncidentById;
 using espasyo.Application.Products.Queries.GetEnums;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -12,6 +13,8 @@ using espasyo.Application.Common.Models.ML;
 using espasyo.Application.UseCase.Incidents.Commands.GenerateStatisticalForecast;
 using espasyo.Application.UseCase.Incidents.Commands.ValidateForecastModel;
 using espasyo.Application.UseCase.Incidents.Commands.AssessDataQuality;
+using espasyo.Application.UseCase.Incidents.Commands.DetectAnomalies;
+using espasyo.Application.UseCase.Incidents.Commands.PredictHotspots;
 
 namespace espasyo.WebAPI.Controllers;
 
@@ -49,6 +52,16 @@ public class IncidentController(IMediator mediator) : ControllerBase
     public async Task<IActionResult> GetPaginated(string search = "", int pageNumber = 1, int pageSize = 10)
     {
         return Ok(await mediator.Send(new GetPaginatedListQuery(search, pageNumber, pageSize)));
+    }
+
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetById(Guid id)
+    {
+        var result = await mediator.Send(new GetIncidentByIdQuery(id));
+        if (result == null) return NotFound();
+        return Ok(result);
     }
     
     [HttpGet("enums")]
@@ -167,6 +180,38 @@ public class IncidentController(IMediator mediator) : ControllerBase
         catch (Exception ex)
         {
             return BadRequest($"Failed to assess data quality: {ex.Message}");
+        }
+    }
+
+    [HttpPost("forecast/hotspots")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> PredictHotspots([FromBody] PredictHotspotsCommand command)
+    {
+        try
+        {
+            var hotspots = await mediator.Send(command);
+            return Ok(hotspots);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to predict hotspots: {ex.Message}");
+        }
+    }
+
+    [HttpPost("anomalies")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> DetectAnomalies([FromBody] DetectAnomaliesCommand command)
+    {
+        try
+        {
+            var anomalies = await mediator.Send(command);
+            return Ok(anomalies);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest($"Failed to detect anomalies: {ex.Message}");
         }
     }
 

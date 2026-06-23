@@ -4,6 +4,7 @@ using espasyo.Infrastructure.Data.Interceptors;
 using espasyo.Infrastructure.Data.Repositories.Sqlite;
 using espasyo.Infrastructure.Geocoding;
 using espasyo.Infrastructure.MachineLearning;
+using espasyo.Infrastructure.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -37,12 +38,14 @@ public static class SqliteInfrastructureDependencyInjection
         services.AddScoped<IIncidentRepository, SqliteIncidentRepository>();
         services.AddScoped<IStreetRepository, SqliteStreetRepository>();
         services.AddScoped<IManpowerRepository, SqliteManpowerRepository>();
-        
-        // These services don't depend on database provider, so they remain the same
+        services.AddScoped<IForecastRepository, SqliteForecastRepository>();
+        services.AddScoped<IAnalysisRunRepository, SqliteAnalysisRunRepository>();
+        services.AddScoped<IPrecinctRepository, SqlitePrecinctRepository>();
         services.AddTransient<IGeocodeService, AddressGeocodeService>();
         services.AddTransient<IMachineLearningService, MachineLearningService>();
 
         services.AddHttpClient<AddressGeocodeService>();
+        services.AddHostedService<ScheduledForecastService>();
 
         return services;
     }

@@ -14,7 +14,10 @@ public class SqliteApplicationDbContext(DbContextOptions<SqliteApplicationDbCont
     public DbSet<Incident> Incidents { get; set; }
     public DbSet<Manpower> Manpowers { get; set; }
     public DbSet<Precinct> Precincts { get; set; }
-
+    public DbSet<ForecastRun> ForecastRuns { get; set; }
+    public DbSet<ForecastResult> ForecastResults { get; set; }
+    public DbSet<UserForecastPreference> UserForecastPreferences { get; set; }
+    public DbSet<AnalysisRun> AnalysisRuns { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder); // Always call base method for Identity
@@ -60,7 +63,21 @@ public class SqliteApplicationDbContext(DbContextOptions<SqliteApplicationDbCont
             .HasConversion(
                 v => v.ToString("O"), // Convert DateTimeOffset to ISO 8601 string
                 v => DateTimeOffset.Parse(v)); // Convert back from string
-            
+
+        // Configure DateTimeOffset for ForecastRun
+        modelBuilder.Entity<ForecastRun>()
+            .Property(e => e.RunAt)
+            .HasConversion(
+                v => v.ToString("O"),
+                v => DateTimeOffset.Parse(v));
+
+        // Configure DateTimeOffset for AnalysisRun
+        modelBuilder.Entity<AnalysisRun>()
+            .Property(e => e.CreatedAt)
+            .HasConversion(
+                v => v.ToString("O"),
+                v => DateTimeOffset.Parse(v));
+
         // Also configure LockoutEnd from Identity for SQLite
         modelBuilder.Entity<IdentityUser>()
             .Property(e => e.LockoutEnd)

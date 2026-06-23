@@ -215,10 +215,10 @@ public class ManpowerController : ControllerBase
         }
     }
     
-    [HttpGet("summary")]
+    [HttpGet("summary/{year}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> GetManpowerSummary()
+    public async Task<IActionResult> GetManpowerSummary(int year)
     {
         try
         {
@@ -227,6 +227,7 @@ public class ManpowerController : ControllerBase
             
             var summary = new
             {
+                Year = year,
                 TotalPrecincts = manpowers.Count(),
                 TotalManpower = manpowers.Sum(m => m.HeadCount),
                 AverageAllocation = manpowers.Any() ? manpowers.Average(m => m.HeadCount) : 0,
@@ -234,11 +235,9 @@ public class ManpowerController : ControllerBase
                     .Select(g => new
                     {
                         Precinct = g.Key,
-                        HeadCount = g.Sum(m => m.HeadCount),
-                        Status = g.First().Status,
-                        Variance = g.First().Variance
+                        Allocation = g.Sum(m => m.HeadCount)
                     })
-                    .OrderByDescending(x => x.HeadCount)
+                    .OrderByDescending(x => x.Allocation)
             };
 
             return Ok(summary);

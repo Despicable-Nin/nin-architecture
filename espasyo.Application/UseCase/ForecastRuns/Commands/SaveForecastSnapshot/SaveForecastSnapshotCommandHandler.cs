@@ -6,13 +6,22 @@ using MediatR;
 namespace espasyo.Application.UseCase.ForecastRuns.Commands.SaveForecastSnapshot;
 
 public class SaveForecastSnapshotCommandHandler(
-    IForecastRepository forecastRepository
+    IForecastRepository forecastRepository,
+    IPrecinctRepository precinctRepository
 ) : IRequestHandler<SaveForecastSnapshotCommand, SaveForecastSnapshotResponse>
 {
     public async Task<SaveForecastSnapshotResponse> Handle(SaveForecastSnapshotCommand request, CancellationToken cancellationToken)
     {
+        var precinctId = Guid.Empty;
+        if (request.Predictions.Count > 0)
+        {
+            var precinct = await precinctRepository.GetByBarangayAsync((Barangay)request.Predictions[0].Precinct);
+            if (precinct != null)
+                precinctId = precinct.Id;
+        }
+
         var run = new ForecastRun(
-            Guid.Empty,
+            precinctId,
             request.ForecastPeriod,
             request.ConfidenceLevel,
             ForecastModelTypeEnum.SSA,

@@ -2,23 +2,20 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using espasyo.Infrastructure.Data;
 
 #nullable disable
 
-namespace espasyo.Infrastructure.Data.Migrations.Sqlite
+namespace espasyo.Infrastructure.Migrations.SqliteApplicationDb
 {
     [DbContext(typeof(SqliteApplicationDbContext))]
-    [Migration("20250925114623_InitialCreate")]
-    partial class InitialCreate
+    partial class SqliteApplicationDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "9.0.8");
+            modelBuilder.HasAnnotation("ProductVersion", "10.0.0");
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
@@ -212,6 +209,155 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("espasyo.Domain.Entities.AnalysisRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ClusterGroupsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedById")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ParametersJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("QualityMetricsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("IX_AnalysisRun_CreatedAt");
+
+                    b.ToTable("AnalysisRun", (string)null);
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.ForecastResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<uint>("ClusterId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0u);
+
+                    b.Property<double>("Confidence")
+                        .HasColumnType("float");
+
+                    b.Property<int>("CrimeType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("ForecastRunId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("LowerBound")
+                        .HasColumnType("float");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Precinct")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("PredictedValue")
+                        .HasColumnType("float");
+
+                    b.Property<string>("RiskLevel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Trend")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("UpperBound")
+                        .HasColumnType("float");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ForecastRunId")
+                        .HasDatabaseName("IX_ForecastResult_ForecastRunId");
+
+                    b.HasIndex("ForecastRunId", "Precinct", "Month", "Year")
+                        .HasDatabaseName("IX_ForecastResult_Run_Precinct_Month_Year");
+
+                    b.ToTable("ForecastResult", (string)null);
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.ForecastRun", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("ConfidenceLevel")
+                        .HasColumnType("float");
+
+                    b.Property<string>("GeneratedById")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Horizon")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ModelType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("");
+
+                    b.Property<Guid>("PrecinctId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RunAt")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TotalSeries")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PrecinctId");
+
+                    b.HasIndex("RunAt")
+                        .HasDatabaseName("IX_ForecastRun_RunAt");
+
+                    b.HasIndex("Status")
+                        .HasDatabaseName("IX_ForecastRun_Status");
+
+                    b.ToTable("ForecastRun", (string)null);
+                });
+
             modelBuilder.Entity("espasyo.Domain.Entities.Incident", b =>
                 {
                     b.Property<Guid>("Id")
@@ -374,6 +520,125 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                         .HasDatabaseName("IX_Precinct_Code");
 
                     b.ToTable("Precinct", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
+                            AreaKm2 = 23.5m,
+                            Barangay = 0,
+                            Code = "ALB",
+                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            Description = "Commercial and business district",
+                            IsActive = true,
+                            Latitude = 14.41988703m,
+                            Longitude = 121.04215000m,
+                            Population = 54000
+                        },
+                        new
+                        {
+                            Id = new Guid("22222222-2222-2222-2222-222222222222"),
+                            AreaKm2 = 8.2m,
+                            Barangay = 7,
+                            Code = "AAL",
+                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            Description = "High-income residential area",
+                            IsActive = true,
+                            Latitude = 14.40921556m,
+                            Longitude = 121.02792663m,
+                            Population = 25000
+                        },
+                        new
+                        {
+                            Id = new Guid("33333333-3333-3333-3333-333333333333"),
+                            AreaKm2 = 15.7m,
+                            Barangay = 8,
+                            Code = "SUC",
+                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            Description = "Mixed residential and commercial area",
+                            IsActive = true,
+                            Latitude = 14.45617214m,
+                            Longitude = 121.05150790m,
+                            Population = 42000
+                        },
+                        new
+                        {
+                            Id = new Guid("44444444-4444-4444-4444-444444444444"),
+                            AreaKm2 = 5.3m,
+                            Barangay = 4,
+                            Code = "POB",
+                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            Description = "City center and administrative area",
+                            IsActive = true,
+                            Latitude = 14.38412727m,
+                            Longitude = 121.03881203m,
+                            Population = 18000
+                        },
+                        new
+                        {
+                            Id = new Guid("55555555-5555-5555-5555-555555555555"),
+                            AreaKm2 = 12.8m,
+                            Barangay = 5,
+                            Code = "PUT",
+                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            Description = "Residential area with moderate density",
+                            IsActive = true,
+                            Latitude = 14.39666349m,
+                            Longitude = 121.03928228m,
+                            Population = 35000
+                        },
+                        new
+                        {
+                            Id = new Guid("66666666-6666-6666-6666-666666666666"),
+                            AreaKm2 = 10.4m,
+                            Barangay = 6,
+                            Code = "TUN",
+                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            Description = "Residential with some commercial areas",
+                            IsActive = true,
+                            Latitude = 14.37248274m,
+                            Longitude = 121.03912851m,
+                            Population = 28000
+                        },
+                        new
+                        {
+                            Id = new Guid("77777777-7777-7777-7777-777777777777"),
+                            AreaKm2 = 8.9m,
+                            Barangay = 3,
+                            Code = "CUP",
+                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            Description = "Smaller residential area",
+                            IsActive = true,
+                            Latitude = 14.43160272m,
+                            Longitude = 121.04099563m,
+                            Population = 22000
+                        },
+                        new
+                        {
+                            Id = new Guid("88888888-8888-8888-8888-888888888888"),
+                            AreaKm2 = 11.6m,
+                            Barangay = 1,
+                            Code = "BAY",
+                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            Description = "Residential area",
+                            IsActive = true,
+                            Latitude = 14.40965584m,
+                            Longitude = 121.04746765m,
+                            Population = 31000
+                        },
+                        new
+                        {
+                            Id = new Guid("99999999-9999-9999-9999-999999999999"),
+                            AreaKm2 = 9.8m,
+                            Barangay = 2,
+                            Code = "BUL",
+                            CreatedAt = "2025-01-01T00:00:00.0000000+00:00",
+                            Description = "Residential area",
+                            IsActive = true,
+                            Latitude = 14.44418345m,
+                            Longitude = 121.04930401m,
+                            Population = 26000
+                        });
                 });
 
             modelBuilder.Entity("espasyo.Domain.Entities.Product", b =>
@@ -417,6 +682,71 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                         .HasDatabaseName("IX_Street_PrecinctId");
 
                     b.ToTable("Street", (string)null);
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.UserForecastPreference", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("DefaultConfidenceLevel")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("float")
+                        .HasDefaultValue(0.94999999999999996);
+
+                    b.Property<int>("DefaultHorizon")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(6);
+
+                    b.Property<string>("DefaultModelType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("SSA");
+
+                    b.Property<bool>("EnabledTimeAnimation")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("PreferredCrimeTypes")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PreferredPrecincts")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PreferredTopN")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(10);
+
+                    b.Property<bool>("ShowEnsembleView")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("ShowHotspotTimeline")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_UserForecastPreference_UserId");
+
+                    b.ToTable("UserForecastPreference", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -468,6 +798,30 @@ namespace espasyo.Infrastructure.Data.Migrations.Sqlite
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.ForecastResult", b =>
+                {
+                    b.HasOne("espasyo.Domain.Entities.ForecastRun", "ForecastRun")
+                        .WithMany()
+                        .HasForeignKey("ForecastRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_ForecastResult_ForecastRun");
+
+                    b.Navigation("ForecastRun");
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.ForecastRun", b =>
+                {
+                    b.HasOne("espasyo.Domain.Entities.Precinct", "Precinct")
+                        .WithMany()
+                        .HasForeignKey("PrecinctId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("FK_ForecastRun_Precinct");
+
+                    b.Navigation("Precinct");
                 });
 
             modelBuilder.Entity("espasyo.Domain.Entities.Incident", b =>

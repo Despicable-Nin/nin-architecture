@@ -25,7 +25,8 @@ public class SaveForecastSnapshotCommandHandler(
             request.ForecastPeriod,
             request.ConfidenceLevel,
             ForecastModelTypeEnum.SSA,
-            request.GeneratedById);
+            request.GeneratedById,
+            request.Name);
 
         run.MarkCompleted(request.Predictions.Count);
 

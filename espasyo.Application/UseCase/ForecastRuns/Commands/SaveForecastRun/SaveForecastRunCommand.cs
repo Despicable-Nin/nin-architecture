@@ -17,6 +17,7 @@ public record SaveForecastRunCommand : IRequest<Guid>
     public bool IncludeSeasonality { get; init; } = true;
     public bool WeightRecentData { get; init; } = true;
     public string GeneratedById { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
 }
 
 public class SaveForecastRunCommandHandler(
@@ -34,7 +35,8 @@ public class SaveForecastRunCommandHandler(
             request.Horizon,
             request.ConfidenceLevel,
             modelType,
-            request.GeneratedById);
+            request.GeneratedById,
+            request.Name);
 
         try
         {

@@ -166,9 +166,11 @@ public record Request
     public SeverityEnum severity { get; set; }
     public CrimeTypeEnum crimeType { get; set; }
     public MotiveEnum motive { get; set; }
-    public Barangay precinct { get; set; } // Keep for address generation
-    public string precinctId { get; set; } // New field for API
+    public Barangay precinct { get; set; }
+    public string precinctId { get; set; }
     public string otherMotive { get; set; }
     public WeatherConditionEnum weather { get; set; }
     public string timeStamp { get; set; }
+    public double latitude { get; set; }
+    public double longitude { get; set; }
 }

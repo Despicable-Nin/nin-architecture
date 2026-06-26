@@ -130,3 +130,41 @@ for (var i = 1; i <= 1000; i++) // Manually edit to desired. Note: 1000 iteratio
     await Task.Delay(1000); // Delay of 1 second between requests
 }
 ```
+
+Ah, that error means the export command failed because the `~/.aspnet/dev-certs/https/` folder doesn't exist yet on your system, and the `dotnet` CLI isn't polite enough to create it for you.
+
+Let's force-create the directory structure first and run through it again.
+
+Copy and paste these commands one by one into your terminal:
+
+**1. Create the necessary hidden folders**
+
+```bash
+mkdir -p ~/.aspnet/dev-certs/https/
+
+```
+
+**2. Export the certificate**
+
+```bash
+dotnet dev-certs https -ep ~/.aspnet/dev-certs/https/aspnetapp.crt --format PEM
+
+```
+
+**3. Copy it to the system CA store**
+
+```bash
+sudo cp ~/.aspnet/dev-certs/https/aspnetapp.crt /usr/local/share/ca-certificates/
+
+```
+
+**4. Update your system's trusted certificates**
+
+```bash
+sudo update-ca-certificates
+
+```
+
+Once that last command runs, it should output something like `1 added, 0 removed`.
+
+If it does, **completely close and reopen your browser**, and your CORS/Network error should finally be gone!

@@ -36,6 +36,7 @@ public record ClusterItem
    public double Latitude { get; set; }
    public double Longitude { get; set; }
     public int Month { get;  set; }
+    public int Day { get;  set; }
     public int Year { get;  set; }
     public string TimeOfDay { get; set; }
     public Barangay Precinct { get; set; }

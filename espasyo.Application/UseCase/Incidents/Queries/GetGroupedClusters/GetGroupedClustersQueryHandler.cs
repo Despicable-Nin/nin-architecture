@@ -67,6 +67,7 @@ public class GetGroupedClustersQueryHandler(
                 {
                     var date = epoch.AddSeconds(trainerData.TimeStampUnix);
                     item.Month = date.Month;
+                    item.Day = date.Day;
                     item.Year = date.Year;
                     item.TimeOfDay = date.GetTimeOfDay();
                     item.Precinct = (Barangay)trainerData.PoliceDistrict;

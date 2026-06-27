@@ -12,6 +12,7 @@ public class ForecastRun
         double confidenceLevel,
         ForecastModelTypeEnum modelType,
         string generatedById,
+        string name = "",
         ForecastStatusEnum status = ForecastStatusEnum.Draft)
     {
         Id = Guid.NewGuid();
@@ -22,6 +23,7 @@ public class ForecastRun
         ModelType = modelType;
         Status = status;
         GeneratedById = generatedById;
+        Name = name;
         TotalSeries = 0;
     }
 
@@ -35,6 +37,7 @@ public class ForecastRun
     public ForecastStatusEnum Status { get; private set; }
     public int TotalSeries { get; private set; }
     public string GeneratedById { get; private set; } = string.Empty;
+    public string Name { get; private set; } = string.Empty;
 
     public void MarkCompleted(int totalSeries)
     {

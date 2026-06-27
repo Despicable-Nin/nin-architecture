@@ -21,6 +21,7 @@ public record ForecastRunResult
     public string Status { get; init; } = string.Empty;
     public int TotalSeries { get; init; }
     public string GeneratedById { get; init; } = string.Empty;
+    public string Name { get; init; } = string.Empty;
 }
 
 public record GetForecastRunsResponse
@@ -48,7 +49,8 @@ public class GetForecastRunsQueryHandler(IForecastRepository forecastRepository)
             ModelType = r.ModelType.ToString(),
             Status = r.Status.ToString(),
             TotalSeries = r.TotalSeries,
-            GeneratedById = r.GeneratedById
+            GeneratedById = r.GeneratedById,
+            Name = r.Name
         });
 
         return new GetForecastRunsResponse

@@ -81,7 +81,7 @@ var app = builder.Build();
 
 app.MapDefaultEndpoints();
 
-// Ensure database is created (development mode — recreates if schema changed)
+// Auto-migrate database on startup (applies pending migrations)
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -90,13 +90,13 @@ using (var scope = app.Services.CreateScope())
     
     if (databaseProvider.ToLower() == "sqlite")
     {
-        var sqliteContext = services.GetService<espasyo.Infrastructure.Data.SqliteApplicationDbContext>();
-        sqliteContext?.Database.EnsureCreated();
+        var sqliteContext = services.GetRequiredService<espasyo.Infrastructure.Data.SqliteApplicationDbContext>();
+        sqliteContext.Database.Migrate();
     }
     else
     {
-        var sqlServerContext = services.GetService<ApplicationDbContext>();
-        sqlServerContext?.Database.EnsureCreated();
+        var sqlServerContext = services.GetRequiredService<ApplicationDbContext>();
+        sqlServerContext.Database.Migrate();
     }
     
     try

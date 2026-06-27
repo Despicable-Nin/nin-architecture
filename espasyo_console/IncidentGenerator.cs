@@ -7,6 +7,58 @@ namespace espasyo_console;
 
 public static class IncidentGenerator
 {
+    private static readonly Random Rng = new();
+    private static readonly DateTime MaxSeedDate = new(2025, 12, 31, 23, 59, 59, DateTimeKind.Utc);
+    private static readonly DateTime MinSeedDate = MaxSeedDate.AddYears(-5);
+
+    private static readonly Dictionary<CrimeTypeEnum, List<MotiveEnum>> ValidMotives = new()
+    {
+        [CrimeTypeEnum.Arson] = new() { MotiveEnum.Anger, MotiveEnum.Revenge, MotiveEnum.Terrorism, MotiveEnum.Unknown, MotiveEnum.Other },
+        [CrimeTypeEnum.Assault] = new() { MotiveEnum.Anger, MotiveEnum.Jealousy, MotiveEnum.Revenge, MotiveEnum.Unknown, MotiveEnum.Other },
+        [CrimeTypeEnum.Burglary] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
+        [CrimeTypeEnum.Corruption] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Political, MotiveEnum.Unknown },
+        [CrimeTypeEnum.Counterfeiting] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
+        [CrimeTypeEnum.CyberCrime] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Revenge, MotiveEnum.Terrorism, MotiveEnum.Unknown },
+        [CrimeTypeEnum.DomesticViolence] = new() { MotiveEnum.Anger, MotiveEnum.Jealousy, MotiveEnum.Unknown, MotiveEnum.Other },
+        [CrimeTypeEnum.DrugTrafficking] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
+        [CrimeTypeEnum.Embezzlement] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
+        [CrimeTypeEnum.Extortion] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
+        [CrimeTypeEnum.Fraud] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
+        [CrimeTypeEnum.HumanTrafficking] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
+        [CrimeTypeEnum.Homicide] = new() { MotiveEnum.Anger, MotiveEnum.Jealousy, MotiveEnum.Revenge, MotiveEnum.Unknown },
+        [CrimeTypeEnum.IllegalPossessionOfFirearms] = new() { MotiveEnum.PersonalGain, MotiveEnum.Terrorism, MotiveEnum.Unknown },
+        [CrimeTypeEnum.Kidnapping] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Revenge, MotiveEnum.Political, MotiveEnum.Terrorism, MotiveEnum.Unknown },
+        [CrimeTypeEnum.Murder] = new() { MotiveEnum.Anger, MotiveEnum.Jealousy, MotiveEnum.Revenge, MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
+        [CrimeTypeEnum.Rape] = new() { MotiveEnum.Anger, MotiveEnum.Revenge, MotiveEnum.Unknown, MotiveEnum.Other },
+        [CrimeTypeEnum.Robbery] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
+        [CrimeTypeEnum.Theft] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
+        [CrimeTypeEnum.Vandalism] = new() { MotiveEnum.Anger, MotiveEnum.Revenge, MotiveEnum.Terrorism, MotiveEnum.Unknown, MotiveEnum.Other },
+    };
+
+    private static readonly Dictionary<CrimeTypeEnum, SeverityEnum> MinimumSeverity = new()
+    {
+        [CrimeTypeEnum.Arson] = SeverityEnum.Low,
+        [CrimeTypeEnum.Assault] = SeverityEnum.Medium,
+        [CrimeTypeEnum.Burglary] = SeverityEnum.Low,
+        [CrimeTypeEnum.Corruption] = SeverityEnum.Medium,
+        [CrimeTypeEnum.Counterfeiting] = SeverityEnum.Low,
+        [CrimeTypeEnum.CyberCrime] = SeverityEnum.Low,
+        [CrimeTypeEnum.DomesticViolence] = SeverityEnum.Medium,
+        [CrimeTypeEnum.DrugTrafficking] = SeverityEnum.High,
+        [CrimeTypeEnum.Embezzlement] = SeverityEnum.Medium,
+        [CrimeTypeEnum.Extortion] = SeverityEnum.Medium,
+        [CrimeTypeEnum.Fraud] = SeverityEnum.Low,
+        [CrimeTypeEnum.HumanTrafficking] = SeverityEnum.High,
+        [CrimeTypeEnum.Homicide] = SeverityEnum.High,
+        [CrimeTypeEnum.IllegalPossessionOfFirearms] = SeverityEnum.Medium,
+        [CrimeTypeEnum.Kidnapping] = SeverityEnum.High,
+        [CrimeTypeEnum.Murder] = SeverityEnum.High,
+        [CrimeTypeEnum.Rape] = SeverityEnum.High,
+        [CrimeTypeEnum.Robbery] = SeverityEnum.Medium,
+        [CrimeTypeEnum.Theft] = SeverityEnum.Low,
+        [CrimeTypeEnum.Vandalism] = SeverityEnum.Low,
+    };
+
     public static async Task<bool> ContinueToTargetCount(HttpClient httpClient, SemaphoreSlim semaphore, int targetCount)
     {
         Console.WriteLine($"🎯 Continuing incident seeding to reach {targetCount} total...");
@@ -116,18 +168,7 @@ public static class IncidentGenerator
             return false;
         }
         
-        var incident = new Request()
-        {
-            caseId = caseId,
-            severity = EnumHelper.GetRandomEnumValue<SeverityEnum>(),
-            crimeType = EnumHelper.GetRandomEnumValue<CrimeTypeEnum>(),
-            motive = EnumHelper.GetRandomEnumValue<MotiveEnum>(),
-            precinct = precinctData?.Barangay ?? Barangay.Alabang,        // must match the precinctId's geography
-            precinctId = precinctData.Value.Id,
-            otherMotive = "xxxxx",
-            weather = EnumHelper.GetRandomEnumValue<WeatherConditionEnum>(),
-            timeStamp = GenerateRandomTimestamp()
-        };
+        var incident = BuildRandomIncident(caseId, precinctData.Value);
         
         incident.address = GenerateRandomAddress(incident.precinct);
         
@@ -210,18 +251,7 @@ public static class IncidentGenerator
             return false;
         }
 
-        var incident = new Request()
-        {
-            caseId = $"CASE-{i:D4}",
-            severity = EnumHelper.GetRandomEnumValue<SeverityEnum>(),
-            crimeType = EnumHelper.GetRandomEnumValue<CrimeTypeEnum>(),
-            motive = EnumHelper.GetRandomEnumValue<MotiveEnum>(),
-            precinct = precinctData.Value.Barangay,        // must match the precinctId's geography
-            precinctId = precinctData.Value.Id,
-            otherMotive = "xxxxx",
-            weather = EnumHelper.GetRandomEnumValue<WeatherConditionEnum>(),
-            timeStamp = GenerateRandomTimestamp()
-        };
+        var incident = BuildRandomIncident($"CASE-{i:D4}", precinctData.Value);
 
         incident.address = GenerateRandomAddress(incident.precinct);
 
@@ -325,11 +355,43 @@ public static class IncidentGenerator
     private record PrecinctInfo(string Id, string Name, string Code);
     private record PrecinctInfoFull(string Id, string Name, string Code);
 
+    private static Request BuildRandomIncident(string caseId, (string Id, Barangay Barangay) precinctData)
+    {
+        var crimeType = EnumHelper.GetRandomEnumValue<CrimeTypeEnum>();
+        var (lat, lng) = CoordinateGenerator.GetRandomPoint(precinctData.Barangay);
+        return new Request()
+        {
+            caseId = caseId,
+            severity = GetRandomSeverity(crimeType),
+            crimeType = crimeType,
+            motive = GetRandomMotive(crimeType),
+            precinct = precinctData.Barangay,
+            precinctId = precinctData.Id,
+            otherMotive = "xxxxx",
+            weather = EnumHelper.GetRandomEnumValue<WeatherConditionEnum>(),
+            timeStamp = GenerateRandomTimestamp(),
+            latitude = lat,
+            longitude = lng
+        };
+    }
+
+    private static SeverityEnum GetRandomSeverity(CrimeTypeEnum crimeType)
+    {
+        var min = (int)MinimumSeverity.GetValueOrDefault(crimeType, SeverityEnum.Low);
+        var max = (int)SeverityEnum.High;
+        return (SeverityEnum)Rng.Next(min, max + 1);
+    }
+
+    private static MotiveEnum GetRandomMotive(CrimeTypeEnum crimeType)
+    {
+        var motives = ValidMotives.GetValueOrDefault(crimeType, new() { MotiveEnum.Unknown });
+        return motives[Rng.Next(motives.Count)];
+    }
+
     private static string GenerateRandomTimestamp()
     {
-        var start = DateTime.UtcNow.AddYears(-5);
-        var range = (DateTime.UtcNow - start).Days;
-        var randomDate = start.AddDays(new Random().Next(range)).AddHours(new Random().Next(0, 24)).AddMinutes(new Random().Next(0, 60)).AddSeconds(new Random().Next(0, 60));
+        var range = (MaxSeedDate - MinSeedDate).Days;
+        var randomDate = MinSeedDate.AddDays(Rng.Next(range + 1)).AddHours(Rng.Next(0, 24)).AddMinutes(Rng.Next(0, 60)).AddSeconds(Rng.Next(0, 60));
         return randomDate.ToString("yyyy-MM-ddTHH:mm:ssZ");
     }
     public static async Task<bool> SeedIfNoIncidents(HttpClient httpClient, SemaphoreSlim semaphore, bool isNonInteractive = false)

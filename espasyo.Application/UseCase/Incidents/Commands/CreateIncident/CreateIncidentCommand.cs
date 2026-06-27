@@ -17,6 +17,8 @@ public record CreateIncidentCommand : IRequest<Guid>
     public string? AdditionalInfo { get; init; }
     public int Weather { get;  init; }
     public DateTimeOffset? TimeStamp { get; init; }
+    public double? Latitude { get; init; }
+    public double? Longitude { get; init; }
 }
 
 public class CreateIncidentCommandValidator : AbstractValidator<CreateIncidentCommand>
@@ -57,14 +59,22 @@ public class CreateIncidentCommandHandler(
         // Set the PrecinctId - PoliceDistrict will be derived from Precinct.Barangay
         incident.PrecinctId = request.PrecinctId;
         
-        logger.LogInformation("Getting nominatim api . . .");
-        var latLong = await geocodeService.GetLatLongAsync(request.Address!);
+        if (request.Latitude is not null && request.Longitude is not null)
+        {
+            logger.LogInformation("Using provided lat/lng: {Lat}, {Lng}", request.Latitude, request.Longitude);
+            incident.ChangeLatLong(request.Latitude, request.Longitude);
+        }
+        else
+        {
+            logger.LogInformation("Getting nominatim api . . .");
+            var latLong = await geocodeService.GetLatLongAsync(request.Address!);
 
-        logger.LogInformation("Updating latlong . . .");
-        incident.ChangeLatLong(latLong.Latitude, latLong.Longitude);
+            logger.LogInformation("Updating latlong . . .");
+            incident.ChangeLatLong(latLong.Latitude, latLong.Longitude);
 
-        logger.LogInformation("Updating new address . . .");
-        incident.SanitizeAddress(latLong.NewAddress);
+            logger.LogInformation("Updating new address . . .");
+            incident.SanitizeAddress(latLong.NewAddress);
+        }
         
         var created = await incidentRepository.CreateIncidentAsync(incident);
         

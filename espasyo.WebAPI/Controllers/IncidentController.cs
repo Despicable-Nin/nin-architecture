@@ -130,7 +130,8 @@ public class IncidentController(IMediator mediator) : ControllerBase
                 IncludeTrend = request.IncludeTrend,
                 CrimeTypeFilter = request.CrimeTypeFilter,
                 SeverityFilter = request.SeverityFilter,
-                CustomThresholds = request.CustomThresholds
+                CustomThresholds = request.CustomThresholds,
+                PredictionTypes = request.PredictionTypes
             };
 
             var forecast = await mediator.Send(command);

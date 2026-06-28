@@ -43,6 +43,9 @@ public static class SqliteInfrastructureDependencyInjection
         services.AddScoped<IPrecinctRepository, SqlitePrecinctRepository>();
         services.AddTransient<IGeocodeService, AddressGeocodeService>();
         services.AddTransient<IMachineLearningService, MachineLearningService>();
+        services.AddTransient<ITemporalForecastService, TemporalForecastService>();
+        services.AddTransient<ISpatialForecastService, SpatialForecastService>();
+        services.AddTransient<ISeasonalForecastService, SeasonalForecastService>();
 
         services.AddHttpClient<AddressGeocodeService>();
         services.AddHostedService<ScheduledForecastService>();

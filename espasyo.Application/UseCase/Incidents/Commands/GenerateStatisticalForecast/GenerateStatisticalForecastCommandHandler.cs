@@ -6,6 +6,8 @@ namespace espasyo.Application.UseCase.Incidents.Commands.GenerateStatisticalFore
 
 public class GenerateStatisticalForecastCommandHandler(
     IMachineLearningService machineLearningService,
+    ISpatialForecastService spatialForecastService,
+    ISeasonalForecastService seasonalForecastService,
     ILogger<GenerateStatisticalForecastCommandHandler> logger
 ) : IRequestHandler<GenerateStatisticalForecastCommand, ForecastResponse>
 {
@@ -16,23 +18,15 @@ public class GenerateStatisticalForecastCommandHandler(
             logger.LogInformation("Processing statistical forecast request with {ClusterCount} clusters, horizon: {Horizon}, model: {ModelType}", 
                 request.ClusterData?.Count() ?? 0, request.Horizon, request.ModelType);
 
-            // Validate input
             if (request.ClusterData == null || !request.ClusterData.Any())
-            {
                 throw new ArgumentException("Cluster data is required for forecasting");
-            }
 
             if (request.Horizon < 6 || request.Horizon > 24)
-            {
                 throw new ArgumentException("Forecast horizon must be between 6 and 24 months");
-            }
 
             if (request.ConfidenceLevel <= 0 || request.ConfidenceLevel >= 1)
-            {
                 throw new ArgumentException("Confidence level must be between 0 and 1");
-            }
 
-            // Create forecast parameters
             var parameters = new ForecastParameters
             {
                 Horizon = request.Horizon,
@@ -45,17 +39,49 @@ public class GenerateStatisticalForecastCommandHandler(
                 IncludeTrend = request.IncludeTrend,
                 CrimeTypeFilter = request.CrimeTypeFilter,
                 SeverityFilter = request.SeverityFilter,
-                CustomThresholds = request.CustomThresholds
+                CustomThresholds = request.CustomThresholds,
+                PredictionTypes = request.PredictionTypes
             };
 
-            // Generate statistical forecast using ML service
+            var predictionTypes = new HashSet<string>(request.PredictionTypes ?? ["temporal"]);
+
+            // Temporal (always runs — base forecast)
             var forecast = await machineLearningService.GenerateStatisticalForecast(request.ClusterData, parameters);
 
-            // Enhance forecast with inline summary and explanations
+            var timeOfDayProportions = parameters.IncludeTimeOfDay
+                ? ComputeTimeOfDayProportions(request.ClusterData)
+                : null;
+
+            var flatForecasts = FlattenTemporalSeries(forecast.Series, timeOfDayProportions);
+
+            // Spatial
+            List<SpatialForecastRow>? spatialRows = null;
+            if (predictionTypes.Contains("spatial"))
+            {
+                spatialRows = await spatialForecastService.DistributeForecast(
+                    request.ClusterData, parameters, forecast.Series);
+            }
+
+            // Seasonal decomposition
+            List<DecompositionRow>? decomposition = null;
+            if (predictionTypes.Contains("seasonal"))
+            {
+                decomposition = await seasonalForecastService.Decompose(request.ClusterData, parameters);
+            }
+
+            forecast = forecast with
+            {
+                Forecasts = flatForecasts,
+                Spatial = spatialRows ?? [],
+                Decomposition = decomposition ?? []
+            };
+
             var enhancedForecast = EnhanceForecastWithExplanations(forecast, request, parameters);
 
-            logger.LogInformation("Successfully generated statistical forecast with {SeriesCount} forecast series", 
-                enhancedForecast.Series.Count);
+            logger.LogInformation("Successfully generated forecast — temporal: {TempCount}, spatial: {SpatialCount}, seasonal: {SeasonCount}",
+                enhancedForecast.Forecasts.Count,
+                enhancedForecast.Spatial.Count,
+                enhancedForecast.Decomposition.Count);
 
             return enhancedForecast;
         }
@@ -74,7 +100,7 @@ public class GenerateStatisticalForecastCommandHandler(
         GenerateStatisticalForecastCommand request, 
         ForecastParameters parameters)
     {
-        var allForecasts = originalForecast.Series.SelectMany(s => s.Forecasts).ToList();
+        var allForecasts = originalForecast.Forecasts;
         
         // Generate summary
         var summary = GenerateForecastSummary(allForecasts, originalForecast);
@@ -89,7 +115,7 @@ public class GenerateStatisticalForecastCommandHandler(
         };
     }
     
-    private ForecastSummary GenerateForecastSummary(List<ForecastPoint> allForecasts, ForecastResponse forecast)
+    private ForecastSummary GenerateForecastSummary(List<ForecastRow> allForecasts, ForecastResponse forecast)
     {
         if (!allForecasts.Any())
         {
@@ -207,5 +233,113 @@ public class GenerateStatisticalForecastCommandHandler(
         }
         
         return actions;
+    }
+
+    private record TimeOfDayProps(double Morning, double Afternoon, double Evening);
+
+    private static List<ForecastRow> FlattenTemporalSeries(
+        List<ForecastSeries> series,
+        Dictionary<(int Precinct, int CrimeType), TimeOfDayProps>? timeOfDayProportions)
+    {
+        return series.SelectMany(s =>
+        {
+            var key = (s.Precinct, s.CrimeType);
+            if (timeOfDayProportions != null && timeOfDayProportions.TryGetValue(key, out var props))
+            {
+                return s.Forecasts.SelectMany(f => new[]
+                {
+                    new ForecastRow
+                    {
+                        PredictionType = "temporal",
+                        Precinct = s.Precinct,
+                        CrimeType = s.CrimeType,
+                        ClusterId = s.ClusterId,
+                        Timestamp = f.Timestamp,
+                        Forecast = f.Forecast * props.Morning,
+                        LowerBound = f.LowerBound * props.Morning,
+                        UpperBound = f.UpperBound * props.Morning,
+                        Confidence = f.Confidence,
+                        Trend = f.Trend,
+                        RiskLevel = f.RiskLevel,
+                        TimeOfDay = "Morning"
+                    },
+                    new ForecastRow
+                    {
+                        PredictionType = "temporal",
+                        Precinct = s.Precinct,
+                        CrimeType = s.CrimeType,
+                        ClusterId = s.ClusterId,
+                        Timestamp = f.Timestamp,
+                        Forecast = f.Forecast * props.Afternoon,
+                        LowerBound = f.LowerBound * props.Afternoon,
+                        UpperBound = f.UpperBound * props.Afternoon,
+                        Confidence = f.Confidence,
+                        Trend = f.Trend,
+                        RiskLevel = f.RiskLevel,
+                        TimeOfDay = "Afternoon"
+                    },
+                    new ForecastRow
+                    {
+                        PredictionType = "temporal",
+                        Precinct = s.Precinct,
+                        CrimeType = s.CrimeType,
+                        ClusterId = s.ClusterId,
+                        Timestamp = f.Timestamp,
+                        Forecast = f.Forecast * props.Evening,
+                        LowerBound = f.LowerBound * props.Evening,
+                        UpperBound = f.UpperBound * props.Evening,
+                        Confidence = f.Confidence,
+                        Trend = f.Trend,
+                        RiskLevel = f.RiskLevel,
+                        TimeOfDay = "Evening"
+                    }
+                });
+            }
+
+            return s.Forecasts.Select(f => new ForecastRow
+            {
+                PredictionType = "temporal",
+                Precinct = s.Precinct,
+                CrimeType = s.CrimeType,
+                ClusterId = s.ClusterId,
+                Timestamp = f.Timestamp,
+                Forecast = f.Forecast,
+                LowerBound = f.LowerBound,
+                UpperBound = f.UpperBound,
+                Confidence = f.Confidence,
+                Trend = f.Trend,
+                RiskLevel = f.RiskLevel,
+                TimeOfDay = null
+            });
+        }).ToList();
+    }
+
+    private static Dictionary<(int Precinct, int CrimeType), TimeOfDayProps> ComputeTimeOfDayProportions(
+        IEnumerable<ClusterGroup> clusterData)
+    {
+        var items = clusterData.SelectMany(g => g.ClusterItems).ToList();
+        var groups = items
+            .GroupBy(i => ((int)i.Precinct, (int)i.CrimeType))
+            .ToList();
+
+        var result = new Dictionary<(int, int), TimeOfDayProps>();
+        foreach (var group in groups)
+        {
+            var total = group.Count();
+            if (total == 0) continue;
+            var morning = group.Count(i => i.TimeOfDay == "Morning") / (double)total;
+            var afternoon = group.Count(i => i.TimeOfDay == "Afternoon") / (double)total;
+            var evening = group.Count(i => i.TimeOfDay == "Evening") / (double)total;
+
+            if (morning == 0 && afternoon == 0 && evening == 0)
+            {
+                result[group.Key] = new TimeOfDayProps(1.0 / 3, 1.0 / 3, 1.0 / 3);
+            }
+            else
+            {
+                result[group.Key] = new TimeOfDayProps(morning, afternoon, evening);
+            }
+        }
+        return result;
     }
 }

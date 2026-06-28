@@ -27,6 +27,18 @@ public class SqliteForecastRepository : IForecastRepository
         await _context.SaveChangesAsync();
     }
 
+    public async Task SaveSpatialForecastResultsAsync(IEnumerable<SpatialForecastResult> results)
+    {
+        _context.SpatialForecastResults.AddRange(results);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task SaveSeasonalDecompositionResultsAsync(IEnumerable<SeasonalDecompositionResult> results)
+    {
+        _context.SeasonalDecompositionResults.AddRange(results);
+        await _context.SaveChangesAsync();
+    }
+
     public async Task<ForecastRun?> GetForecastRunByIdAsync(Guid id)
     {
         return await _context.ForecastRuns

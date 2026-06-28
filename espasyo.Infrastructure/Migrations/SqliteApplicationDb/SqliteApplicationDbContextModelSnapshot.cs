@@ -659,6 +659,110 @@ namespace espasyo.Infrastructure.Migrations.SqliteApplicationDb
                     b.ToTable("Products");
                 });
 
+            modelBuilder.Entity("espasyo.Domain.Entities.SeasonalDecompositionResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CrimeType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("ForecastRunId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PeakMonth")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Precinct")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ResidualData")
+                        .IsRequired()
+                        .HasColumnType("ntext");
+
+                    b.Property<string>("SeasonalData")
+                        .IsRequired()
+                        .HasColumnType("ntext");
+
+                    b.Property<double>("StrengthSeasonal")
+                        .HasColumnType("float");
+
+                    b.Property<double>("StrengthTrend")
+                        .HasColumnType("float");
+
+                    b.Property<string>("TrendData")
+                        .IsRequired()
+                        .HasColumnType("ntext");
+
+                    b.Property<int>("TroughMonth")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ForecastRunId")
+                        .HasDatabaseName("IX_SeasonalDecompositionResult_ForecastRunId");
+
+                    b.ToTable("SeasonalDecompositionResult", (string)null);
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.SpatialForecastResult", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<uint>("ClusterId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("Confidence")
+                        .HasColumnType("float");
+
+                    b.Property<Guid>("ForecastRunId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double?>("Latitude")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("Longitude")
+                        .HasColumnType("float");
+
+                    b.Property<double>("LowerBound")
+                        .HasColumnType("float");
+
+                    b.Property<int>("Month")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Precinct")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("PredictedValue")
+                        .HasColumnType("float");
+
+                    b.Property<string>("RiskLevel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Trend")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("UpperBound")
+                        .HasColumnType("float");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ForecastRunId")
+                        .HasDatabaseName("IX_SpatialForecastResult_ForecastRunId");
+
+                    b.ToTable("SpatialForecastResult", (string)null);
+                });
+
             modelBuilder.Entity("espasyo.Domain.Entities.Street", b =>
                 {
                     b.Property<Guid>("Id")
@@ -846,6 +950,30 @@ namespace espasyo.Infrastructure.Migrations.SqliteApplicationDb
                         .HasConstraintName("FK_Manpower_Precinct");
 
                     b.Navigation("Precinct");
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.SeasonalDecompositionResult", b =>
+                {
+                    b.HasOne("espasyo.Domain.Entities.ForecastRun", "ForecastRun")
+                        .WithMany()
+                        .HasForeignKey("ForecastRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_SeasonalDecompositionResult_ForecastRun");
+
+                    b.Navigation("ForecastRun");
+                });
+
+            modelBuilder.Entity("espasyo.Domain.Entities.SpatialForecastResult", b =>
+                {
+                    b.HasOne("espasyo.Domain.Entities.ForecastRun", "ForecastRun")
+                        .WithMany()
+                        .HasForeignKey("ForecastRunId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_SpatialForecastResult_ForecastRun");
+
+                    b.Navigation("ForecastRun");
                 });
 
             modelBuilder.Entity("espasyo.Domain.Entities.Street", b =>

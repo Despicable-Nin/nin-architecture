@@ -17,4 +17,5 @@ public record GenerateStatisticalForecastCommand : IRequest<ForecastResponse>
     public string[]? CrimeTypeFilter { get; init; }
     public string[]? SeverityFilter { get; init; }
     public DynamicThresholds? CustomThresholds { get; init; }
+    public string[] PredictionTypes { get; init; } = ["temporal"];
 }

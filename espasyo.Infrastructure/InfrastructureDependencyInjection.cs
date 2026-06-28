@@ -60,6 +60,9 @@ public static class InfrastructureDependencyInjection
         services.AddScoped<IPrecinctRepository, PrecinctRepository>();
         services.AddTransient<IGeocodeService, AddressGeocodeService>();
         services.AddTransient<IMachineLearningService, MachineLearningService>();
+        services.AddTransient<ITemporalForecastService, TemporalForecastService>();
+        services.AddTransient<ISpatialForecastService, SpatialForecastService>();
+        services.AddTransient<ISeasonalForecastService, SeasonalForecastService>();
 
         services.AddHttpClient<AddressGeocodeService>();
 

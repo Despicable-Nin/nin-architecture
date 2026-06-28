@@ -88,6 +88,7 @@ public record ForecastParameters
     public string[]? CrimeTypeFilter { get; init; }
     public string[]? SeverityFilter { get; init; }
     public DynamicThresholds? CustomThresholds { get; init; }
+    public string[] PredictionTypes { get; init; } = ["temporal"];
 }
 
 public record ForecastPoint
@@ -110,15 +111,74 @@ public record ForecastSeries
     public Dictionary<string, object> Metadata { get; init; } = new();
 }
 
+public record ForecastRow
+{
+    public string Id { get; init; } = Guid.NewGuid().ToString();
+    public string PredictionType { get; init; } = "temporal";
+    public int Precinct { get; init; }
+    public int? CrimeType { get; init; }
+    public uint? ClusterId { get; init; }
+    public double? Latitude { get; init; }
+    public double? Longitude { get; init; }
+    public DateTime Timestamp { get; init; }
+    public double Forecast { get; init; }
+    public double LowerBound { get; init; }
+    public double UpperBound { get; init; }
+    public double Confidence { get; init; }
+    public string Trend { get; init; } = "stable";
+    public string RiskLevel { get; init; } = "medium";
+    public string? TimeOfDay { get; init; }
+}
+
+public record DecompositionRow
+{
+    public int Precinct { get; init; }
+    public int CrimeType { get; init; }
+    public List<double> Trend { get; init; } = new();
+    public List<double> Seasonal { get; init; } = new();
+    public List<double> Residual { get; init; } = new();
+    public Dictionary<string, double> Strength { get; init; } = new();
+    public int PeakMonth { get; init; }
+    public int TroughMonth { get; init; }
+}
+
+public record TemporalPatterns
+{
+    public string? PeakTimeOfDay { get; init; }
+    public int? PeakMonth { get; init; }
+    public int? TroughMonth { get; init; }
+    public double? WeekendEffect { get; init; }
+}
+
+public record SpatialForecastRow
+{
+    public string Id { get; init; } = Guid.NewGuid().ToString();
+    public int Precinct { get; init; }
+    public uint ClusterId { get; init; }
+    public double? Latitude { get; init; }
+    public double? Longitude { get; init; }
+    public DateTime Timestamp { get; init; }
+    public double Forecast { get; init; }
+    public double LowerBound { get; init; }
+    public double UpperBound { get; init; }
+    public double Confidence { get; init; }
+    public string Trend { get; init; } = "stable";
+    public string RiskLevel { get; init; } = "medium";
+}
+
 public record ForecastResponse
 {
     public List<ForecastSeries> Series { get; init; } = new();
+    public List<ForecastRow> Forecasts { get; init; } = new();
+    public List<SpatialForecastRow> Spatial { get; init; } = new();
     public ForecastMetrics Metrics { get; init; } = new();
     public DateTime GeneratedAt { get; init; } = DateTime.UtcNow;
     public string ModelUsed { get; init; } = string.Empty;
     public ForecastSummary Summary { get; init; } = new();
     public ForecastExplanation Explanation { get; init; } = new();
     public ThresholdCalculationResult DynamicThresholds { get; init; } = new();
+    public TemporalPatterns? TemporalPatterns { get; init; }
+    public List<DecompositionRow> Decomposition { get; init; } = new();
 }
 
 public record ForecastMetrics
@@ -228,4 +288,35 @@ public record StatisticalForecastRequest
     public string[]? CrimeTypeFilter { get; init; }
     public string[]? SeverityFilter { get; init; }
     public DynamicThresholds? CustomThresholds { get; init; }
+    public string[] PredictionTypes { get; init; } = ["temporal"];
+}
+
+public record TemporalForecastRequest
+{
+    public IEnumerable<ClusterGroup> ClusterData { get; init; } = new List<ClusterGroup>();
+    public int Horizon { get; init; } = 6;
+    public double ConfidenceLevel { get; init; } = 0.95;
+    public string ModelType { get; init; } = "Linear";
+    public bool IncludeSeasonality { get; init; } = true;
+    public bool WeightRecentData { get; init; } = true;
+    public bool IncludeTimeOfDay { get; init; } = false;
+    public bool IncludeMonthOfYear { get; init; } = false;
+    public bool IncludeTrend { get; init; } = true;
+    public string[]? CrimeTypeFilter { get; init; }
+    public string[]? SeverityFilter { get; init; }
+    public DynamicThresholds? CustomThresholds { get; init; }
+}
+
+public record SpatialForecastRequest
+{
+    public IEnumerable<ClusterGroup> ClusterData { get; init; } = new List<ClusterGroup>();
+    public int Horizon { get; init; } = 6;
+    public double ConfidenceLevel { get; init; } = 0.95;
+    public string ModelType { get; init; } = "Linear";
+    public bool IncludeTrend { get; init; } = true;
+}
+
+public record SeasonalForecastRequest
+{
+    public IEnumerable<ClusterGroup> ClusterData { get; init; } = new List<ClusterGroup>();
 }

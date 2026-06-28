@@ -16,6 +16,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Precinct> Precincts { get; set; }
     public DbSet<ForecastRun> ForecastRuns { get; set; }
     public DbSet<ForecastResult> ForecastResults { get; set; }
+    public DbSet<SpatialForecastResult> SpatialForecastResults { get; set; }
+    public DbSet<SeasonalDecompositionResult> SeasonalDecompositionResults { get; set; }
     public DbSet<UserForecastPreference> UserForecastPreferences { get; set; }
     public DbSet<AnalysisRun> AnalysisRuns { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)

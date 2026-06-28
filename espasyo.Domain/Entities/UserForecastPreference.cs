@@ -10,7 +10,7 @@ public class UserForecastPreference
         UserId = userId;
         DefaultHorizon = 6;
         DefaultConfidenceLevel = 0.95;
-        DefaultModelType = "SSA";
+        DefaultModelType = "Linear";
         ShowEnsembleView = true;
         ShowHotspotTimeline = true;
         EnabledTimeAnimation = false;

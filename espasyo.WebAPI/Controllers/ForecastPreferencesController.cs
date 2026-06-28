@@ -94,7 +94,7 @@ public record UpdatePreferencesRequest
 {
     public int DefaultHorizon { get; init; } = 6;
     public double DefaultConfidenceLevel { get; init; } = 0.95;
-    public string DefaultModelType { get; init; } = "SSA";
+    public string DefaultModelType { get; init; } = "Linear";
     public bool ShowEnsembleView { get; init; } = true;
     public bool ShowHotspotTimeline { get; init; } = true;
     public bool EnabledTimeAnimation { get; init; } = false;

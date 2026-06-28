@@ -28,6 +28,11 @@ public class PredictHotspotsCommandHandler(
                 ModelType = request.ModelType,
                 IncludeSeasonality = request.IncludeSeasonality,
                 WeightRecentData = request.WeightRecentData,
+                IncludeTimeOfDay = request.IncludeTimeOfDay,
+                IncludeMonthOfYear = request.IncludeMonthOfYear,
+                IncludeTrend = request.IncludeTrend,
+                CrimeTypeFilter = request.CrimeTypeFilter,
+                SeverityFilter = request.SeverityFilter,
                 HotspotThreshold = request.HotspotThreshold
             };
 

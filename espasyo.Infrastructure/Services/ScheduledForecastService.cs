@@ -75,7 +75,7 @@ public class ScheduledForecastService : BackgroundService
 
         var lookbackYears = _configuration.GetValue<int>("ScheduledForecast:LookbackYears", 3);
         var horizon = _configuration.GetValue<int>("ScheduledForecast:Horizon", 6);
-        var modelType = _configuration.GetValue<string>("ScheduledForecast:ModelType", "SSA");
+        var modelType = _configuration.GetValue<string>("ScheduledForecast:ModelType", "Linear");
         var confidenceLevel = _configuration.GetValue<double>("ScheduledForecast:ConfidenceLevel", 0.95);
 
         var dateRange = new KeyValuePair<DateOnly, DateOnly>(

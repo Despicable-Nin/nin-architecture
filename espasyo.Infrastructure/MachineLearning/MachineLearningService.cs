@@ -414,33 +414,20 @@ public class MachineLearningService(
             logger.LogInformation("Generating statistical forecast with horizon: {Horizon}, model: {ModelType}", 
                 parameters.Horizon, parameters.ModelType);
 
-            var clusterDataList = clusterData.ToList(); // Cache for reuse
+            var clusterDataList = clusterData.ToList();
             var forecastSeries = new List<ForecastSeries>();
 
-            // Group cluster data by precinct and crime type
-            var groupedData = GroupClusterDataForForecasting(clusterDataList);
+            var groupedData = GroupClusterDataForForecasting(clusterDataList, parameters);
 
-            foreach (var (key, timeSeriesData) in groupedData)
+            foreach (var (precinct, timeSeriesData) in groupedData)
             {
-                var (precinct, crimeType, clusterId) = key;
-
-                if (timeSeriesData.Count < 12) // Need at least 12 months of data
-                {
-                    logger.LogWarning("Insufficient data for precinct {Precinct}, crime type {CrimeType}, cluster {ClusterId}. Skipping forecasting.", precinct, crimeType, clusterId);
-                    
-                    // TODO (Improvement): To handle sparse data, implement a fallback that aggregates this data 
-                    // to a higher level (e.g., all crimes in this precinct, or grouping similar crime types) 
-                    // before attempting to run Singular Spectrum Analysis (SSA), which requires dense time series.
-                    continue;
-                }
-
                 var forecasts = await GenerateForecastForSeries(timeSeriesData, parameters, clusterDataList, precinct);
-                
+
                 forecastSeries.Add(new ForecastSeries
                 {
                     Precinct = precinct,
-                    CrimeType = crimeType,
-                    ClusterId = clusterId,
+                    CrimeType = 0,
+                    ClusterId = 0,
                     Forecasts = forecasts,
                     Metadata = new Dictionary<string, object>
                     {
@@ -450,15 +437,29 @@ public class MachineLearningService(
                 });
             }
 
-            // Calculate real accuracy metrics using a holdout pass over each series
+            if (forecastSeries.Count == 0)
+            {
+                throw new InvalidOperationException(
+                    "No cluster data found to generate forecast. Ensure the cluster data contains items with valid precinct information.");
+            }
+
             var metrics = await CalculateRealMetricsAsync(groupedData, parameters);
+
+            var dynamicThresholds = parameters.CustomThresholds != null
+                ? new ThresholdCalculationResult
+                {
+                    GlobalThresholds = parameters.CustomThresholds,
+                    CalculationMethod = "user-provided"
+                }
+                : new ThresholdCalculationResult();
 
             return new ForecastResponse
             {
                 Series = forecastSeries,
                 Metrics = metrics,
                 ModelUsed = parameters.ModelType,
-                GeneratedAt = DateTime.UtcNow
+                GeneratedAt = DateTime.UtcNow,
+                DynamicThresholds = dynamicThresholds
             };
         }
         catch (Exception ex)
@@ -474,16 +475,16 @@ public class MachineLearningService(
         {
             logger.LogInformation("Validating forecast model: {ModelType}", parameters.ModelType);
 
-            var groupedData = GroupClusterDataForForecasting(clusterData);
+            var groupedData = GroupClusterDataForForecasting(clusterData, parameters);
             var allMetrics = new List<ForecastMetrics>();
             var warnings = new List<string>();
             var recommendations = new List<string>();
 
-            foreach (var (key, timeSeriesData) in groupedData)
+            foreach (var (precinct, timeSeriesData) in groupedData)
             {
-                if (timeSeriesData.Count < 24) // Need at least 24 months for validation
+                if (timeSeriesData.Count < 24)
                 {
-                    warnings.Add($"Insufficient data for reliable validation (Precinct: {key.Item1}, Crime: {key.Item2}, Cluster: {key.Item3})");
+                    warnings.Add($"Insufficient data for reliable validation (Precinct: {precinct})");
                     continue;
                 }
 
@@ -587,28 +588,32 @@ public class MachineLearningService(
         }
     }
 
-    private Dictionary<(int, int, uint), List<TimeSeriesData>> GroupClusterDataForForecasting(IEnumerable<ClusterGroup> clusterData)
+    private Dictionary<int, List<TimeSeriesData>> GroupClusterDataForForecasting(IEnumerable<ClusterGroup> clusterData, ForecastParameters? parameters = null)
     {
-        var grouped = new Dictionary<(int, int, uint), List<TimeSeriesData>>();
+        var grouped = new Dictionary<int, List<TimeSeriesData>>();
+
+        var crimeTypeFilter = ParseCrimeTypeFilter(parameters?.CrimeTypeFilter);
 
         foreach (var cluster in clusterData)
         {
             foreach (var item in cluster.ClusterItems)
             {
-                var key = ((int)item.Precinct, (int)item.CrimeType, item.ClusterId);
-                
+                if (crimeTypeFilter.Count > 0 && !crimeTypeFilter.Contains(item.CrimeType))
+                    continue;
+
+                var key = (int)item.Precinct;
+
                 if (!grouped.ContainsKey(key))
                     grouped[key] = new List<TimeSeriesData>();
 
                 grouped[key].Add(new TimeSeriesData
                 {
                     Date = new DateTime(item.Year, item.Month, 1),
-                    Value = 1 // Each incident counts as 1
+                    Value = 1
                 });
             }
         }
 
-        // Aggregate by month and sort
         foreach (var key in grouped.Keys.ToList())
         {
             var aggregated = grouped[key]
@@ -625,6 +630,20 @@ public class MachineLearningService(
         }
 
         return grouped;
+    }
+
+    private static HashSet<CrimeTypeEnum> ParseCrimeTypeFilter(string[]? crimeTypeFilter)
+    {
+        if (crimeTypeFilter is null || crimeTypeFilter.Length == 0)
+            return [];
+
+        var result = new HashSet<CrimeTypeEnum>();
+        foreach (var name in crimeTypeFilter)
+        {
+            if (Enum.TryParse<CrimeTypeEnum>(name, ignoreCase: true, out var parsed))
+                result.Add(parsed);
+        }
+        return result;
     }
 
     private async Task<List<ForecastPoint>> GenerateForecastForSeries(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData, int? precinct = null)
@@ -679,7 +698,7 @@ public class MachineLearningService(
             var forecastValue = Math.Max(0, intercept + slope * (n + i + 1));
             var errorMargin = recentAverage * (parameters.WeightRecentData ? 0.15 : 0.2);
             
-            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, precinct);
+            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, parameters, precinct);
 
             // Confidence decays with horizon: linear trend is less reliable further ahead (10% decay per month)
             var decayedConfidence = parameters.ConfidenceLevel * 0.8 * Math.Pow(0.90, i);
@@ -734,7 +753,7 @@ public class MachineLearningService(
             var upperBound = forecast.UpperBoundValues?[i] ?? forecastValue * 1.2f;
 
             // Determine trend and risk level
-            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, precinct);
+            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, parameters, precinct);
 
             // SSA is the best model available; apply a gentle 3% confidence decay per month
             // to honestly represent that uncertainty compounds further into the future
@@ -796,7 +815,7 @@ public class MachineLearningService(
             // Confidence bounds widen with horizon; seasonal multiplier adds extra uncertainty
             var errorMargin = recentAverage * (parameters.IncludeSeasonality ? 0.25 : 0.2) * (1 + i * 0.08);
             
-            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, precinct);
+            var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, parameters, precinct);
 
             // Seasonal model: 7% confidence decay per month
             var decayedConfidence = parameters.ConfidenceLevel * 0.9 * Math.Pow(0.93, i);
@@ -886,8 +905,28 @@ public class MachineLearningService(
         double forecastValue, 
         double recentAverage, 
         IEnumerable<ClusterGroup> allClusterData,
+        ForecastParameters parameters,
         int? targetPrecinct = null)
     {
+        var t = parameters.CustomThresholds;
+        
+        // Trend analysis using configurable thresholds
+        var trendIncreaseThreshold = t?.TrendIncreaseThreshold ?? 1.1;
+        var trendDecreaseThreshold = t?.TrendDecreaseThreshold ?? 0.9;
+        var trend = forecastValue > recentAverage * trendIncreaseThreshold ? "increasing" :
+                   forecastValue < recentAverage * trendDecreaseThreshold ? "decreasing" : "stable";
+        
+        // Risk analysis
+        if (t != null)
+        {
+            // Use user-provided thresholds directly
+            var ratio = recentAverage > 0 ? forecastValue / recentAverage : 1.0;
+            var riskLevel = ratio > t.HighMax ? "critical" :
+                           ratio > t.MediumMax ? "high" :
+                           ratio > t.LowMax ? "medium" : "low";
+            return (trend, riskLevel);
+        }
+        
         // Calculate dynamic thresholds based on historical data distribution
         var thresholds = CalculateEnhancedDynamicRiskThresholds(allClusterData);
         
@@ -895,18 +934,13 @@ public class MachineLearningService(
         var activeThresholds = targetPrecinct.HasValue && thresholds.PrecinctSpecificThresholds.ContainsKey(targetPrecinct.Value)
             ? thresholds.PrecinctSpecificThresholds[targetPrecinct.Value]
             : thresholds.GlobalThresholds;
-        
-        // Trend analysis (keep simple thresholds)
-        var trend = forecastValue > recentAverage * 1.1 ? "increasing" :
-                   forecastValue < recentAverage * 0.9 ? "decreasing" : "stable";
-                   
-        // Risk analysis using dynamic thresholds
-        var ratio = recentAverage > 0 ? forecastValue / recentAverage : 1.0;
-        var riskLevel = ratio > activeThresholds.HighMax ? "critical" :
-                       ratio > activeThresholds.MediumMax ? "high" :
-                       ratio > activeThresholds.LowMax ? "medium" : "low";
-                       
-        return (trend, riskLevel);
+                    
+        var ratio2 = recentAverage > 0 ? forecastValue / recentAverage : 1.0;
+        var riskLevel2 = ratio2 > activeThresholds.HighMax ? "critical" :
+                        ratio2 > activeThresholds.MediumMax ? "high" :
+                        ratio2 > activeThresholds.LowMax ? "medium" : "low";
+                        
+        return (trend, riskLevel2);
     }
     
     private (double lowMax, double mediumMax, double highMax) CalculateDynamicRiskThresholds(IEnumerable<ClusterGroup> clusterData)
@@ -1071,7 +1105,7 @@ public class MachineLearningService(
     /// Falls back to a clearly-labelled N/A result when insufficient data is available.
     /// </summary>
     private async Task<ForecastMetrics> CalculateRealMetricsAsync(
-        Dictionary<(int, int, uint), List<TimeSeriesData>> groupedData,
+        Dictionary<int, List<TimeSeriesData>> groupedData,
         ForecastParameters parameters)
     {
         const int HoldoutMonths = 3;
@@ -1305,7 +1339,12 @@ public class MachineLearningService(
             ConfidenceLevel = request.ConfidenceLevel,
             ModelType = request.ModelType,
             IncludeSeasonality = request.IncludeSeasonality,
-            WeightRecentData = request.WeightRecentData
+            WeightRecentData = request.WeightRecentData,
+            IncludeTimeOfDay = request.IncludeTimeOfDay,
+            IncludeMonthOfYear = request.IncludeMonthOfYear,
+            IncludeTrend = request.IncludeTrend,
+            CrimeTypeFilter = request.CrimeTypeFilter,
+            SeverityFilter = request.SeverityFilter
         };
 
         var forecast = await GenerateStatisticalForecast(clusterList, forecastParams);

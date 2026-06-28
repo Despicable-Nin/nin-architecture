@@ -22,9 +22,9 @@ public class GenerateStatisticalForecastCommandHandler(
                 throw new ArgumentException("Cluster data is required for forecasting");
             }
 
-            if (request.Horizon < 1 || request.Horizon > 24)
+            if (request.Horizon < 6 || request.Horizon > 24)
             {
-                throw new ArgumentException("Forecast horizon must be between 1 and 24 months");
+                throw new ArgumentException("Forecast horizon must be between 6 and 24 months");
             }
 
             if (request.ConfidenceLevel <= 0 || request.ConfidenceLevel >= 1)
@@ -39,7 +39,13 @@ public class GenerateStatisticalForecastCommandHandler(
                 ConfidenceLevel = request.ConfidenceLevel,
                 ModelType = request.ModelType,
                 IncludeSeasonality = request.IncludeSeasonality,
-                WeightRecentData = request.WeightRecentData
+                WeightRecentData = request.WeightRecentData,
+                IncludeTimeOfDay = request.IncludeTimeOfDay,
+                IncludeMonthOfYear = request.IncludeMonthOfYear,
+                IncludeTrend = request.IncludeTrend,
+                CrimeTypeFilter = request.CrimeTypeFilter,
+                SeverityFilter = request.SeverityFilter,
+                CustomThresholds = request.CustomThresholds
             };
 
             // Generate statistical forecast using ML service

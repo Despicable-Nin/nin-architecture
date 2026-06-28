@@ -79,9 +79,15 @@ public record ForecastParameters
 {
     public int Horizon { get; init; } = 6; // months ahead
     public double ConfidenceLevel { get; init; } = 0.95;
-    public string ModelType { get; init; } = "SSA"; // SSA, Linear, Seasonal
+    public string ModelType { get; init; } = "Linear"; // SSA, Linear, Seasonal
     public bool IncludeSeasonality { get; init; } = true;
     public bool WeightRecentData { get; init; } = true;
+    public bool IncludeTimeOfDay { get; init; } = false;
+    public bool IncludeMonthOfYear { get; init; } = false;
+    public bool IncludeTrend { get; init; } = true;
+    public string[]? CrimeTypeFilter { get; init; }
+    public string[]? SeverityFilter { get; init; }
+    public DynamicThresholds? CustomThresholds { get; init; }
 }
 
 public record ForecastPoint
@@ -188,6 +194,9 @@ public record DynamicThresholds
     public double MediumMax { get; init; } = 1.2;   // Medium risk threshold (120% of average)
     public double HighMax { get; init; } = 1.5;     // High risk threshold (150% of average)
     // Critical is anything above HighMax
+
+    public double TrendIncreaseThreshold { get; init; } = 1.1;   // forecast > avg * this → "increasing"
+    public double TrendDecreaseThreshold { get; init; } = 0.9;   // forecast < avg * this → "decreasing"
 }
 
 public record ThresholdCalculationResult
@@ -208,14 +217,15 @@ public record StatisticalForecastRequest
     public IEnumerable<ClusterGroup> ClusterData { get; init; } = new List<ClusterGroup>();
     public int Horizon { get; init; } = 6;
     public double ConfidenceLevel { get; init; } = 0.95;
-    public string ModelType { get; init; } = "SSA";
+    public string ModelType { get; init; } = "Linear";
     public bool IncludeSeasonality { get; init; } = true;
     public bool WeightRecentData { get; init; } = true;
+    public bool IncludeTimeOfDay { get; init; } = false;
+    public bool IncludeMonthOfYear { get; init; } = false;
+    public bool IncludeTrend { get; init; } = true;
     
-    // Support for existing UI filters
-    public int[]? PrecinctFilter { get; init; }
-    public int[]? CrimeTypeFilter { get; init; }
-    public string[]? RiskLevelFilter { get; init; }
-    public DateTime? DateRangeStart { get; init; }
-    public DateTime? DateRangeEnd { get; init; }
+    // Data filters
+    public string[]? CrimeTypeFilter { get; init; }
+    public string[]? SeverityFilter { get; init; }
+    public DynamicThresholds? CustomThresholds { get; init; }
 }

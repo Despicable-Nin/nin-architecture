@@ -124,7 +124,13 @@ public class IncidentController(IMediator mediator) : ControllerBase
                 ConfidenceLevel = request.ConfidenceLevel,
                 ModelType = request.ModelType,
                 IncludeSeasonality = request.IncludeSeasonality,
-                WeightRecentData = request.WeightRecentData
+                WeightRecentData = request.WeightRecentData,
+                IncludeTimeOfDay = request.IncludeTimeOfDay,
+                IncludeMonthOfYear = request.IncludeMonthOfYear,
+                IncludeTrend = request.IncludeTrend,
+                CrimeTypeFilter = request.CrimeTypeFilter,
+                SeverityFilter = request.SeverityFilter,
+                CustomThresholds = request.CustomThresholds
             };
 
             var forecast = await mediator.Send(command);
@@ -150,7 +156,12 @@ public class IncidentController(IMediator mediator) : ControllerBase
                 ConfidenceLevel = request.ConfidenceLevel,
                 ModelType = request.ModelType,
                 IncludeSeasonality = request.IncludeSeasonality,
-                WeightRecentData = request.WeightRecentData
+                WeightRecentData = request.WeightRecentData,
+                IncludeTimeOfDay = request.IncludeTimeOfDay,
+                IncludeMonthOfYear = request.IncludeMonthOfYear,
+                IncludeTrend = request.IncludeTrend,
+                CrimeTypeFilter = request.CrimeTypeFilter,
+                SeverityFilter = request.SeverityFilter
             };
 
             var validation = await mediator.Send(command);

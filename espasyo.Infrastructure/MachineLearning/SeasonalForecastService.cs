@@ -7,7 +7,7 @@ public class SeasonalForecastService(
     ILogger<SeasonalForecastService> logger
 ) : ISeasonalForecastService
 {
-    public Task<List<DecompositionRow>> Decompose(IEnumerable<ClusterGroup> clusterData, ForecastParameters parameters)
+    public Task<List<SeasonalPredictionRow>> PredictSeasonal(IEnumerable<ClusterGroup> clusterData, ForecastParameters parameters)
     {
         return Task.Run(() =>
         {
@@ -20,7 +20,7 @@ public class SeasonalForecastService(
                 .GroupBy(i => (Precinct: (int)i.Precinct, CrimeType: (int)i.CrimeType))
                 .ToList();
 
-            var results = new List<DecompositionRow>();
+            var results = new List<SeasonalPredictionRow>();
 
             foreach (var group in groups)
             {
@@ -86,7 +86,7 @@ public class SeasonalForecastService(
                 var peakMonth = Array.IndexOf(seasonalByMonth, seasonalByMonth.Max()) + 1;
                 var troughMonth = Array.IndexOf(seasonalByMonth, seasonalByMonth.Min()) + 1;
 
-                results.Add(new DecompositionRow
+                results.Add(new SeasonalPredictionRow
                 {
                     Precinct = group.Key.Precinct,
                     CrimeType = group.Key.CrimeType,

@@ -39,11 +39,8 @@ public class GenerateStatisticalForecastCommandHandler(
                 IncludeTrend = request.IncludeTrend,
                 CrimeTypeFilter = request.CrimeTypeFilter,
                 SeverityFilter = request.SeverityFilter,
-                CustomThresholds = request.CustomThresholds,
-                PredictionTypes = request.PredictionTypes
+                CustomThresholds = request.CustomThresholds
             };
-
-            var predictionTypes = new HashSet<string>(request.PredictionTypes ?? ["temporal"]);
 
             // Temporal (always runs — base forecast)
             var forecast = await machineLearningService.GenerateStatisticalForecast(request.ClusterData, parameters);
@@ -55,25 +52,17 @@ public class GenerateStatisticalForecastCommandHandler(
             var flatForecasts = FlattenTemporalSeries(forecast.Series, timeOfDayProportions);
 
             // Spatial
-            List<SpatialForecastRow>? spatialRows = null;
-            if (predictionTypes.Contains("spatial"))
-            {
-                spatialRows = await spatialForecastService.DistributeForecast(
-                    request.ClusterData, parameters, forecast.Series);
-            }
+            var spatialRows = await spatialForecastService.DistributeForecast(
+                request.ClusterData, parameters, forecast.Series);
 
             // Seasonal decomposition
-            List<DecompositionRow>? decomposition = null;
-            if (predictionTypes.Contains("seasonal"))
-            {
-                decomposition = await seasonalForecastService.Decompose(request.ClusterData, parameters);
-            }
+            var seasonalPredictions = await seasonalForecastService.PredictSeasonal(request.ClusterData, parameters);
 
             forecast = forecast with
             {
                 Forecasts = flatForecasts,
                 Spatial = spatialRows ?? [],
-                Decomposition = decomposition ?? []
+                SeasonalPredictions = seasonalPredictions ?? []
             };
 
             var enhancedForecast = EnhanceForecastWithExplanations(forecast, request, parameters);
@@ -81,7 +70,7 @@ public class GenerateStatisticalForecastCommandHandler(
             logger.LogInformation("Successfully generated forecast — temporal: {TempCount}, spatial: {SpatialCount}, seasonal: {SeasonCount}",
                 enhancedForecast.Forecasts.Count,
                 enhancedForecast.Spatial.Count,
-                enhancedForecast.Decomposition.Count);
+                enhancedForecast.SeasonalPredictions.Count);
 
             return enhancedForecast;
         }

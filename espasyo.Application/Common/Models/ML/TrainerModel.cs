@@ -88,7 +88,6 @@ public record ForecastParameters
     public string[]? CrimeTypeFilter { get; init; }
     public string[]? SeverityFilter { get; init; }
     public DynamicThresholds? CustomThresholds { get; init; }
-    public string[] PredictionTypes { get; init; } = ["temporal"];
 }
 
 public record ForecastPoint
@@ -130,7 +129,7 @@ public record ForecastRow
     public string? TimeOfDay { get; init; }
 }
 
-public record DecompositionRow
+public record SeasonalPredictionRow
 {
     public int Precinct { get; init; }
     public int CrimeType { get; init; }
@@ -178,7 +177,7 @@ public record ForecastResponse
     public ForecastExplanation Explanation { get; init; } = new();
     public ThresholdCalculationResult DynamicThresholds { get; init; } = new();
     public TemporalPatterns? TemporalPatterns { get; init; }
-    public List<DecompositionRow> Decomposition { get; init; } = new();
+    public List<SeasonalPredictionRow> SeasonalPredictions { get; init; } = new();
 }
 
 public record ForecastMetrics
@@ -288,7 +287,6 @@ public record StatisticalForecastRequest
     public string[]? CrimeTypeFilter { get; init; }
     public string[]? SeverityFilter { get; init; }
     public DynamicThresholds? CustomThresholds { get; init; }
-    public string[] PredictionTypes { get; init; } = ["temporal"];
 }
 
 public record TemporalForecastRequest

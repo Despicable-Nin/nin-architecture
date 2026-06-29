@@ -30,9 +30,13 @@ public class SpatialForecastService(
                 .GroupBy(i => (int)i.Precinct)
                 .ToDictionary(g => g.Key, g => g.Count());
 
-            // Build cluster centroid lookup
-            var centroids = clusterList
-                .ToDictionary(g => g.ClusterId, g => (Lat: g.Centroids[0], Lon: g.Centroids[1]));
+            // Build precinct-specific centroid lookup
+            var precinctCentroids = allItems
+                .GroupBy(i => (Precinct: (int)i.Precinct, ClusterId: i.ClusterId))
+                .ToDictionary(g => g.Key, g => (
+                    Lat: g.Average(item => item.Latitude),
+                    Lon: g.Average(item => item.Longitude)
+                ));
 
             var spatialRows = new List<SpatialForecastRow>();
 
@@ -55,7 +59,7 @@ public class SpatialForecastService(
                     foreach (var (key, count) in precinctClusters)
                     {
                         var proportion = (double)count / precinctTotal;
-                        var hasCentroid = centroids.TryGetValue(key.ClusterId, out var centroid);
+                        var hasCentroid = precinctCentroids.TryGetValue((precinct, key.ClusterId), out var centroid);
 
                         spatialRows.Add(new SpatialForecastRow
                         {

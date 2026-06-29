@@ -1,3 +1,4 @@
+using System.Text.Json;
 using espasyo.Application.Common.Models.ML;
 using espasyo.Application.Interfaces;
 using espasyo.Domain.Entities;
@@ -27,6 +28,8 @@ public record SaveForecastRunCommand : IRequest<Guid>
 
 public class SaveForecastRunCommandHandler(
     IMachineLearningService machineLearningService,
+    ISpatialForecastService spatialForecastService,
+    ISeasonalForecastService seasonalForecastService,
     IForecastRepository forecastRepository,
     ILogger<SaveForecastRunCommandHandler> logger
 ) : IRequestHandler<SaveForecastRunCommand, Guid>
@@ -61,6 +64,11 @@ public class SaveForecastRunCommandHandler(
 
             var forecast = await machineLearningService.GenerateStatisticalForecast(request.ClusterData, parameters);
 
+            var spatialRows = await spatialForecastService.DistributeForecast(
+                request.ClusterData, parameters, forecast.Series);
+
+            var seasonalPredictions = await seasonalForecastService.PredictSeasonal(request.ClusterData, parameters);
+
             var results = new List<ForecastResult>();
             foreach (var series in forecast.Series)
             {
@@ -82,12 +90,44 @@ public class SaveForecastRunCommandHandler(
                 }
             }
 
+            var spatialResults = spatialRows.Select(s => new SpatialForecastResult(
+                run.Id,
+                (Barangay)s.Precinct,
+                s.ClusterId,
+                s.Latitude,
+                s.Longitude,
+                s.Timestamp.Month,
+                s.Timestamp.Year,
+                s.Forecast,
+                s.LowerBound,
+                s.UpperBound,
+                s.Confidence,
+                s.RiskLevel,
+                s.Trend)).ToList();
+
+            var seasonalResults = seasonalPredictions.Select(s => new SeasonalDecompositionResult(
+                run.Id,
+                (Barangay)s.Precinct,
+                (CrimeTypeEnum)s.CrimeType,
+                System.Text.Json.JsonSerializer.Serialize(s.Trend),
+                System.Text.Json.JsonSerializer.Serialize(s.Seasonal),
+                System.Text.Json.JsonSerializer.Serialize(s.Residual),
+                s.Strength.GetValueOrDefault("Trend"),
+                s.Strength.GetValueOrDefault("Seasonal"),
+                s.PeakMonth,
+                s.TroughMonth)).ToList();
+
             run.MarkCompleted(forecast.Series.Count);
 
             await forecastRepository.SaveForecastRunAsync(run);
             await forecastRepository.SaveForecastResultsAsync(results);
+            if (spatialResults.Count > 0)
+                await forecastRepository.SaveSpatialForecastResultsAsync(spatialResults);
+            if (seasonalResults.Count > 0)
+                await forecastRepository.SaveSeasonalDecompositionResultsAsync(seasonalResults);
 
-            logger.LogInformation("Saved forecast run {RunId} with {ResultCount} results", run.Id, results.Count);
+            logger.LogInformation("Saved forecast run {RunId} — temporal: {TCount}, spatial: {SCount}, seasonal: {SeCount}",
+                run.Id, results.Count, spatialResults.Count, seasonalResults.Count);
 
             return run.Id;
         }

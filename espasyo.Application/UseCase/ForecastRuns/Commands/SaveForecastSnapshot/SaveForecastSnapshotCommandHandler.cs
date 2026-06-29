@@ -1,3 +1,4 @@
+using System.Text.Json;
 using espasyo.Application.Interfaces;
 using espasyo.Domain.Entities;
 using espasyo.Domain.Enums;
@@ -43,8 +44,39 @@ public class SaveForecastSnapshotCommandHandler(
             p.RiskLevel,
             p.Trend)).ToList();
 
+        var spatialResults = request.SpatialPredictions.Select(s => new SpatialForecastResult(
+            run.Id,
+            (Barangay)s.Precinct,
+            s.ClusterId,
+            s.Latitude,
+            s.Longitude,
+            s.Month,
+            s.Year,
+            s.PredictedValue,
+            s.LowerBound,
+            s.UpperBound,
+            s.Confidence,
+            s.RiskLevel,
+            s.Trend)).ToList();
+
+        var seasonalResults = request.SeasonalPredictions.Select(s => new SeasonalDecompositionResult(
+            run.Id,
+            (Barangay)s.Precinct,
+            (CrimeTypeEnum)s.CrimeType,
+            "",
+            System.Text.Json.JsonSerializer.Serialize(s.SeasonalFactors),
+            "",
+            s.StrengthTrend,
+            s.StrengthSeasonal,
+            s.PeakMonth,
+            s.TroughMonth)).ToList();
+
         await forecastRepository.SaveForecastRunAsync(run);
         await forecastRepository.SaveForecastResultsAsync(results);
+        if (spatialResults.Count > 0)
+            await forecastRepository.SaveSpatialForecastResultsAsync(spatialResults);
+        if (seasonalResults.Count > 0)
+            await forecastRepository.SaveSeasonalDecompositionResultsAsync(seasonalResults);
 
         return new SaveForecastSnapshotResponse
         {

@@ -4,5 +4,5 @@ namespace espasyo.Application.Interfaces;
 
 public interface ISeasonalForecastService
 {
-    Task<List<DecompositionRow>> Decompose(IEnumerable<ClusterGroup> clusterData, ForecastParameters parameters);
+    Task<List<SeasonalPredictionRow>> PredictSeasonal(IEnumerable<ClusterGroup> clusterData, ForecastParameters parameters);
 }

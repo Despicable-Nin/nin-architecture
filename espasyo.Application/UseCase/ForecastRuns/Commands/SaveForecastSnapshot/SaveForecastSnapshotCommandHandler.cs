@@ -63,11 +63,11 @@ public class SaveForecastSnapshotCommandHandler(
             run.Id,
             (Barangay)s.Precinct,
             (CrimeTypeEnum)s.CrimeType,
-            "",
-            System.Text.Json.JsonSerializer.Serialize(s.SeasonalFactors),
-            "",
-            s.StrengthTrend,
-            s.StrengthSeasonal,
+            System.Text.Json.JsonSerializer.Serialize(s.Trend),
+            System.Text.Json.JsonSerializer.Serialize(s.Seasonal),
+            System.Text.Json.JsonSerializer.Serialize(s.Residual),
+            s.Strength.GetValueOrDefault("Trend"),
+            s.Strength.GetValueOrDefault("Seasonal"),
             s.PeakMonth,
             s.TroughMonth)).ToList();
 

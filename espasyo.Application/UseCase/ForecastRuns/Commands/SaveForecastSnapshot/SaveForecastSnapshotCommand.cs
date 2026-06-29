@@ -47,9 +47,10 @@ public class SeasonalPredictionDto
 {
     public int Precinct { get; set; }
     public int CrimeType { get; set; }
-    public List<double> SeasonalFactors { get; set; } = new();
-    public double StrengthSeasonal { get; set; }
-    public double StrengthTrend { get; set; }
+    public List<double> Trend { get; set; } = new();
+    public List<double> Seasonal { get; set; } = new();
+    public List<double> Residual { get; set; } = new();
+    public Dictionary<string, double> Strength { get; set; } = new();
     public int PeakMonth { get; set; }
     public int TroughMonth { get; set; }
 }

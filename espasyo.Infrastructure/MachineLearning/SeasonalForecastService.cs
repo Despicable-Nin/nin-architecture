@@ -30,20 +30,19 @@ public class SeasonalForecastService(
                     .OrderBy(x => x.Year).ThenBy(x => x.Month)
                     .ToList();
 
-                if (monthly.Count < 14) continue; // need at least 14 months for 12-MA
+                if (monthly.Count < 12) continue;
 
                 var counts = monthly.Select(x => x.Count).ToList();
                 var n = counts.Count;
 
-                // 12-month centered moving average
-                var trend = new double[n];
-                for (int i = 6; i < n - 6; i++)
-                {
-                    trend[i] = counts.Skip(i - 6).Take(12).Average();
-                }
-                // Fill edges with nearest valid value
-                for (int i = 0; i < 6; i++) trend[i] = trend[6];
-                for (int i = n - 6; i < n; i++) trend[i] = trend[n - 7];
+                // Linear regression trend: y = a + b*x
+                var indices = Enumerable.Range(0, n).Select(i => (double)i).ToList();
+                var xMean = indices.Average();
+                var yMean = counts.Average();
+                var b = indices.Zip(counts, (x, y) => (x - xMean) * (y - yMean)).Sum()
+                       / indices.Sum(x => (x - xMean) * (x - xMean));
+                var a = yMean - b * xMean;
+                var trend = indices.Select(x => a + b * x).ToList();
 
                 // Detrend: actual / trend (multiplicative)
                 var detrended = counts.Select((c, i) => trend[i] > 0 ? c / trend[i] : 1.0).ToList();
@@ -90,12 +89,12 @@ public class SeasonalForecastService(
                 {
                     Precinct = group.Key.Precinct,
                     CrimeType = group.Key.CrimeType,
-                    Trend = [.. counts],
+                    Trend = [.. trend],
                     Seasonal = [.. seasonalByMonth],
                     Residual = [.. residual],
                     Strength = new Dictionary<string, double>
                     {
-                        { "trend", 0 },
+                        { "trend", Math.Abs(b) },
                         { "seasonal", Math.Min(seasonalStrength, 1.0) }
                     },
                     PeakMonth = peakMonth,

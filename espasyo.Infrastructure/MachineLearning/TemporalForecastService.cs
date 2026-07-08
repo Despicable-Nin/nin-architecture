@@ -11,6 +11,11 @@ public class TemporalForecastService(
     ILogger<TemporalForecastService> logger
 ) : ITemporalForecastService
 {
+    // Entry point for generating a forecast for all precincts.
+    // 1. Groups raw cluster items by precinct and aggregates them into monthly time series.
+    // 2. Runs the selected model (linear / seasonal / ssa / ensemble) for each precinct.
+    // 3. Computes holdout validation metrics as a quality signal.
+    // 4. Packages everything into a ForecastResponse alongside any user-provided thresholds.
     public async Task<ForecastResponse> GenerateForecast(IEnumerable<ClusterGroup> clusterData, ForecastParameters parameters)
     {
         try
@@ -21,16 +26,18 @@ public class TemporalForecastService(
             var clusterDataList = clusterData.ToList();
             var forecastSeries = new List<ForecastSeries>();
 
+            // Aggregate incident records into monthly count time series, keyed by precinct.
             var groupedData = GroupClusterDataForForecasting(clusterDataList, parameters);
 
-            foreach (var (precinct, timeSeriesData) in groupedData)
+            foreach (var ((precinct, crimeType), timeSeriesData) in groupedData)
             {
+                // Delegate to the model-specific generator (linear / seasonal / ssa / ensemble).
                 var forecasts = await GenerateForecastForSeries(timeSeriesData, parameters, clusterDataList, precinct);
 
                 forecastSeries.Add(new ForecastSeries
                 {
                     Precinct = precinct,
-                    CrimeType = 0,
+                    CrimeType = crimeType,
                     ClusterId = 0,
                     Forecasts = forecasts,
                     Metadata = new Dictionary<string, object>
@@ -47,8 +54,10 @@ public class TemporalForecastService(
                     "No cluster data found to generate forecast. Ensure the cluster data contains items with valid precinct information.");
             }
 
+            // Holdout validation: hold back the last 3 months, train on the rest, compare.
             var metrics = await CalculateRealMetricsAsync(groupedData, parameters);
 
+            // If the caller supplied explicit thresholds, prefer them over computed ones.
             var dynamicThresholds = parameters.CustomThresholds != null
                 ? new ThresholdCalculationResult
                 {
@@ -73,6 +82,9 @@ public class TemporalForecastService(
         }
     }
 
+    // Standalone validation: holds out the last 6 months for each precinct, trains on the
+    // remaining history, and compares predictions against actuals.  Uses MAPE < 25 % as the
+    // reliability threshold.  Precincts with fewer than 24 data points are skipped with a warning.
     public async Task<ForecastValidationResult> ValidateForecastModel(IEnumerable<ClusterGroup> clusterData, ForecastParameters parameters)
     {
         try
@@ -84,8 +96,9 @@ public class TemporalForecastService(
             var warnings = new List<string>();
             var recommendations = new List<string>();
 
-            foreach (var (precinct, timeSeriesData) in groupedData)
+            foreach (var ((precinct, _), timeSeriesData) in groupedData)
             {
+                // Need at least 24 months: 18 for training + 6 for holdout.
                 if (timeSeriesData.Count < 24)
                 {
                     warnings.Add($"Insufficient data for reliable validation (Precinct: {precinct})");
@@ -131,9 +144,12 @@ public class TemporalForecastService(
         }
     }
 
-    private Dictionary<int, List<TimeSeriesData>> GroupClusterDataForForecasting(IEnumerable<ClusterGroup> clusterData, ForecastParameters? parameters = null)
+    // Flattens cluster-grouped incident items into per-precinct monthly time series.
+    // Each incident becomes a single count (Value = 1); records for the same year/month
+    // are summed.  An optional CrimeTypeFilter restricts which crime types are included.
+    private Dictionary<(int Precinct, int CrimeType), List<TimeSeriesData>> GroupClusterDataForForecasting(IEnumerable<ClusterGroup> clusterData, ForecastParameters? parameters = null)
     {
-        var grouped = new Dictionary<int, List<TimeSeriesData>>();
+        var grouped = new Dictionary<(int Precinct, int CrimeType), List<TimeSeriesData>>();
 
         var crimeTypeFilter = ParseCrimeTypeFilter(parameters?.CrimeTypeFilter);
 
@@ -141,10 +157,11 @@ public class TemporalForecastService(
         {
             foreach (var item in cluster.ClusterItems)
             {
+                // Skip items whose crime type is not in the filter, if a filter is set.
                 if (crimeTypeFilter.Count > 0 && !crimeTypeFilter.Contains(item.CrimeType))
                     continue;
 
-                var key = (int)item.Precinct;
+                var key = ((int)item.Precinct, (int)item.CrimeType);
 
                 if (!grouped.ContainsKey(key))
                     grouped[key] = new List<TimeSeriesData>();
@@ -157,6 +174,7 @@ public class TemporalForecastService(
             }
         }
 
+        // Aggregate duplicates (same precinct + same year-month + same crime type) and sort chronologically.
         foreach (var key in grouped.Keys.ToList())
         {
             var aggregated = grouped[key]
@@ -189,6 +207,9 @@ public class TemporalForecastService(
         return result;
     }
 
+    // Dispatches to the model-specific generator based on parameters.ModelType.
+    // Runs on a background thread via Task.Run because ML.NET forecasting can be CPU-heavy.
+    // If the chosen model throws, falls back to the linear trend model as a safe default.
     private async Task<List<ForecastPoint>> GenerateForecastForSeries(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData, int? precinct = null)
     {
         return await Task.Run(() =>
@@ -216,35 +237,60 @@ public class TemporalForecastService(
         });
     }
 
+    // Uses ordinary least squares (simple linear regression) on the last 12 months of data
+    // to fit a trend line, then projects it forward for the requested horizon months.
     private List<ForecastPoint> GenerateLinearTrendForecast(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData, int? precinct = null)
     {
         var forecasts = new List<ForecastPoint>();
+
+        // Only the most recent 12 data points are used so that recent patterns dictate the trend,
+        // and older, potentially obsolete patterns don't skew the forecast.
         var recent = data.TakeLast(Math.Min(12, data.Count)).ToList();
 
+        // OLS closed‑form: y = slope * x + intercept
+        // x values are just 1‑based indices into `recent`, so all sums can be computed
+        // directly from n without iterating a second time for sumX and sumXX.
         var n = recent.Count;
-        var sumX = n * (n + 1) / 2;
-        var sumY = recent.Sum(d => d.Value);
-        var sumXY = recent.Select((d, i) => (i + 1) * d.Value).Sum();
-        var sumXX = n * (n + 1) * (2 * n + 1) / 6;
+        var sumX = n * (n + 1) / 2;                                              // Σx  (1 + 2 + … + n)
+        var sumY = recent.Sum(d => d.Value);                                     // Σy
+        var sumXY = recent.Select((d, i) => (i + 1) * d.Value).Sum();           // Σxy
+        var sumXX = n * (n + 1) * (2 * n + 1) / 6;                              // Σx² (1² + 2² + … + n²)
 
-        var slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
-        var intercept = (sumY - slope * sumX) / n;
+        var slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);       // Δy per time step
+        var intercept = (sumY - slope * sumX) / n;                               // y at x = 0
 
+        // The first forecast month should be the later of: the month after the last
+        // historical data point, or the current calendar month.  This avoids predicting
+        // months that have already passed.
+        // 14‑day rule: within the first 14 days the current month is included; after
+        // that the forecast begins from the next month.
         var lastDate = data.Max(d => d.Date);
+        var today = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+        var baseDate = DateTime.UtcNow.Day <= 14 ? today.AddMonths(-1) : today;
+        var startDate = lastDate > baseDate ? lastDate : baseDate;
         var recentAverage = recent.Average(d => d.Value);
 
         for (int i = 0; i < parameters.Horizon; i++)
         {
+            // Evaluate the regression line at x = n + i + 1, which is the (i+1)‑th month
+            // beyond the training window.  Clamp to 0 — negative crime counts are nonsense.
             var forecastValue = Math.Max(0, intercept + slope * (n + i + 1));
+
+            // Error margin widens with each future step to reflect growing uncertainty.
+            // When WeightRecentData is true the base margin is tighter (15 % vs 20 %),
+            // because recent data is assumed to be more predictive.
             var errorMargin = recentAverage * (parameters.WeightRecentData ? 0.15 : 0.2);
 
             var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, parameters, precinct);
 
+            // Each successive month is trusted 10 % less than the previous one; the base
+            // ConfidenceLevel is also scaled by 0.8 because univariate linear regression
+            // is a relatively naïve model.
             var decayedConfidence = parameters.ConfidenceLevel * 0.8 * Math.Pow(0.90, i);
 
             forecasts.Add(new ForecastPoint
             {
-                Timestamp = lastDate.AddMonths(i + 1),
+                Timestamp = startDate.AddMonths(i + 1),
                 Forecast = forecastValue,
                 LowerBound = Math.Max(0, forecastValue - errorMargin * (1 + i * 0.1)),
                 UpperBound = forecastValue + errorMargin * (1 + i * 0.1),
@@ -257,11 +303,18 @@ public class TemporalForecastService(
         return forecasts;
     }
 
+    // Singular Spectrum Analysis (SSA) via ML.NET's built-in ForecasterBySsa.
+    // Decomposes the time series into trend, seasonality, and noise components, then
+    // reconstructs and projects each component forward.  The window size is constrained
+    // to at most 12 and at most half the series length to satisfy SSA's internal invariants.
+    // ML.NET SSA natively outputs confidence intervals; when they are missing (unlikely),
+    // sensible fallback bounds (±20 %) are used instead.
     private List<ForecastPoint> GenerateSSAForecast(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData, int? precinct = null)
     {
         var forecasts = new List<ForecastPoint>();
         var dataView = mlContext.Data.LoadFromEnumerable(data);
 
+        // SSA requires trainSize > 2 * windowSize; cap conservatively.
         var windowSize = Math.Min(12, Math.Max(1, (data.Count - 1) / 2));
 
         var pipeline = mlContext.Forecasting.ForecastBySsa(
@@ -280,17 +333,22 @@ public class TemporalForecastService(
         var forecast = forecastEngine.Predict();
 
         var lastDate = data.Max(d => d.Date);
+        var today = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+        var baseDate = DateTime.UtcNow.Day <= 14 ? today.AddMonths(-1) : today;
+        var startDate = lastDate > baseDate ? lastDate : baseDate;
         var recentAverage = data.TakeLast(6).Average(d => d.Value);
 
         for (int i = 0; i < parameters.Horizon; i++)
         {
-            var forecastDate = lastDate.AddMonths(i + 1);
+            var forecastDate = startDate.AddMonths(i + 1);
             var forecastValue = forecast.ForecastedValues[i];
+            // Fallback bounds: if ML.NET didn't produce them, use ±20 % of the point forecast.
             var lowerBound = forecast.LowerBoundValues?[i] ?? forecastValue * 0.8f;
             var upperBound = forecast.UpperBoundValues?[i] ?? forecastValue * 1.2f;
 
             var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, parameters, precinct);
 
+            // SSA is the most sophisticated model available; confidence decays gently (3 % / month).
             var decayedConfidence = parameters.ConfidenceLevel * Math.Pow(0.97, i);
 
             forecasts.Add(new ForecastPoint
@@ -308,11 +366,19 @@ public class TemporalForecastService(
         return forecasts;
     }
 
+    // Hybrid seasonal + linear trend model.
+    // 1. Fits an OLS trend line on the last 12 months (same as GenerateLinearTrendForecast).
+    // 2. Computes a per-month seasonal multiplier from the full history
+    //    (e.g. January average / overall average).
+    // 3. Multiplies the trend projection by the corresponding seasonal multiplier.
+    // This captures recurring yearly patterns (e.g. holiday spikes, monsoon lulls)
+    // that a pure linear model would miss.
     private List<ForecastPoint> GenerateSeasonalForecast(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData, int? precinct = null)
     {
         var forecasts = new List<ForecastPoint>();
         var recent = data.TakeLast(Math.Min(12, data.Count)).ToList();
 
+        // OLS on the last 12 months for the underlying trend.
         var n = recent.Count;
         var sumX = n * (n + 1) / 2;
         var sumY = recent.Sum(d => d.Value);
@@ -322,25 +388,34 @@ public class TemporalForecastService(
         var slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
         var intercept = (sumY - slope * sumX) / n;
 
+        // Build a lookup of the average count for each calendar month (1-12).
+        // This captures seasonal patterns across all historical years.
         var monthlyAverages = data
             .GroupBy(d => d.Date.Month)
             .ToDictionary(g => g.Key, g => g.Average(d => d.Value));
 
         var lastDate = data.Max(d => d.Date);
+        var today = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+        var baseDate = DateTime.UtcNow.Day <= 14 ? today.AddMonths(-1) : today;
+        var startDate = lastDate > baseDate ? lastDate : baseDate;
         var recentAverage = recent.Average(d => d.Value);
 
         for (int i = 0; i < parameters.Horizon; i++)
         {
-            var forecastDate = lastDate.AddMonths(i + 1);
+            var forecastDate = startDate.AddMonths(i + 1);
             var trendValue = intercept + slope * (n + i + 1);
 
+            // seasonalMultiplier > 1 means this month is historically busier than average.
             var seasonalMultiplier = monthlyAverages.GetValueOrDefault(forecastDate.Month, recentAverage) / recentAverage;
             var forecastValue = Math.Max(0, trendValue * seasonalMultiplier);
 
+            // Wider base margin (25 % vs 20 %) when IncludeSeasonality is true because the
+            // seasonal adjustment adds another layer of uncertainty.
             var errorMargin = recentAverage * (parameters.IncludeSeasonality ? 0.25 : 0.2) * (1 + i * 0.08);
 
             var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, parameters, precinct);
 
+            // Seasonal model has moderate confidence; decays 7 % per month.
             var decayedConfidence = parameters.ConfidenceLevel * 0.9 * Math.Pow(0.93, i);
 
             forecasts.Add(new ForecastPoint
@@ -358,6 +433,11 @@ public class TemporalForecastService(
         return forecasts;
     }
 
+    // Runs all three models (SSA, seasonal, linear) independently, then averages their
+    // outputs per time step.  The ensemble lower bound is the minimum across models (most
+    // pessimistic), the upper bound the maximum (most optimistic), and confidence follows
+    // the most confident model.  Trend/risk are decided by majority vote.
+    // If every constituent model fails, falls back to the linear trend.
     private List<ForecastPoint> GenerateEnsembleForecast(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData, int? precinct = null)
     {
         logger.LogInformation("Generating ensemble forecast for precinct {Precinct}", precinct);
@@ -365,6 +445,7 @@ public class TemporalForecastService(
         var modelTypes = new[] { "ssa", "seasonal", "linear" };
         var allResults = new Dictionary<string, List<ForecastPoint>>();
 
+        // Run each model independently; a single failure won't sink the whole ensemble.
         foreach (var modelType in modelTypes)
         {
             try
@@ -402,6 +483,7 @@ public class TemporalForecastService(
 
             if (values.Count == 0) break;
 
+            // Average point forecast, widest confidence interval, majority trend/risk.
             var ensembleForecast = values.Average(p => p.Forecast);
             var ensembleLower = values.Min(p => p.LowerBound);
             var ensembleUpper = values.Max(p => p.UpperBound);
@@ -424,6 +506,12 @@ public class TemporalForecastService(
         return forecasts;
     }
 
+    // Classifies the forecast point into a trend direction (increasing / stable / decreasing)
+    // and a risk level (low / medium / high / critical).  Trend thresholds (±10 % by default)
+    // come from CustomThresholds if provided, otherwise use the built-in 1.1 / 0.9 constants.
+    // Risk thresholds can be user-supplied or computed dynamically from the historical data
+    // distribution (see CalculateEnhancedDynamicRiskThresholds).  When precinct-specific
+    // thresholds exist they are preferred; otherwise the global fallback is used.
     private (string trend, string riskLevel) AnalyzeForecastTrend(
         double forecastValue,
         double recentAverage,
@@ -438,6 +526,7 @@ public class TemporalForecastService(
         var trend = forecastValue > recentAverage * trendIncreaseThreshold ? "increasing" :
                    forecastValue < recentAverage * trendDecreaseThreshold ? "decreasing" : "stable";
 
+        // If the caller provided explicit thresholds, use them directly and skip dynamic calculation.
         if (t != null)
         {
             var ratio = recentAverage > 0 ? forecastValue / recentAverage : 1.0;
@@ -467,6 +556,12 @@ public class TemporalForecastService(
         return (enhanced.GlobalThresholds.LowMax, enhanced.GlobalThresholds.MediumMax, enhanced.GlobalThresholds.HighMax);
     }
 
+    // Computes data-driven risk thresholds by comparing recent (last 6 months) incident
+    // volume against older (prior) volume for each precinct/crime-type combination.  The
+    // ratio (recent / older) is collected globally (weighted by data volume) and per
+    // precinct.  Weighted percentiles (25th, 75th, 90th) determine the low/medium/high/critical
+    // boundaries.  Falls back to safe defaults (0.8 / 1.2 / 1.5) when insufficient data
+    // is available.
     private ThresholdCalculationResult CalculateEnhancedDynamicRiskThresholds(IEnumerable<ClusterGroup> clusterData)
     {
         try
@@ -487,6 +582,7 @@ public class TemporalForecastService(
             var dataPointsPerPrecinct = (Dictionary<int, int>)result["DataPointsPerPrecinct"];
             var precinctStats = (Dictionary<int, Dictionary<string, double>>)result["PrecinctStatistics"];
 
+            // Group items by (precinct, crimeType); skip groups with ≤ 6 items (too small).
             var allGroups = clusterData
                 .SelectMany(c => c.ClusterItems)
                 .GroupBy(item => new { Precinct = (int)item.Precinct, CrimeType = (int)item.CrimeType })
@@ -507,8 +603,9 @@ public class TemporalForecastService(
                 var precinct = group.Key.Precinct;
                 var items = group.OrderBy(i => new DateTime(i.Year, i.Month, 1)).ToList();
 
-                if (items.Count < 12) continue;
+                if (items.Count < 12) continue; // Need ≥ 12 months for a meaningful split.
 
+                // Compare the last 6 months to the preceding period, normalized to a per-6-month basis.
                 var recentCount = items.TakeLast(6).Count();
                 var olderItems = items.Take(items.Count - 6).ToList();
                 var avgOlder = olderItems.Count / Math.Max(1.0, (items.Count - 6) / 6.0);
@@ -516,7 +613,7 @@ public class TemporalForecastService(
                 if (avgOlder > 0)
                 {
                     var ratio = recentCount / avgOlder;
-                    var weight = items.Count;
+                    var weight = items.Count; // More data = more influence on global thresholds.
 
                     globalRatiosWithWeights.Add((ratio, weight));
 
@@ -528,6 +625,7 @@ public class TemporalForecastService(
                 }
             }
 
+            // Compute global thresholds from weighted percentiles (need ≥ 5 data points).
             if (globalRatiosWithWeights.Count >= 5)
             {
                 var globalThresholds = CalculateWeightedPercentileThresholds(globalRatiosWithWeights);
@@ -554,6 +652,7 @@ public class TemporalForecastService(
                 warnings.Add($"Insufficient data for global thresholds ({globalRatiosWithWeights.Count} data points), using defaults");
             }
 
+            // Compute per-precinct thresholds from simple percentiles (need ≥ 3 ratios).
             foreach (var (precinct, ratios) in precinctRatios)
             {
                 if (ratios.Count >= 3)
@@ -701,7 +800,7 @@ public class TemporalForecastService(
     }
 
     private async Task<ForecastMetrics> CalculateRealMetricsAsync(
-        Dictionary<int, List<TimeSeriesData>> groupedData,
+        Dictionary<(int Precinct, int CrimeType), List<TimeSeriesData>> groupedData,
         ForecastParameters parameters)
     {
         const int HoldoutMonths = 3;

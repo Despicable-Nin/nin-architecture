@@ -43,6 +43,8 @@ public class SaveForecastSnapshotCommandHandler(
             p.Confidence,
             p.RiskLevel,
             p.Trend)).ToList();
+        
+        
 
         var spatialResults = request.SpatialPredictions.Select(s => new SpatialForecastResult(
             run.Id,

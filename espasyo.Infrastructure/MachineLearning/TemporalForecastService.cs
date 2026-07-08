@@ -147,6 +147,7 @@ public class TemporalForecastService(
     // Flattens cluster-grouped incident items into per-precinct monthly time series.
     // Each incident becomes a single count (Value = 1); records for the same year/month
     // are summed.  An optional CrimeTypeFilter restricts which crime types are included.
+    // Missing months are filled with 0 so the forecast models see a complete calendar timeline.
     private Dictionary<(int Precinct, int CrimeType), List<TimeSeriesData>> GroupClusterDataForForecasting(IEnumerable<ClusterGroup> clusterData, ForecastParameters? parameters = null)
     {
         var grouped = new Dictionary<(int Precinct, int CrimeType), List<TimeSeriesData>>();
@@ -175,6 +176,7 @@ public class TemporalForecastService(
         }
 
         // Aggregate duplicates (same precinct + same year-month + same crime type) and sort chronologically.
+        // Then fill missing months with 0.
         foreach (var key in grouped.Keys.ToList())
         {
             var aggregated = grouped[key]
@@ -187,7 +189,26 @@ public class TemporalForecastService(
                 .OrderBy(d => d.Date)
                 .ToList();
 
-            grouped[key] = aggregated;
+            if (aggregated.Count > 0)
+            {
+                var minDate = aggregated.Min(d => d.Date);
+                var maxDate = aggregated.Max(d => d.Date);
+                var filled = new List<TimeSeriesData>();
+                var cursor = new DateTime(minDate.Year, minDate.Month, 1);
+
+                while (cursor <= maxDate)
+                {
+                    var existing = aggregated.FirstOrDefault(d => d.Date == cursor);
+                    filled.Add(existing ?? new TimeSeriesData { Date = cursor, Value = 0 });
+                    cursor = cursor.AddMonths(1);
+                }
+
+                grouped[key] = filled;
+            }
+            else
+            {
+                grouped[key] = aggregated;
+            }
         }
 
         return grouped;

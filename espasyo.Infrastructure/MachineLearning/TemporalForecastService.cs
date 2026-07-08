@@ -291,6 +291,7 @@ public class TemporalForecastService(
         var startDate = lastDate > baseDate ? lastDate : baseDate;
         var recentAverage = recent.Average(d => d.Value);
 
+        var runningConfidence = parameters.ConfidenceLevel * 0.8;
         for (int i = 0; i < parameters.Horizon; i++)
         {
             // Evaluate the regression line at x = n + i + 1, which is the (i+1)‑th month
@@ -304,10 +305,10 @@ public class TemporalForecastService(
 
             var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, parameters, precinct);
 
-            // Each successive month is trusted 10 % less than the previous one; the base
-            // ConfidenceLevel is also scaled by 0.8 because univariate linear regression
-            // is a relatively naïve model.
-            var decayedConfidence = parameters.ConfidenceLevel * 0.8 * Math.Pow(0.90, i);
+            // Confidence decays each month by a randomized rate around 0.90 (range 0.87-0.93)
+            // to reflect growing uncertainty in a non-uniform way.
+            if (i > 0)
+                runningConfidence *= 0.87 + Random.Shared.NextDouble() * 0.06;
 
             forecasts.Add(new ForecastPoint
             {
@@ -315,7 +316,7 @@ public class TemporalForecastService(
                 Forecast = forecastValue,
                 LowerBound = Math.Max(0, forecastValue - errorMargin * (1 + i * 0.1)),
                 UpperBound = forecastValue + errorMargin * (1 + i * 0.1),
-                Confidence = Math.Max(0.1, decayedConfidence),
+                Confidence = Math.Max(0.1, runningConfidence),
                 Trend = trend,
                 RiskLevel = riskLevel
             });
@@ -359,6 +360,7 @@ public class TemporalForecastService(
         var startDate = lastDate > baseDate ? lastDate : baseDate;
         var recentAverage = data.TakeLast(6).Average(d => d.Value);
 
+        var runningConfidence = parameters.ConfidenceLevel;
         for (int i = 0; i < parameters.Horizon; i++)
         {
             var forecastDate = startDate.AddMonths(i + 1);
@@ -369,8 +371,10 @@ public class TemporalForecastService(
 
             var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, parameters, precinct);
 
-            // SSA is the most sophisticated model available; confidence decays gently (3 % / month).
-            var decayedConfidence = parameters.ConfidenceLevel * Math.Pow(0.97, i);
+            // Confidence decays each month by a randomized rate around 0.97 (range 0.95-0.99).
+            // SSA is the most sophisticated model so decay is gentler than linear/seasonal.
+            if (i > 0)
+                runningConfidence *= 0.95 + Random.Shared.NextDouble() * 0.04;
 
             forecasts.Add(new ForecastPoint
             {
@@ -378,7 +382,7 @@ public class TemporalForecastService(
                 Forecast = Math.Max(0, forecastValue),
                 LowerBound = Math.Max(0, lowerBound),
                 UpperBound = Math.Max(0, upperBound),
-                Confidence = Math.Max(0.1, decayedConfidence),
+                Confidence = Math.Max(0.1, runningConfidence),
                 Trend = trend,
                 RiskLevel = riskLevel
             });
@@ -421,6 +425,7 @@ public class TemporalForecastService(
         var startDate = lastDate > baseDate ? lastDate : baseDate;
         var recentAverage = recent.Average(d => d.Value);
 
+        var runningConfidence = parameters.ConfidenceLevel * 0.9;
         for (int i = 0; i < parameters.Horizon; i++)
         {
             var forecastDate = startDate.AddMonths(i + 1);
@@ -436,8 +441,9 @@ public class TemporalForecastService(
 
             var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, parameters, precinct);
 
-            // Seasonal model has moderate confidence; decays 7 % per month.
-            var decayedConfidence = parameters.ConfidenceLevel * 0.9 * Math.Pow(0.93, i);
+            // Confidence decays each month by a randomized rate around 0.93 (range 0.90-0.96).
+            if (i > 0)
+                runningConfidence *= 0.90 + Random.Shared.NextDouble() * 0.06;
 
             forecasts.Add(new ForecastPoint
             {
@@ -445,7 +451,7 @@ public class TemporalForecastService(
                 Forecast = forecastValue,
                 LowerBound = Math.Max(0, forecastValue - errorMargin),
                 UpperBound = forecastValue + errorMargin,
-                Confidence = Math.Max(0.1, decayedConfidence),
+                Confidence = Math.Max(0.1, runningConfidence),
                 Trend = trend,
                 RiskLevel = riskLevel
             });

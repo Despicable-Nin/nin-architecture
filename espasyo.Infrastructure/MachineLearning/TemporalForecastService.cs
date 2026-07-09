@@ -280,6 +280,13 @@ public class TemporalForecastService(
         var slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);       // Δy per time step
         var intercept = (sumY - slope * sumX) / n;                               // y at x = 0
 
+        // For sparse series (≤6 incidents in 12 months), the OLS slope is dominated
+        // by noise rather than signal.  Summing hundreds of noisy upward slopes across
+        // (precinct × crimeType) combos inflates the aggregated total.  Fall back to
+        // the series' own average so sparse combos contribute their historical mean
+        // instead of a noise-driven extrapolation.
+        var useAverageFallback = sumY <= 6;
+
         // The first forecast month should be the later of: the month after the last
         // historical data point, or the current calendar month.  This avoids predicting
         // months that have already passed.
@@ -296,7 +303,10 @@ public class TemporalForecastService(
         {
             // Evaluate the regression line at x = n + i + 1, which is the (i+1)‑th month
             // beyond the training window.  Clamp to 0 — negative crime counts are nonsense.
-            var forecastValue = Math.Max(0, intercept + slope * (n + i + 1));
+            // For sparse series the prediction is just the historical average (flat).
+            var forecastValue = useAverageFallback
+                ? sumY / (double)n
+                : Math.Max(0, intercept + slope * (n + i + 1));
 
             // Error margin widens with each future step to reflect growing uncertainty.
             // When WeightRecentData is true the base margin is tighter (15 % vs 20 %),
@@ -413,6 +423,10 @@ public class TemporalForecastService(
         var slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
         var intercept = (sumY - slope * sumX) / n;
 
+        // For sparse series (≤6 incidents in 12 months), fall back to the historical
+        // average to avoid noise-driven slope inflation when aggregated across combos.
+        var useAverageFallback = sumY <= 6;
+
         // Build a lookup of the average count for each calendar month (1-12).
         // This captures seasonal patterns across all historical years.
         var monthlyAverages = data
@@ -430,7 +444,9 @@ public class TemporalForecastService(
         for (int i = 0; i < parameters.Horizon; i++)
         {
             var forecastDate = startDate.AddMonths(i + 1);
-            var trendValue = intercept + slope * (n + i + 1);
+            var trendValue = useAverageFallback
+                ? sumY / (double)n
+                : intercept + slope * (n + i + 1);
 
             // seasonalMultiplier > 1 means this month is historically busier than the
             // overall monthly average (across all years), and < 1 means quieter.

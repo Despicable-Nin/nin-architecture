@@ -168,3 +168,201 @@ sudo update-ca-certificates
 Once that last command runs, it should output something like `1 added, 0 removed`.
 
 If it does, **completely close and reopen your browser**, and your CORS/Network error should finally be gone!
+
+---
+
+## System Architecture: Analysis → Statistical → Prediction Workflow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  LAYER 1: API ENTRY (espasyo.WebAPI/Controllers/IncidentController.cs)     │
+│                                                                             │
+│  POST /api/Incident/forecast/statistical                                    │
+│     Request:  { ClusterGroup[], Horizon,  ModelType, RiskScoringConfig,     │
+│                 ConfidenceLevel, CrimeTypeFilter, SeverityFilter }          │
+│     Response: ForecastResponse                                              │
+└───────────────────────────────────┬─────────────────────────────────────────┘
+                                    │ mediator.Send()
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  LAYER 2: APPLICATION ORCHESTRATOR (GenerateStatisticalForecastCommand-    │
+│                                    Handler.cs)                              │
+│                                                                             │
+│  1. Validates input (horizon 6-24, confidence 0-1, data non-empty)          │
+│  2. Maps command → ForecastParameters                                       │
+│                                                                             │
+│  ┌─►  A. TEMPORAL FORECAST  ──────────────────────────────────────────┐    │
+│  │     machineLearningService.GenerateStatisticalForecast()            │    │
+│  │       → delegate to TemporalForecastService.GenerateForecast()      │    │
+│  │         → Group by (precinct, crimeType), aggregate monthly counts  │    │
+│  │         → Fill missing months with 0                                │    │
+│  │         → Run model per series:                                     │    │
+│  │             Linear    → OLS on last 12 months, project forward      │    │
+│  │             Seasonal  → OLS trend × per-month seasonal multipliers  │    │
+│  │             SSA       → ML.NET ForecastBySsa (windowed SVD)         │    │
+│  │             Ensemble  → Average of all 3, widest bounds, maj. vote │    │
+│  │         → AnalyzeForecastTrend(): classify (trend, riskLevel)       │    │
+│  │         → CalculateRealMetrics(): holdout validation (MAE/RMSE/…)   │    │
+│  │     ← ForecastResponse { Series: ForecastSeries[] }                 │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─►  B. FLATTEN & ENRICH ────────────────────────────────────────────┐    │
+│  │     FlattenTemporalSeries(): explode ForecastSeries → ForecastRow[] │    │
+│  │       (1 row per point, or 3× if time-of-day split enabled)        │    │
+│  │     ComputeCompositeRiskScores():                                   │    │
+│  │       score = (severityScore/10) × crimeRiskFactor × heinousMult   │    │
+│  │     ← List<ForecastRow> (CompositeRiskScore populated)             │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─►  C. SPATIAL DISTRIBUTION ────────────────────────────────────────┐    │
+│  │     spatialForecastService.DistributeForecast()                     │    │
+│  │       → Distribute temporal forecast across clusters proportionally │    │
+│  │         to each cluster's historical share within the precinct      │    │
+│  │     ← List<SpatialForecastRow>                                      │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─►  D. SEASONAL DECOMPOSITION ──────────────────────────────────────┐    │
+│  │     seasonalForecastService.PredictSeasonal()                       │    │
+│  │       → STL-like decomposition: trend + seasonal indices + residual │    │
+│  │       → Peak/trough month, seasonal strength                        │    │
+│  │     ← List<SeasonalPredictionRow>                                   │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+│  ┌─►  E. ENHANCE ─────────────────────────────────────────────────────┐    │
+│  │     EnhanceForecastWithExplanations()                                │    │
+│  │       → GenerateForecastSummary(): trends, risks, key insight,      │    │
+│  │         recommended actions, composite risk averages                 │    │
+│  │       → GenerateForecastExplanation(): model description,           │    │
+│  │         data quality notes, interpretation guide                    │    │
+│  │     ← ForecastResponse (fully populated)                             │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+└───────────────────────────────────┬─────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  RESPONSE BODY (ForecastResponse)                                           │
+│                                                                             │
+│  {                                                                          │
+│    Series: ForecastSeries[]            ← raw temporal per precinct/crime    │
+│    Forecasts: ForecastRow[]            ← flattened, scored                  │
+│    Spatial: SpatialForecastRow[]       ← cluster-level distribution         │
+│    SeasonalPredictions: SeasonalPredictionRow[]  ← decomposition            │
+│    Metrics: { MAE, RMSE, MAPE, ModelAccuracy }                              │
+│    DynamicThresholds: { global + per-precinct risk thresholds }             │
+│    Summary: { overallTrend, dominantRisk, keyInsight, actions,             │
+│               averageCompositeRiskScore, maxCompositeRiskScore }            │
+│    Explanation: { modelDescription, dataQualityNotes, limitations,         │
+│                   riskAssessmentLogic, howToInterpret }                     │
+│    TemporalPatterns: { peakTimeOfDay, peakMonth, troughMonth }             │
+│  }                                                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Related Endpoints (same pipeline used internally)
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/Incident/forecast/statistical` | Full forecast: temporal + spatial + seasonal + explanations |
+| `POST /api/Incident/forecast/validate` | Holdout validation only (returns metrics + reliability) |
+| `POST /api/Incident/forecast/assess-data-quality` | Data quality assessment (outlier detection, completeness) |
+| `POST /api/Incident/forecast/hotspots` | Runs forecast → convex hull per cluster → GeoJSON polygons |
+| `POST /api/Incident/anomalies` | IQR / Z-score / moving-average anomaly detection |
+
+---
+
+## Composite Risk Scoring for Forecasts
+
+Each forecast row (`ForecastRow`) now includes a `CompositeRiskScore` field — a numeric score (0–~3.0) derived from three factors:
+
+```
+CompositeRiskScore = (crimeSeverityScore / 10.0) × precinctGeographicRisk × heinousMultiplier
+```
+
+### Factors
+
+| Factor | Source | Default range |
+|---|---|---|
+| **Crime severity score** | `RiskScoringConfig.CrimeTypeSeverityScores` (or built-in mapping from `GetCrimeTypeSeverityScore()`) | 1.0 (Vandalism) – 10.0 (Murder) |
+| **Precinct geographic risk** | `RiskScoringConfig.PrecinctCrimeRiskFactors` (or built-in from `MuntinlupaBarangayData`) | 0.5 (Ayala Alabang) – 1.8 (Alabang) |
+| **Heinous multiplier** | `RiskScoringConfig.HeinousBoostFactor` / `HeinousPresenceFactor` | 1.0 (no heinous in scope), 1.2 (heinous present, non-heinous crime), 1.5 (heinous crime with heinous in scope) |
+
+### Heinous Crime Types
+
+By default, crime types mapped to `SeverityEnum.High` are considered heinous:
+
+| ID | Crime Type |
+|---|---|
+| 7 | DrugTrafficking |
+| 11 | HumanTrafficking |
+| 12 | Homicide |
+| 14 | Kidnapping |
+| 15 | Murder |
+| 16 | Rape |
+
+### Heinous Multiplier Logic
+
+| Scenario | Multiplier |
+|---|---|
+| No heinous crime types in the filtered/data set | 1.0 |
+| Heinous present in filter/data AND the row's crime type is heinous | `HeinousBoostFactor` (default 1.5) |
+| Heinous present in filter/data BUT the row's crime type is NOT heinous | `HeinousPresenceFactor` (default 1.2) |
+
+### Configurability
+
+All parameters can be overridden from the front-end via `RiskScoringConfig` in the `POST /api/incident/forecast/statistical` request body. When omitted, built-in defaults apply for backward compatibility.
+
+**Example request with overrides:**
+
+```json
+{
+  "clusterData": [...],
+  "horizon": 12,
+  "confidenceLevel": 0.95,
+  "modelType": "ssa",
+  "riskScoringConfig": {
+    "heinousBoostFactor": 2.0,
+    "heinousPresenceFactor": 1.5,
+    "crimeTypeSeverityScores": {
+      "15": 8.0,
+      "7": 7.0
+    },
+    "precinctCrimeRiskFactors": {
+      "0": 2.0,
+      "1": 1.0
+    },
+    "heinousCrimeTypeIds": [7, 11, 12, 14, 15, 16]
+  }
+}
+```
+
+### Output
+
+Each `ForecastRow` in the response includes:
+
+```json
+{
+  "compositeRiskScore": 2.7,
+  "riskLevel": "high",
+  ...
+}
+```
+
+The `ForecastSummary` also exposes:
+
+```json
+{
+  "averageCompositeRiskScore": 1.85,
+  "maxCompositeRiskScore": 2.7,
+  ...
+}
+```
+
+The existing `riskLevel` (low/medium/high/critical from the forecast engine's volume-vs-historical ratio) and `DominantRiskLevel` are **not affected** — `CompositeRiskScore` is a separate additive field.
+
+### Relevant Files
+
+| File | Purpose |
+|---|---|
+| `espasyo.Application/Common/Models/ML/TrainerModel.cs` | `RiskScoringConfig` record, `CompositeRiskScore` on `ForecastRow` and `ForecastSummary` |
+| `espasyo.Application/UseCase/Incidents/Commands/GenerateStatisticalForecast/GenerateStatisticalForecastCommandHandler.cs` | `ComputeCompositeRiskScores()` and `GetCrimeTypesInScope()` methods |
+| `espasyo.WebAPI/Controllers/IncidentController.cs` | Passes `RiskScoringConfig` from API request to MediatR command |

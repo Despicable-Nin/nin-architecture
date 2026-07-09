@@ -39,7 +39,8 @@ public class GenerateStatisticalForecastCommandHandler(
                 IncludeTrend = request.IncludeTrend,
                 CrimeTypeFilter = request.CrimeTypeFilter,
                 SeverityFilter = request.SeverityFilter,
-                CustomThresholds = request.CustomThresholds
+                CustomThresholds = request.CustomThresholds,
+                RiskScoringConfig = request.RiskScoringConfig
             };
 
             // Temporal (always runs — base forecast)
@@ -50,6 +51,9 @@ public class GenerateStatisticalForecastCommandHandler(
                 : null;
 
             var flatForecasts = FlattenTemporalSeries(forecast.Series, timeOfDayProportions);
+
+            // Composite risk scoring (crime severity × geographic risk × heinous multiplier)
+            flatForecasts = ComputeCompositeRiskScores(flatForecasts, request, parameters);
 
             // Spatial
             var spatialRows = await spatialForecastService.DistributeForecast(
@@ -135,6 +139,8 @@ public class GenerateStatisticalForecastCommandHandler(
         var keyInsight = GenerateKeyInsight(overallTrend, dominantRisk, highRiskCount + criticalRiskCount);
         var actions = GenerateRecommendedActions(dominantRisk, overallTrend);
         
+        var compositeScores = allForecasts.Select(f => f.CompositeRiskScore).ToList();
+
         return new ForecastSummary
         {
             TotalForecasts = allForecasts.Count,
@@ -144,7 +150,9 @@ public class GenerateStatisticalForecastCommandHandler(
             DominantRiskLevel = dominantRisk,
             AverageConfidence = allForecasts.Average(f => f.Confidence),
             KeyInsight = keyInsight,
-            RecommendedActions = actions
+            RecommendedActions = actions,
+            AverageCompositeRiskScore = compositeScores.Count > 0 ? Math.Round(compositeScores.Average(), 4) : 0,
+            MaxCompositeRiskScore = compositeScores.Count > 0 ? Math.Round(compositeScores.Max(), 4) : 0
         };
     }
     
@@ -225,6 +233,72 @@ public class GenerateStatisticalForecastCommandHandler(
     }
 
     private record TimeOfDayProps(double Morning, double Afternoon, double Evening);
+
+    /// <summary>
+    /// Computes CompositeRiskScore for every ForecastRow using the formula:
+    ///   score = (severityScore / 10.0) * precinctRiskFactor * heinousMultiplier
+    ///
+    /// All parameters come from RiskScoringConfig (with built-in defaults when not overridden).
+    /// HeinousMultiplier:
+    ///   - 1.5 (or config override) if the row's crime type is heinous AND heinous crimes are present in the filter/data
+    ///   - 1.2 (or config override) if the row's crime type is NOT heinous but heinous crimes ARE present
+    ///   - 1.0 otherwise
+    /// </summary>
+    private static List<ForecastRow> ComputeCompositeRiskScores(
+        List<ForecastRow> rows,
+        GenerateStatisticalForecastCommand request,
+        ForecastParameters parameters)
+    {
+        var config = parameters.RiskScoringConfig ?? new RiskScoringConfig();
+
+        // Determine which crime types are in scope for "heinous present" check.
+        var crimeTypesInScope = GetCrimeTypesInScope(request, rows);
+        var heinousIds = config.GetHeinousCrimeTypeIds();
+        var hasHeinousInScope = crimeTypesInScope.Intersect(heinousIds).Any();
+
+        return rows.Select(r =>
+        {
+            if (r.CrimeType is not int crimeTypeId)
+                return r; // rows without a crime type keep default score of 0
+
+            var severityScore = config.GetSeverityScore(crimeTypeId);
+            var precinctRisk = config.GetPrecinctRiskFactor(r.Precinct);
+            var isHeinous = heinousIds.Contains(crimeTypeId);
+
+            var multiplier = hasHeinousInScope
+                ? (isHeinous ? config.HeinousBoostFactor : config.HeinousPresenceFactor)
+                : 1.0;
+
+            var compositeScore = (severityScore / 10.0) * precinctRisk * multiplier;
+
+            return r with { CompositeRiskScore = Math.Round(compositeScore, 4) };
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Returns the set of crime type IDs that are in scope for the "heinous present" determination.
+    /// Priority: CrimeTypeFilter (if provided and non-empty) → distinct CrimeType values in forecast rows.
+    /// </summary>
+    private static HashSet<int> GetCrimeTypesInScope(
+        GenerateStatisticalForecastCommand request,
+        List<ForecastRow> rows)
+    {
+        if (request.CrimeTypeFilter is { Length: > 0 } filter)
+        {
+            return filter
+                .SelectMany(f => f.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                .Select(s => int.TryParse(s, out var id) ? id : (int?)null)
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .ToHashSet();
+        }
+
+        return rows
+            .Select(r => r.CrimeType)
+            .Where(ct => ct.HasValue)
+            .Cast<int>()
+            .ToHashSet();
+    }
 
     private static List<ForecastRow> FlattenTemporalSeries(
         List<ForecastSeries> series,

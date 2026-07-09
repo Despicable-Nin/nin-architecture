@@ -88,6 +88,11 @@ public record ForecastParameters
     public string[]? CrimeTypeFilter { get; init; }
     public string[]? SeverityFilter { get; init; }
     public DynamicThresholds? CustomThresholds { get; init; }
+    /// <summary>
+    /// Optional configuration for CompositeRiskScore computation.
+    /// When null, all built-in defaults are used.
+    /// </summary>
+    public RiskScoringConfig? RiskScoringConfig { get; init; }
 }
 
 public record ForecastPoint
@@ -127,6 +132,12 @@ public record ForecastRow
     public string Trend { get; init; } = "stable";
     public string RiskLevel { get; init; } = "medium";
     public string? TimeOfDay { get; init; }
+    /// <summary>
+    /// Composite risk score derived from crime type severity × precinct geographic risk × heinous multiplier.
+    /// Separate from the forecast-engine RiskLevel (which is based on volume-vs-historical-average ratios).
+    /// Populated by GenerateStatisticalForecastCommandHandler after the temporal forecast is flattened.
+    /// </summary>
+    public double CompositeRiskScore { get; init; }
 }
 
 public record SeasonalPredictionRow
@@ -233,6 +244,14 @@ public record ForecastSummary
     public double AverageConfidence { get; init; }
     public string KeyInsight { get; init; } = string.Empty;
     public List<string> RecommendedActions { get; init; } = new();
+    /// <summary>
+    /// Average CompositeRiskScore across all forecast rows.
+    /// </summary>
+    public double AverageCompositeRiskScore { get; init; }
+    /// <summary>
+    /// Maximum CompositeRiskScore across all forecast rows.
+    /// </summary>
+    public double MaxCompositeRiskScore { get; init; }
 }
 
 public record ForecastExplanation
@@ -270,6 +289,107 @@ public record ThresholdCalculationResult
     public List<string> Warnings { get; init; } = new();
 }
 
+/// <summary>
+/// Configurable parameters for the CompositeRiskScore formula.
+/// All fields have defaults for backward compatibility; the front-end may supply overrides.
+/// Formula per (precinct, crimeType): score = (severityScore / 10.0) * crimeRiskFactor * heinousMultiplier
+/// </summary>
+public record RiskScoringConfig
+{
+    /// <summary>
+    /// Multiplier applied when the crime type is heinous AND the filter/set includes heinous crime types.
+    /// Default: 1.5 (50 % boost).
+    /// </summary>
+    public double HeinousBoostFactor { get; init; } = 1.5;
+
+    /// <summary>
+    /// Multiplier applied when the crime type is NOT heinous but the filter/set includes heinous crimes.
+    /// Default: 1.2 (20 % boost — heinous presence elevates all crime types in the precinct).
+    /// </summary>
+    public double HeinousPresenceFactor { get; init; } = 1.2;
+
+    /// <summary>
+    /// Severity score per crime type ID (int value of CrimeTypeEnum, 0–19).
+    /// When null, uses the built-in default mapping derived from DataDrivenComplexityService.
+    /// </summary>
+    public Dictionary<int, double>? CrimeTypeSeverityScores { get; init; }
+
+    /// <summary>
+    /// Geographic risk factor per precinct ID (int value of Barangay, 0–8).
+    /// When null, uses the built-in default mapping from MuntinlupaBarangayData.
+    /// </summary>
+    public Dictionary<int, double>? PrecinctCrimeRiskFactors { get; init; }
+
+    /// <summary>
+    /// Crime type IDs considered "heinous" (int values of CrimeTypeEnum).
+    /// When null, default is [7, 11, 12, 14, 15, 16] — DrugTrafficking, HumanTrafficking,
+    /// Homicide, Kidnapping, Murder, Rape (the types mapped to SeverityEnum.High).
+    /// </summary>
+    public List<int>? HeinousCrimeTypeIds { get; init; }
+
+    /// <summary>
+    /// Returns the effective heinous crime type IDs (override or built-in default).
+    /// </summary>
+    public List<int> GetHeinousCrimeTypeIds() =>
+        HeinousCrimeTypeIds ?? DefaultHeinousCrimeTypeIds;
+
+    /// <summary>
+    /// Returns the effective severity score for the given crime type ID (override or built-in).
+    /// </summary>
+    public double GetSeverityScore(int crimeTypeId) =>
+        CrimeTypeSeverityScores?.TryGetValue(crimeTypeId, out var s) == true ? s : GetDefaultSeverityScore(crimeTypeId);
+
+    /// <summary>
+    /// Returns the effective geographic risk factor for the given precinct ID (override or built-in).
+    /// </summary>
+    public double GetPrecinctRiskFactor(int precinctId) =>
+        PrecinctCrimeRiskFactors?.TryGetValue(precinctId, out var r) == true ? r : GetDefaultRiskFactor(precinctId);
+
+    // ── Built-in defaults ──────────────────────────────────────────────────────
+
+    private static readonly List<int> DefaultHeinousCrimeTypeIds =
+        [7, 11, 12, 14, 15, 16]; // DrugTrafficking, HumanTrafficking, Homicide, Kidnapping, Murder, Rape
+
+    private static double GetDefaultSeverityScore(int crimeTypeId) => crimeTypeId switch
+    {
+        0 => 6.0,   // Arson
+        1 => 3.0,   // Assault
+        2 => 3.0,   // Burglary
+        3 => 7.0,   // Corruption
+        4 => 4.0,   // Counterfeiting
+        5 => 4.0,   // CyberCrime
+        6 => 4.0,   // DomesticViolence
+        7 => 6.0,   // DrugTrafficking
+        8 => 5.0,   // Embezzlement
+        9 => 5.0,   // Extortion
+        10 => 4.0,  // Fraud
+        11 => 9.0,  // HumanTrafficking
+        12 => 9.0,  // Homicide
+        13 => 4.0,  // IllegalPossessionOfFirearms
+        14 => 8.0,  // Kidnapping
+        15 => 10.0, // Murder
+        16 => 8.0,  // Rape
+        17 => 5.0,  // Robbery
+        18 => 2.0,  // Theft
+        19 => 1.0,  // Vandalism
+        _ => 2.0
+    };
+
+    private static double GetDefaultRiskFactor(int precinctId) => precinctId switch
+    {
+        0 => 1.8,  // Alabang
+        1 => 0.7,  // Bayanan
+        2 => 0.6,  // Buli
+        3 => 0.6,  // Cupang
+        4 => 0.9,  // Poblacion
+        5 => 0.7,  // Putatan
+        6 => 0.8,  // Tunasan
+        7 => 0.5,  // Ayala_Alabang
+        8 => 1.2,  // Sucat
+        _ => 1.0
+    };
+}
+
 // Request models for API endpoints
 public record StatisticalForecastRequest
 {
@@ -287,6 +407,10 @@ public record StatisticalForecastRequest
     public string[]? CrimeTypeFilter { get; init; }
     public string[]? SeverityFilter { get; init; }
     public DynamicThresholds? CustomThresholds { get; init; }
+    /// <summary>
+    /// Optional risk scoring overrides. When null, all built-in defaults apply.
+    /// </summary>
+    public RiskScoringConfig? RiskScoringConfig { get; init; }
 }
 
 public record TemporalForecastRequest

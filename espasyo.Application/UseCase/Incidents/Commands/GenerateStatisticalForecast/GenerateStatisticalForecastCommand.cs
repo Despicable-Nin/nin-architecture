@@ -17,4 +17,8 @@ public record GenerateStatisticalForecastCommand : IRequest<ForecastResponse>
     public string[]? CrimeTypeFilter { get; init; }
     public string[]? SeverityFilter { get; init; }
     public DynamicThresholds? CustomThresholds { get; init; }
+    /// <summary>
+    /// Optional risk scoring configuration. When null, all built-in defaults are used.
+    /// </summary>
+    public RiskScoringConfig? RiskScoringConfig { get; init; }
 }

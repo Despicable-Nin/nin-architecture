@@ -424,6 +424,7 @@ public class TemporalForecastService(
         var baseDate = DateTime.UtcNow.Day <= 14 ? today.AddMonths(-1) : today;
         var startDate = lastDate > baseDate ? lastDate : baseDate;
         var recentAverage = recent.Average(d => d.Value);
+        var overallAverage = data.Average(d => d.Value);
 
         var runningConfidence = parameters.ConfidenceLevel * 0.9;
         for (int i = 0; i < parameters.Horizon; i++)
@@ -431,8 +432,15 @@ public class TemporalForecastService(
             var forecastDate = startDate.AddMonths(i + 1);
             var trendValue = intercept + slope * (n + i + 1);
 
-            // seasonalMultiplier > 1 means this month is historically busier than average.
-            var seasonalMultiplier = monthlyAverages.GetValueOrDefault(forecastDate.Month, recentAverage) / recentAverage;
+            // seasonalMultiplier > 1 means this month is historically busier than the
+            // overall monthly average (across all years), and < 1 means quieter.
+            // Using overallAverage as the baseline prevents extreme inflation when the
+            // recent 12-month window happens to be unusually quiet but the calendar
+            // month has normal historical volume — the multiplier reflects genuine
+            // seasonal patterns, not a mismatched baseline.
+            var seasonalMultiplier = overallAverage > 0
+                ? monthlyAverages.GetValueOrDefault(forecastDate.Month, overallAverage) / overallAverage
+                : 1.0;
             var forecastValue = Math.Max(0, trendValue * seasonalMultiplier);
 
             // Wider base margin (25 % vs 20 %) when IncludeSeasonality is true because the

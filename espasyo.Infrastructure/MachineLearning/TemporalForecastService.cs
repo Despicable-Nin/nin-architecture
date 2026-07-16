@@ -29,7 +29,7 @@ public class TemporalForecastService(
             // Aggregate incident records into monthly count time series, keyed by precinct.
             var groupedData = GroupClusterDataForForecasting(clusterDataList, parameters);
 
-            foreach (var ((precinct, crimeType), timeSeriesData) in groupedData)
+            foreach (var ((precinct, crimeType, shift), timeSeriesData) in groupedData)
             {
                 // Delegate to the model-specific generator (linear / seasonal / ssa / ensemble).
                 var forecasts = await GenerateForecastForSeries(timeSeriesData, parameters, clusterDataList, precinct);
@@ -38,6 +38,7 @@ public class TemporalForecastService(
                 {
                     Precinct = precinct,
                     CrimeType = crimeType,
+                    Shift = parameters.IncludeTimeOfDay ? shift : null,
                     ClusterId = 0,
                     Forecasts = forecasts,
                     Metadata = new Dictionary<string, object>
@@ -96,7 +97,7 @@ public class TemporalForecastService(
             var warnings = new List<string>();
             var recommendations = new List<string>();
 
-            foreach (var ((precinct, _), timeSeriesData) in groupedData)
+            foreach (var ((precinct, _, _), timeSeriesData) in groupedData)
             {
                 // Need at least 24 months: 18 for training + 6 for holdout.
                 if (timeSeriesData.Count < 24)
@@ -148,11 +149,13 @@ public class TemporalForecastService(
     // Each incident becomes a single count (Value = 1); records for the same year/month
     // are summed.  An optional CrimeTypeFilter restricts which crime types are included.
     // Missing months are filled with 0 so the forecast models see a complete calendar timeline.
-    private Dictionary<(int Precinct, int CrimeType), List<TimeSeriesData>> GroupClusterDataForForecasting(IEnumerable<ClusterGroup> clusterData, ForecastParameters? parameters = null)
+    // When IncludeTimeOfDay is true, groups are further split by shift (Morning/Afternoon/Evening).
+    private Dictionary<(int Precinct, int CrimeType, string Shift), List<TimeSeriesData>> GroupClusterDataForForecasting(IEnumerable<ClusterGroup> clusterData, ForecastParameters? parameters = null)
     {
-        var grouped = new Dictionary<(int Precinct, int CrimeType), List<TimeSeriesData>>();
+        var grouped = new Dictionary<(int Precinct, int CrimeType, string Shift), List<TimeSeriesData>>();
 
         var crimeTypeFilter = ParseCrimeTypeFilter(parameters?.CrimeTypeFilter);
+        var includeShift = parameters?.IncludeTimeOfDay ?? false;
 
         foreach (var cluster in clusterData)
         {
@@ -162,7 +165,8 @@ public class TemporalForecastService(
                 if (crimeTypeFilter.Count > 0 && !crimeTypeFilter.Contains(item.CrimeType))
                     continue;
 
-                var key = ((int)item.Precinct, (int)item.CrimeType);
+                var shift = includeShift ? (item.TimeOfDay ?? "Unknown") : "All";
+                var key = ((int)item.Precinct, (int)item.CrimeType, shift);
 
                 if (!grouped.ContainsKey(key))
                     grouped[key] = new List<TimeSeriesData>();
@@ -175,7 +179,7 @@ public class TemporalForecastService(
             }
         }
 
-        // Aggregate duplicates (same precinct + same year-month + same crime type) and sort chronologically.
+        // Aggregate duplicates (same precinct + same year-month + same crime type + same shift) and sort chronologically.
         // Then fill missing months with 0.
         foreach (var key in grouped.Keys.ToList())
         {
@@ -851,7 +855,7 @@ public class TemporalForecastService(
     }
 
     private async Task<ForecastMetrics> CalculateRealMetricsAsync(
-        Dictionary<(int Precinct, int CrimeType), List<TimeSeriesData>> groupedData,
+        Dictionary<(int Precinct, int CrimeType, string Shift), List<TimeSeriesData>> groupedData,
         ForecastParameters parameters)
     {
         const int HoldoutMonths = 3;

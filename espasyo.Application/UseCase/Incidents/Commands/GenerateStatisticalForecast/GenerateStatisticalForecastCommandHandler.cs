@@ -46,14 +46,7 @@ public class GenerateStatisticalForecastCommandHandler(
             // Temporal (always runs — base forecast)
             var forecast = await machineLearningService.GenerateStatisticalForecast(request.ClusterData, parameters);
 
-            var timeOfDayProportions = parameters.IncludeTimeOfDay
-                ? ComputeTimeOfDayProportions(request.ClusterData)
-                : null;
-
-            var flatForecasts = FlattenTemporalSeries(forecast.Series, timeOfDayProportions);
-
-            // Composite risk scoring (crime severity × geographic risk × heinous multiplier)
-            flatForecasts = ComputeCompositeRiskScores(flatForecasts, request, parameters);
+            var flatForecasts = FlattenTemporalSeries(forecast.Series);
 
             // Spatial
             var spatialRows = await spatialForecastService.DistributeForecast(
@@ -138,8 +131,6 @@ public class GenerateStatisticalForecastCommandHandler(
         
         var keyInsight = GenerateKeyInsight(overallTrend, dominantRisk, highRiskCount + criticalRiskCount);
         var actions = GenerateRecommendedActions(dominantRisk, overallTrend);
-        
-        var compositeScores = allForecasts.Select(f => f.CompositeRiskScore).ToList();
 
         return new ForecastSummary
         {
@@ -151,8 +142,8 @@ public class GenerateStatisticalForecastCommandHandler(
             AverageConfidence = allForecasts.Average(f => f.Confidence),
             KeyInsight = keyInsight,
             RecommendedActions = actions,
-            AverageCompositeRiskScore = compositeScores.Count > 0 ? Math.Round(compositeScores.Average(), 4) : 0,
-            MaxCompositeRiskScore = compositeScores.Count > 0 ? Math.Round(compositeScores.Max(), 4) : 0
+            AverageCompositeRiskScore = 0,
+            MaxCompositeRiskScore = 0
         };
     }
     
@@ -232,134 +223,10 @@ public class GenerateStatisticalForecastCommandHandler(
         return actions;
     }
 
-    private record TimeOfDayProps(double Morning, double Afternoon, double Evening);
-
-    /// <summary>
-    /// Computes CompositeRiskScore for every ForecastRow using the formula:
-    ///   score = (severityScore / 10.0) * precinctRiskFactor * heinousMultiplier
-    ///
-    /// All parameters come from RiskScoringConfig (with built-in defaults when not overridden).
-    /// HeinousMultiplier:
-    ///   - 1.5 (or config override) if the row's crime type is heinous AND heinous crimes are present in the filter/data
-    ///   - 1.2 (or config override) if the row's crime type is NOT heinous but heinous crimes ARE present
-    ///   - 1.0 otherwise
-    /// </summary>
-    private static List<ForecastRow> ComputeCompositeRiskScores(
-        List<ForecastRow> rows,
-        GenerateStatisticalForecastCommand request,
-        ForecastParameters parameters)
-    {
-        var config = parameters.RiskScoringConfig ?? new RiskScoringConfig();
-
-        // Determine which crime types are in scope for "heinous present" check.
-        var crimeTypesInScope = GetCrimeTypesInScope(request, rows);
-        var heinousIds = config.GetHeinousCrimeTypeIds();
-        var hasHeinousInScope = crimeTypesInScope.Intersect(heinousIds).Any();
-
-        return rows.Select(r =>
-        {
-            if (r.CrimeType is not int crimeTypeId)
-                return r; // rows without a crime type keep default score of 0
-
-            var severityScore = config.GetSeverityScore(crimeTypeId);
-            var precinctRisk = config.GetPrecinctRiskFactor(r.Precinct);
-            var isHeinous = heinousIds.Contains(crimeTypeId);
-
-            var multiplier = hasHeinousInScope
-                ? (isHeinous ? config.HeinousBoostFactor : config.HeinousPresenceFactor)
-                : 1.0;
-
-            var compositeScore = (severityScore / 10.0) * precinctRisk * multiplier;
-
-            return r with { CompositeRiskScore = Math.Round(compositeScore, 4) };
-        }).ToList();
-    }
-
-    /// <summary>
-    /// Returns the set of crime type IDs that are in scope for the "heinous present" determination.
-    /// Priority: CrimeTypeFilter (if provided and non-empty) → distinct CrimeType values in forecast rows.
-    /// </summary>
-    private static HashSet<int> GetCrimeTypesInScope(
-        GenerateStatisticalForecastCommand request,
-        List<ForecastRow> rows)
-    {
-        if (request.CrimeTypeFilter is { Length: > 0 } filter)
-        {
-            return filter
-                .SelectMany(f => f.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                .Select(s => int.TryParse(s, out var id) ? id : (int?)null)
-                .Where(id => id.HasValue)
-                .Select(id => id!.Value)
-                .ToHashSet();
-        }
-
-        return rows
-            .Select(r => r.CrimeType)
-            .Where(ct => ct.HasValue)
-            .Cast<int>()
-            .ToHashSet();
-    }
-
-    private static List<ForecastRow> FlattenTemporalSeries(
-        List<ForecastSeries> series,
-        Dictionary<(int Precinct, int CrimeType), TimeOfDayProps>? timeOfDayProportions)
+    private static List<ForecastRow> FlattenTemporalSeries(List<ForecastSeries> series)
     {
         return series.SelectMany(s =>
-        {
-            var key = (s.Precinct, s.CrimeType);
-            if (timeOfDayProportions != null && timeOfDayProportions.TryGetValue(key, out var props))
-            {
-                return s.Forecasts.SelectMany(f => new[]
-                {
-                    new ForecastRow
-                    {
-                        PredictionType = "temporal",
-                        Precinct = s.Precinct,
-                        CrimeType = s.CrimeType,
-                        ClusterId = s.ClusterId,
-                        Timestamp = f.Timestamp,
-                        Forecast = f.Forecast * props.Morning,
-                        LowerBound = f.LowerBound * props.Morning,
-                        UpperBound = f.UpperBound * props.Morning,
-                        Confidence = f.Confidence,
-                        Trend = f.Trend,
-                        RiskLevel = f.RiskLevel,
-                        TimeOfDay = "Morning"
-                    },
-                    new ForecastRow
-                    {
-                        PredictionType = "temporal",
-                        Precinct = s.Precinct,
-                        CrimeType = s.CrimeType,
-                        ClusterId = s.ClusterId,
-                        Timestamp = f.Timestamp,
-                        Forecast = f.Forecast * props.Afternoon,
-                        LowerBound = f.LowerBound * props.Afternoon,
-                        UpperBound = f.UpperBound * props.Afternoon,
-                        Confidence = f.Confidence,
-                        Trend = f.Trend,
-                        RiskLevel = f.RiskLevel,
-                        TimeOfDay = "Afternoon"
-                    },
-                    new ForecastRow
-                    {
-                        PredictionType = "temporal",
-                        Precinct = s.Precinct,
-                        CrimeType = s.CrimeType,
-                        ClusterId = s.ClusterId,
-                        Timestamp = f.Timestamp,
-                        Forecast = f.Forecast * props.Evening,
-                        LowerBound = f.LowerBound * props.Evening,
-                        UpperBound = f.UpperBound * props.Evening,
-                        Confidence = f.Confidence,
-                        Trend = f.Trend,
-                        RiskLevel = f.RiskLevel,
-                        TimeOfDay = "Evening"
-                    }
-                });
-            }
-
-            return s.Forecasts.Select(f => new ForecastRow
+            s.Forecasts.Select(f => new ForecastRow
             {
                 PredictionType = "temporal",
                 Precinct = s.Precinct,
@@ -372,37 +239,8 @@ public class GenerateStatisticalForecastCommandHandler(
                 Confidence = f.Confidence,
                 Trend = f.Trend,
                 RiskLevel = f.RiskLevel,
-                TimeOfDay = null
-            });
-        }).ToList();
-    }
-
-    private static Dictionary<(int Precinct, int CrimeType), TimeOfDayProps> ComputeTimeOfDayProportions(
-        IEnumerable<ClusterGroup> clusterData)
-    {
-        var items = clusterData.SelectMany(g => g.ClusterItems).ToList();
-        var groups = items
-            .GroupBy(i => ((int)i.Precinct, (int)i.CrimeType))
-            .ToList();
-
-        var result = new Dictionary<(int, int), TimeOfDayProps>();
-        foreach (var group in groups)
-        {
-            var total = group.Count();
-            if (total == 0) continue;
-            var morning = group.Count(i => i.TimeOfDay == "Morning") / (double)total;
-            var afternoon = group.Count(i => i.TimeOfDay == "Afternoon") / (double)total;
-            var evening = group.Count(i => i.TimeOfDay == "Evening") / (double)total;
-
-            if (morning == 0 && afternoon == 0 && evening == 0)
-            {
-                result[group.Key] = new TimeOfDayProps(1.0 / 3, 1.0 / 3, 1.0 / 3);
-            }
-            else
-            {
-                result[group.Key] = new TimeOfDayProps(morning, afternoon, evening);
-            }
-        }
-        return result;
+                TimeOfDay = s.Shift
+            })
+        ).ToList();
     }
 }

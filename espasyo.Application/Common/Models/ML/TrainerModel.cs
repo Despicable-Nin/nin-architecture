@@ -110,6 +110,7 @@ public record ForecastSeries
 {
     public int Precinct { get; init; }
     public int CrimeType { get; init; }
+    public string? Shift { get; init; }
     public uint ClusterId { get; init; }
     public List<ForecastPoint> Forecasts { get; init; } = new();
     public Dictionary<string, object> Metadata { get; init; } = new();

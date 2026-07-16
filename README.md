@@ -270,6 +270,51 @@ If it does, **completely close and reopen your browser**, and your CORS/Network 
 
 ---
 
+## Known Issue: Sparse Data Bias in Aggregated Forecast Totals
+
+### Summary
+
+When forecasts are **summed across all (precinct × crimeType) series** (e.g., for a "total predicted incidents" chart), the result can be **inflated by ~65%** (e.g., historical July = 78, predicted July = 128) due to a structural bias in how OLS handles sparse series.
+
+### Root Cause
+
+Each (precinct, crimeType) series is modeled independently with OLS on the last 12 months. Most series have **≤6 incidents total** across those 12 months (expected ~0.46 per combo per month given 1,996 cases across 24 months × 9 precincts × 20 crime types).
+
+The OLS forecast for the next month is:
+
+```
+forecast = intercept + slope × 13
+```
+
+which has a symmetric sampling distribution around the true mean (`sumY / 12`). However, `Math.Max(0, forecast)` creates an **asymmetric floor**:
+
+- **Negative projections** (incidents clustered early in the window) → clamped to 0, discarded
+- **Positive projections** (incidents clustered late) → kept and summed
+
+Over 180 series, this asymmetry accumulates: noise-positive slopes survive, noise-negative slopes vanish. The unbiased estimator `sumY / 12` does not suffer from this bias.
+
+### Fix Applied (June 2025)
+
+```csharp
+var useAverageFallback = sumY <= 6;
+```
+
+When `sumY ≤ 6` (`TemporalForecastService.cs:288` for linear, `:428` for seasonal), the forecast uses the series' own simple average instead of the OLS extrapolation. Series with ≥7 incidents still get a full trend line.
+
+**This is still a heuristic fix.** The threshold `sumY ≤ 6` was chosen because:
+- Expected per-combo count over 12 months ≈ 5.5
+- At `sumY ≤ 6`, the bias-to-signal ratio from the asymmetric floor is largest
+- At `sumY ≥ 7`, the sampling distribution is tight enough that the bias drops below ~5%
+
+### Remaining Concerns
+
+- The threshold is data-dependent and may need recalibration as the historical window grows or data density changes.
+- A proper zero-inflated or hierarchical model (e.g., Bayesian Poisson with partial pooling) would address the root cause more rigorously by sharing statistical strength across sparse series instead of falling back to a flat average.
+- The front-end totals chart may still show minor discrepancies for mid-density series (sumY = 7–12) where some residual bias exists.
+- Consider whether the front-end should display **median or per-combo breakdowns** instead of summed totals to avoid masking the bias entirely.
+
+---
+
 ## Composite Risk Scoring for Forecasts
 
 Each forecast row (`ForecastRow`) now includes a `CompositeRiskScore` field — a numeric score (0–~3.0) derived from three factors:

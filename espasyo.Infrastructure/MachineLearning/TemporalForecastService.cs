@@ -297,17 +297,25 @@ public class TemporalForecastService(
         var today = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
         var baseDate = DateTime.UtcNow.Day <= 14 ? today.AddMonths(-1) : today;
         var startDate = lastDate > baseDate ? lastDate : baseDate;
+        var gapMonths = (startDate.Year - lastDate.Year) * 12 + (startDate.Month - lastDate.Month);
         var recentAverage = recent.Average(d => d.Value);
+        var historicalAverage = data.Average(d => d.Value);
+
+        // Cap extreme extrapolation: a single noisy series should not project
+        // a runaway trend, and the forecast should stay within a sane multiple
+        // of the series' long-term average.
+        var maxSlope = Math.Max(0.1, recentAverage * 0.15);
+        var cappedSlope = Math.Max(-maxSlope, Math.Min(maxSlope, slope));
+        var maxForecast = Math.Max(historicalAverage * 2.0, 1.0);
 
         var runningConfidence = parameters.ConfidenceLevel * 0.8;
         for (int i = 0; i < parameters.Horizon; i++)
         {
-            // Evaluate the regression line at x = n + i + 1, which is the (i+1)‑th month
-            // beyond the training window.  Clamp to 0 — negative crime counts are nonsense.
-            // For sparse series the prediction is just the historical average (flat).
+            var stepsAhead = gapMonths + i + 1;
             var forecastValue = useAverageFallback
                 ? sumY / (double)n
-                : Math.Max(0, intercept + slope * (n + i + 1));
+                : Math.Max(0, intercept + cappedSlope * (n + stepsAhead));
+            forecastValue = Math.Min(forecastValue, maxForecast);
 
             // Error margin widens with each future step to reflect growing uncertainty.
             // When WeightRecentData is true the base margin is tighter (15 % vs 20 %),
@@ -350,13 +358,29 @@ public class TemporalForecastService(
         // SSA requires trainSize > 2 * windowSize; cap conservatively.
         var windowSize = Math.Min(12, Math.Max(1, (data.Count - 1) / 2));
 
+        // Project the next n months from the current calendar month, even if the
+        // last data point is older. SSA has a horizon limit; if the gap pushes us
+        // past it, fall back to the capped linear trend.
+        var lastDate = data.Max(d => d.Date);
+        var today = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+        var baseDate = DateTime.UtcNow.Day <= 14 ? today.AddMonths(-1) : today;
+        var startDate = lastDate > baseDate ? lastDate : baseDate;
+        var gapMonths = (startDate.Year - lastDate.Year) * 12 + (startDate.Month - lastDate.Month);
+        var effectiveHorizon = parameters.Horizon + gapMonths;
+        var maxSSAHorizon = Math.Max(1, data.Count - windowSize);
+        if (effectiveHorizon > maxSSAHorizon)
+        {
+            logger.LogWarning("SSA horizon {EffectiveHorizon} exceeds limit {MaxSSAHorizon} for precinct {Precinct}; falling back to linear trend", effectiveHorizon, maxSSAHorizon, precinct);
+            return GenerateLinearTrendForecast(data, parameters, clusterData, precinct);
+        }
+
         var pipeline = mlContext.Forecasting.ForecastBySsa(
             outputColumnName: "ForecastedValues",
             inputColumnName: nameof(TimeSeriesData.Value),
             windowSize: windowSize,
             seriesLength: data.Count,
             trainSize: data.Count,
-            horizon: parameters.Horizon,
+            horizon: effectiveHorizon,
             confidenceLevel: (float)parameters.ConfidenceLevel,
             confidenceLowerBoundColumn: "LowerBoundValues",
             confidenceUpperBoundColumn: "UpperBoundValues");
@@ -365,32 +389,34 @@ public class TemporalForecastService(
         var forecastEngine = model.CreateTimeSeriesEngine<TimeSeriesData, ForecastOutput>(mlContext);
         var forecast = forecastEngine.Predict();
 
-        var lastDate = data.Max(d => d.Date);
-        var today = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
-        var baseDate = DateTime.UtcNow.Day <= 14 ? today.AddMonths(-1) : today;
-        var startDate = lastDate > baseDate ? lastDate : baseDate;
         var recentAverage = data.TakeLast(6).Average(d => d.Value);
+        var historicalAverage = data.Average(d => d.Value);
+        var maxForecast = Math.Max(historicalAverage * 2.0, 1.0);
 
         var runningConfidence = parameters.ConfidenceLevel;
-        for (int i = 0; i < parameters.Horizon; i++)
+        for (int i = gapMonths; i < effectiveHorizon; i++)
         {
-            var forecastDate = startDate.AddMonths(i + 1);
-            var forecastValue = forecast.ForecastedValues[i];
+            var outputIndex = i - gapMonths;
+            var forecastDate = startDate.AddMonths(outputIndex + 1);
+            var rawForecastValue = forecast.ForecastedValues[i];
+            var forecastValue = Math.Min(Math.Max(0, rawForecastValue), maxForecast);
             // Fallback bounds: if ML.NET didn't produce them, use ±20 % of the point forecast.
             var lowerBound = forecast.LowerBoundValues?[i] ?? forecastValue * 0.8f;
             var upperBound = forecast.UpperBoundValues?[i] ?? forecastValue * 1.2f;
+            lowerBound = Math.Min(lowerBound, (float)maxForecast);
+            upperBound = Math.Min(upperBound, (float)maxForecast);
 
             var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, parameters, precinct);
 
             // Confidence decays each month by a randomized rate around 0.97 (range 0.95-0.99).
             // SSA is the most sophisticated model so decay is gentler than linear/seasonal.
-            if (i > 0)
+            if (outputIndex > 0)
                 runningConfidence *= 0.95 + Random.Shared.NextDouble() * 0.04;
 
             forecasts.Add(new ForecastPoint
             {
                 Timestamp = forecastDate,
-                Forecast = Math.Max(0, forecastValue),
+                Forecast = forecastValue,
                 LowerBound = Math.Max(0, lowerBound),
                 UpperBound = Math.Max(0, upperBound),
                 Confidence = Math.Max(0.1, runningConfidence),
@@ -434,20 +460,30 @@ public class TemporalForecastService(
             .GroupBy(d => d.Date.Month)
             .ToDictionary(g => g.Key, g => g.Average(d => d.Value));
 
+        // Project the next n months from the current calendar month (or include the
+        // current month within the first 14 days), even if the last data point is older.
         var lastDate = data.Max(d => d.Date);
         var today = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
         var baseDate = DateTime.UtcNow.Day <= 14 ? today.AddMonths(-1) : today;
         var startDate = lastDate > baseDate ? lastDate : baseDate;
+        var gapMonths = (startDate.Year - lastDate.Year) * 12 + (startDate.Month - lastDate.Month);
         var recentAverage = recent.Average(d => d.Value);
         var overallAverage = data.Average(d => d.Value);
+
+        // Cap extreme extrapolation to keep seasonal forecasts from running away
+        // on noisy/sparse series.
+        var maxSlope = Math.Max(0.1, recentAverage * 0.15);
+        var cappedSlope = Math.Max(-maxSlope, Math.Min(maxSlope, slope));
+        var maxForecast = Math.Max(overallAverage * 2.0, 1.0);
 
         var runningConfidence = parameters.ConfidenceLevel * 0.9;
         for (int i = 0; i < parameters.Horizon; i++)
         {
             var forecastDate = startDate.AddMonths(i + 1);
+            var stepsAhead = gapMonths + i + 1;
             var trendValue = useAverageFallback
                 ? sumY / (double)n
-                : intercept + slope * (n + i + 1);
+                : intercept + cappedSlope * (n + stepsAhead);
 
             // seasonalMultiplier > 1 means this month is historically busier than the
             // overall monthly average (across all years), and < 1 means quieter.
@@ -458,7 +494,7 @@ public class TemporalForecastService(
             var seasonalMultiplier = overallAverage > 0
                 ? monthlyAverages.GetValueOrDefault(forecastDate.Month, overallAverage) / overallAverage
                 : 1.0;
-            var forecastValue = Math.Max(0, trendValue * seasonalMultiplier);
+            var forecastValue = Math.Max(0, Math.Min(maxForecast, trendValue * seasonalMultiplier));
 
             // Wider base margin (25 % vs 20 %) when IncludeSeasonality is true because the
             // seasonal adjustment adds another layer of uncertainty.

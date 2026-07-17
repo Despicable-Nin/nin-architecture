@@ -18,7 +18,8 @@ public class ForecastResult
         double confidence,
         string riskLevel,
         string trend,
-        uint clusterId = 0)
+        uint clusterId = 0,
+        string? shift = null)
     {
         Id = Guid.NewGuid();
         ForecastRunId = forecastRunId;
@@ -33,6 +34,7 @@ public class ForecastResult
         RiskLevel = riskLevel;
         Trend = trend;
         ClusterId = clusterId;
+        Shift = shift;
     }
 
     public Guid Id { get; private set; }
@@ -49,4 +51,5 @@ public class ForecastResult
     public double Confidence { get; private set; }
     public string RiskLevel { get; private set; } = string.Empty;
     public string Trend { get; private set; } = string.Empty;
+    public string? Shift { get; private set; }
 }

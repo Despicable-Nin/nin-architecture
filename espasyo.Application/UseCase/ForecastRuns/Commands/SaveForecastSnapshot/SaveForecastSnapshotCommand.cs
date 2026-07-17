@@ -25,6 +25,7 @@ public class PredictionDto
     public double Confidence { get; set; }
     public string RiskLevel { get; set; } = "medium";
     public string Trend { get; set; } = "stable";
+    public string? Shift { get; set; }
 }
 
 public class SpatialPredictionDto

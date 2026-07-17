@@ -281,6 +281,10 @@ namespace espasyo.Infrastructure.Migrations.SqliteApplicationDb
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Shift")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Trend")
                         .IsRequired()
                         .HasMaxLength(20)

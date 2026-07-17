@@ -42,7 +42,8 @@ public class SaveForecastSnapshotCommandHandler(
             p.UpperBound,
             p.Confidence,
             p.RiskLevel,
-            p.Trend)).ToList();
+            p.Trend,
+            shift: p.Shift)).ToList();
         
         
 

@@ -23,6 +23,7 @@ public class ForecastResultConfiguration : IEntityTypeConfiguration<ForecastResu
         builder.Property(r => r.Confidence).IsRequired().HasColumnType("float");
         builder.Property(r => r.RiskLevel).IsRequired().HasMaxLength(20);
         builder.Property(r => r.Trend).IsRequired().HasMaxLength(20);
+        builder.Property(r => r.Shift).HasMaxLength(20);
 
         builder.HasOne(r => r.ForecastRun)
             .WithMany()

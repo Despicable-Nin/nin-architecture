@@ -8,9 +8,13 @@ namespace espasyo_console;
 public class Program
 {
     private static readonly HttpClient Client = new();
-    private static readonly Random Random = new();
     private static readonly SemaphoreSlim Semaphore = new(1, 1); // Allow only 1 concurrent request
     
+    // Deterministic fixture seed. Default 42 matches MLContext(seed: 42) registered in both
+    // infrastructure DI registrations (InfrastructureDependencyInjection.cs and
+    // SqliteInfrastructureDependencyInjection.cs) so clustering is reproducible end-to-end.
+    private static int Seed = 42;
+
     // Removed AskUserConfirmation - using smart seeding logic instead
 
     private static async Task Main(string[] args)
@@ -20,6 +24,19 @@ public class Program
         // Check if we should run in non-interactive mode
         var isNonInteractive = args.Contains("--non-interactive") || args.Contains("-n");
         
+        // Parse custom seed if provided. Same seed => same incidents, coordinates, and manpower.
+        var seedArg = args.FirstOrDefault(arg => arg.StartsWith("--seed="));
+        if (seedArg != null && int.TryParse(seedArg.Substring(7), out var customSeed))
+        {
+            Seed = customSeed;
+        }
+        WriteLine($"🔢 Fixture seed: {Seed} (all generated data is synthetic / development-only)");
+
+        // Seed all static RNGs so the full fixture pipeline (incidents, coordinates,
+        // enums, addresses, manpower) is reproducible for a given seed.
+        EnumHelper.SetSeed(Seed);
+        AddressGenerator.SetSeed(Seed);
+
         // Parse custom wait time if provided
         var waitTimeSeconds = 60; // default
         var waitTimeArg = args.FirstOrDefault(arg => arg.StartsWith("--wait="));
@@ -71,7 +88,7 @@ public class Program
             
             // 3. Incidents - continue from where left off (target: 5000 total)
             WriteLine("\n🚨 Smart Incident Seeding (continue to 5000 total)...");
-            var incidentsSuccess = await IncidentGenerator.ContinueToTargetCount(Client, Semaphore, 5000);
+            var incidentsSuccess = await IncidentGenerator.ContinueToTargetCount(Client, Semaphore, 5000, Seed);
             if (!incidentsSuccess)
             {
                 WriteLine("❌ Failed to seed incidents. Stopping.");
@@ -80,7 +97,7 @@ public class Program
             
             // 4. Manpower - seed missing allocations
             WriteLine("\n👮 Smart Manpower Seeding...");
-            var manpowerSuccess = await ManpowerSeeder.SeedMissingManpower(Client);
+            var manpowerSuccess = await ManpowerSeeder.SeedMissingManpower(Client, Seed);
             if (!manpowerSuccess)
             {
                 WriteLine("❌ Failed to seed manpower. Stopping.");

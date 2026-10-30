@@ -5,10 +5,12 @@ namespace espasyo_console;
 
 public static class ManpowerSeeder
 {
-    private static readonly Random Random = new();
-    
-    public static async Task<bool> SeedMissingManpower(HttpClient client)
+    // Seeded per run via SeedMissingManpower so headcounts are reproducible.
+    private static Random Random = new();
+
+    public static async Task<bool> SeedMissingManpower(HttpClient client, int seed = 42)
     {
+        Random = new Random(seed);
         Console.WriteLine("🔍 Checking existing manpower allocations...");
         
         try

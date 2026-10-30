@@ -5,7 +5,9 @@ namespace espasyo_console;
 
 public static class CoordinateGenerator
 {
-    private static readonly Random Rng = new();
+    // Seeded per call from the fixture seed + incident number, so coordinates are deterministic
+    // and distinct per incident for a given seed.
+    private static Random Rng = new();
     private static readonly Dictionary<Barangay, (double MinLat, double MaxLat, double MinLng, double MaxLng, List<(double Lng, double Lat)> Boundary)> Boundaries;
 
     static CoordinateGenerator()
@@ -61,8 +63,9 @@ public static class CoordinateGenerator
         }
     }
 
-    public static (double Latitude, double Longitude) GetRandomPoint(Barangay barangay)
+    public static (double Latitude, double Longitude) GetRandomPoint(Barangay barangay, int seed = 42)
     {
+        Rng = new Random(seed);
         if (!Boundaries.TryGetValue(barangay, out var bounds))
             return (0, 0);
 

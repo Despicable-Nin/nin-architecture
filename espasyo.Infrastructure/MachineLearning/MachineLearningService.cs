@@ -113,6 +113,18 @@ public class MachineLearningService(
     /// <param name="numberOfClusters">Number of clusters to create.</param>
     /// <param name="runs">Number of training runs for selecting the best model.</param>
     /// <returns>An enumerable of ClusterResponse objects with the desired structure.</returns>
+    /// <inheritdoc/>
+    public GroupedClusterResponse PerformKMeansAndGetGroupedClusters(IEnumerable<TrainerModel> data, string[]? features, int numberOfClusters = 3, int runs = 10)
+    {
+        return PerformKMeansAndGetGroupedClusters(data, features, numberOfClusters, runs, false, null, null, null);
+    }
+
+    /// <inheritdoc/>
+    public GroupedClusterResponse PerformKMeansAndGetGroupedClusters(IEnumerable<TrainerModel> data, string[]? features, int numberOfClusters, int runs, bool autoSelectK, int? seed = null)
+    {
+        return PerformKMeansAndGetGroupedClusters(data, features, numberOfClusters, runs, autoSelectK, seed, null, null);
+    }
+
     public GroupedClusterResponse PerformKMeansAndGetGroupedClusters(IEnumerable<TrainerModel> data, string[]? features, int numberOfClusters = 3, int runs = 10, int? approvedNumberOfClusters = null, int? approvedRuns = null)
     {
         return PerformKMeansAndGetGroupedClusters(data, features, numberOfClusters, runs, false, null, approvedNumberOfClusters, approvedRuns);

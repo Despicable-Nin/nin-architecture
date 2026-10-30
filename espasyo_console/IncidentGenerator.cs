@@ -5,9 +5,11 @@ using espasyo.Domain.Enums;
 
 namespace espasyo_console;
 
-public static class IncidentGenerator
-{
-    private static readonly Random Rng = new();
+    public static class IncidentGenerator
+    {
+        // Seeded once per run (from --seed, default 42). All fixture randomness flows through
+        // this instance so the same seed reproduces the same incidents, coordinates, and manpower.
+        private static Random Rng = new();
     private static readonly DateTime MaxSeedDate = new(2025, 12, 31, 23, 59, 59, DateTimeKind.Utc);
     private static readonly DateTime MinSeedDate = MaxSeedDate.AddYears(-5);
 
@@ -59,9 +61,12 @@ public static class IncidentGenerator
         [CrimeTypeEnum.Vandalism] = SeverityEnum.Low,
     };
 
-    public static async Task<bool> ContinueToTargetCount(HttpClient httpClient, SemaphoreSlim semaphore, int targetCount)
+    public static async Task<bool> ContinueToTargetCount(HttpClient httpClient, SemaphoreSlim semaphore, int targetCount, int seed = 42)
     {
-        Console.WriteLine($"🎯 Continuing incident seeding to reach {targetCount} total...");
+        Rng = new Random(seed);
+        EnumHelper.SetSeed(seed);
+        AddressGenerator.SetSeed(seed);
+        Console.WriteLine($"🎯 Continuing incident seeding to reach {targetCount} total (seed: {seed}, synthetic fixtures)...");
         
         try
         {
@@ -82,7 +87,7 @@ public static class IncidentGenerator
             var remaining = targetCount - currentCount;
             Console.WriteLine($"🌱 Need to create {remaining} more incidents (current: {currentCount}, target: {targetCount})");
             
-            return await SeedIncidents(httpClient, semaphore, remaining, currentCount);
+            return await SeedIncidents(httpClient, semaphore, remaining, currentCount, seed);
         }
         catch (Exception ex)
         {
@@ -120,10 +125,11 @@ public static class IncidentGenerator
         return -1; // Indicate error
     }
     
-    private static async Task<bool> SeedIncidents(HttpClient httpClient, SemaphoreSlim semaphore, int count, int startIndex)
-    {
-        Console.WriteLine($"🌱 Seeding {count} incidents starting from index {startIndex + 1}...");
-        Console.WriteLine($"⏱️ Start: {DateTimeOffset.Now}");
+        private static async Task<bool> SeedIncidents(HttpClient httpClient, SemaphoreSlim semaphore, int count, int startIndex, int seed = 42)
+        {
+            Rng = new Random(seed);
+            Console.WriteLine($"🌱 Seeding {count} incidents starting from index {startIndex + 1} (seed: {seed}, synthetic fixtures)...");
+            Console.WriteLine($"⏱️ Start: {DateTimeOffset.Now}");
         
         const string url = "http://localhost:5041/api/Incident";
         var successCount = 0;
@@ -131,10 +137,10 @@ public static class IncidentGenerator
         for (var i = 0; i < count; i++)
         {
             var caseNumber = startIndex + i + 1;
-            var timestampSuffix = DateTimeOffset.Now.ToUnixTimeMilliseconds();
-            var caseId = $"CASE-{caseNumber:D4}-{timestampSuffix}";
+            // Deterministic case ID derived from seed + index (reproducible across runs).
+            var caseId = $"CASE-{caseNumber:D4}-S{seed:D4}-I{i:D4}";
             
-            var success = await SendIncidentRequestWithId(url, caseId, httpClient, semaphore);
+            var success = await SendIncidentRequestWithId(url, caseId, httpClient, semaphore, seed, i);
             if (!success)
             {
                 Console.WriteLine($"❌ Stopping seeding at incident {i + 1} due to error.");
@@ -158,7 +164,7 @@ public static class IncidentGenerator
         return true;
     }
     
-    private static async Task<bool> SendIncidentRequestWithId(string url, string caseId, HttpClient client, SemaphoreSlim semaphore)
+    private static async Task<bool> SendIncidentRequestWithId(string url, string caseId, HttpClient client, SemaphoreSlim semaphore, int seed, int caseNumber)
     {
         // Fetch the real precinct data (id + barangay enum) to keep address geographically aligned
         var precinctData = await GetRandomPrecinctWithBarangay(client);
@@ -168,7 +174,7 @@ public static class IncidentGenerator
             return false;
         }
         
-        var incident = BuildRandomIncident(caseId, precinctData.Value);
+        var incident = BuildRandomIncident(caseId, precinctData.Value, seed, caseNumber);
         
         incident.address = GenerateRandomAddress(incident.precinct);
         
@@ -206,9 +212,10 @@ public static class IncidentGenerator
             semaphore.Release();
         }
     }
-    private static async Task<bool> Seed(HttpClient httpClient, SemaphoreSlim semaphore)
+    private static async Task<bool> Seed(HttpClient httpClient, SemaphoreSlim semaphore, int seed = 42)
     {
-        Console.WriteLine("🌱 Starting incident seeding (this may take a while)...");
+        Rng = new Random(seed);
+        Console.WriteLine($"🌱 Starting incident seeding (this may take a while)... (seed: {seed}, synthetic fixtures)");
         Console.WriteLine($"⏱️ Start: {DateTimeOffset.Now}");
 
         const string url = "http://localhost:5041/api/Incident";
@@ -217,7 +224,7 @@ public static class IncidentGenerator
 
         for (var i = 1; i <= maxIncidents; i++)
         {
-            var success = await SendIncidentRequest(url, i, httpClient, semaphore);
+            var success = await SendIncidentRequest(url, i, httpClient, semaphore, seed);
             if (!success)
             {
                 Console.WriteLine($"❌ Stopping seeding at incident {i} due to error.");
@@ -241,7 +248,7 @@ public static class IncidentGenerator
         return true;
     }
 
-    private static async Task<bool> SendIncidentRequest(string url, int i, HttpClient client, SemaphoreSlim semaphore)
+    private static async Task<bool> SendIncidentRequest(string url, int i, HttpClient client, SemaphoreSlim semaphore, int seed)
     {
         // Fetch the real precinct data (id + barangay enum) to keep address geographically aligned
         var precinctData = await GetRandomPrecinctWithBarangay(client);
@@ -251,7 +258,7 @@ public static class IncidentGenerator
             return false;
         }
 
-        var incident = BuildRandomIncident($"CASE-{i:D4}", precinctData.Value);
+        var incident = BuildRandomIncident($"CASE-{i:D4}", precinctData.Value, seed, i);
 
         incident.address = GenerateRandomAddress(incident.precinct);
 
@@ -323,7 +330,7 @@ public static class IncidentGenerator
 
                 if (precincts != null && precincts.Length > 0)
                 {
-                    var chosen = precincts[new Random().Next(0, precincts.Length)];
+                    var chosen = precincts[Rng.Next(0, precincts.Length)];
                     if (codeToBarangay.TryGetValue(chosen.Code, out var barangay))
                         return (chosen.Id, barangay);
 
@@ -355,10 +362,11 @@ public static class IncidentGenerator
     private record PrecinctInfo(string Id, string Name, string Code);
     private record PrecinctInfoFull(string Id, string Name, string Code);
 
-    private static Request BuildRandomIncident(string caseId, (string Id, Barangay Barangay) precinctData)
+    private static Request BuildRandomIncident(string caseId, (string Id, Barangay Barangay) precinctData, int seed, int caseNumber)
     {
         var crimeType = EnumHelper.GetRandomEnumValue<CrimeTypeEnum>();
-        var (lat, lng) = CoordinateGenerator.GetRandomPoint(precinctData.Barangay);
+        // Deterministic, distinct coordinates per incident for a given seed.
+        var (lat, lng) = CoordinateGenerator.GetRandomPoint(precinctData.Barangay, seed + caseNumber);
         return new Request()
         {
             caseId = caseId,

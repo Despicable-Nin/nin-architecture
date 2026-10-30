@@ -49,7 +49,11 @@ public static class InfrastructureDependencyInjection
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
 
-        services.AddSingleton<MLContext>();
+        // Fixed seed — must match SqliteInfrastructureDependencyInjection.cs.
+        // Only one provider path is registered per run (see the switch at the top of this
+        // file), so the two must carry the same seed or switching DatabaseProvider silently
+        // changes clustering results. Rationale for seeding lives in the Sqlite file.
+        services.AddSingleton(new MLContext(seed: 42));
         
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IIncidentRepository, IncidentRepository>();

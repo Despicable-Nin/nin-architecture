@@ -118,14 +118,17 @@ public class TemporalForecastService(
             }
 
             var overallMetrics = allMetrics.Count > 0 ? AverageMetrics(allMetrics) : new ForecastMetrics();
-            var isReliable = overallMetrics.MeanAbsolutePercentageError < 25.0;
+            var approvedReliabilityThreshold = 25.0;
+            var approvedHighErrorThreshold = 50.0;
+
+            var isReliable = overallMetrics.MeanAbsolutePercentageError < approvedReliabilityThreshold;
 
             if (!isReliable)
             {
                 recommendations.Add("Consider using more historical data or alternative forecasting models");
             }
 
-            if (overallMetrics.MeanAbsolutePercentageError > 50.0)
+            if (overallMetrics.MeanAbsolutePercentageError > approvedHighErrorThreshold)
             {
                 warnings.Add("High forecast error detected - results may not be reliable");
             }
@@ -976,3 +979,4 @@ public class TemporalForecastService(
         };
     }
 }
+

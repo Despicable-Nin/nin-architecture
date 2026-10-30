@@ -31,7 +31,14 @@ public static class SqliteInfrastructureDependencyInjection
             .AddEntityFrameworkStores<SqliteApplicationDbContext>()
             .AddDefaultTokenProviders();
 
-        services.AddSingleton<MLContext>();
+        // Fixed seed — reproducibility for K-Means.
+        // ML.NET's K-Means++ selects initial centroids at random and all of that randomness
+        // comes from the MLContext that owns the RNG. KMeansTrainer.Options exposes no Seed
+        // field, so this registration is the only lever for determinism. Unseeded, identical
+        // requests return different ClusterIds and centroids, which breaks every consumer that
+        // keys on ClusterId. The SQL Server path must carry the same seed — see
+        // InfrastructureDependencyInjection.cs (AddSqlServerInfrastructure).
+        services.AddSingleton(new MLContext(seed: 42));
         
         // Register SQLite-specific repositories
         services.AddScoped<IProductRepository, SqliteProductRepository>();

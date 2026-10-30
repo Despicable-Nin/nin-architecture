@@ -113,12 +113,12 @@ public class MachineLearningService(
     /// <param name="numberOfClusters">Number of clusters to create.</param>
     /// <param name="runs">Number of training runs for selecting the best model.</param>
     /// <returns>An enumerable of ClusterResponse objects with the desired structure.</returns>
-    public GroupedClusterResponse PerformKMeansAndGetGroupedClusters(IEnumerable<TrainerModel> data, string[]? features, int numberOfClusters = 3, int runs = 10)
+    public GroupedClusterResponse PerformKMeansAndGetGroupedClusters(IEnumerable<TrainerModel> data, string[]? features, int numberOfClusters = 3, int runs = 10, int? approvedNumberOfClusters = null, int? approvedRuns = null)
     {
-        return PerformKMeansAndGetGroupedClusters(data, features, numberOfClusters, runs, autoSelectK: false, seed: null);
+        return PerformKMeansAndGetGroupedClusters(data, features, numberOfClusters, runs, false, null, approvedNumberOfClusters, approvedRuns);
     }
 
-    public GroupedClusterResponse PerformKMeansAndGetGroupedClusters(IEnumerable<TrainerModel> data, string[]? features, int numberOfClusters, int runs, bool autoSelectK, int? seed)
+    public GroupedClusterResponse PerformKMeansAndGetGroupedClusters(IEnumerable<TrainerModel> data, string[]? features, int numberOfClusters, int runs, bool autoSelectK, int? seed, int? approvedNumberOfClusters = null, int? approvedRuns = null)
     {
         try
         {
@@ -134,18 +134,21 @@ public class MachineLearningService(
             var trainerModels = data as TrainerModel[] ?? data.ToArray();
             logger.LogInformation("Total input records: {Count}", trainerModels.Length);
 
+            var effectiveNumberOfClusters = approvedNumberOfClusters ?? numberOfClusters;
+            var effectiveRuns = approvedRuns ?? runs;
+
             // Auto-select optimal k if requested
-            if (autoSelectK || numberOfClusters < 2)
+            if (autoSelectK || effectiveNumberOfClusters < 2)
             {
-                numberOfClusters = FindOptimalK(trainerModels, features, seed);
-                logger.LogInformation("Auto-selected optimal k: {OptimalK}", numberOfClusters);
+                effectiveNumberOfClusters = FindOptimalK(trainerModels, features, seed);
+                logger.LogInformation("Auto-selected optimal k: {OptimalK}", effectiveNumberOfClusters);
             }
 
             // Run final clustering with the selected k
-            var (clusterGroups, clusterPredictions) = RunKMeans(trainerModels, features!, numberOfClusters, runs, null);
+            var (clusterGroups, clusterPredictions) = RunKMeans(trainerModels, features!, effectiveNumberOfClusters, effectiveRuns, null);
 
             // Compute quality metrics
-            var qualityMetrics = ComputeQualityMetrics(trainerModels, features!, clusterPredictions, numberOfClusters);
+            var qualityMetrics = ComputeQualityMetrics(trainerModels, features!, clusterPredictions, effectiveNumberOfClusters);
 
             return new GroupedClusterResponse
             {
@@ -851,3 +854,4 @@ public class MachineLearningService(
         }).ToList();
     }
 }
+

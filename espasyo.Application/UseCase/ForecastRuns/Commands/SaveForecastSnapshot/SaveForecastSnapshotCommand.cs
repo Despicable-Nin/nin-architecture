@@ -8,6 +8,7 @@ public class SaveForecastSnapshotCommand : IRequest<SaveForecastSnapshotResponse
     public string Name { get; set; } = string.Empty;
     public int ForecastPeriod { get; set; }
     public double ConfidenceLevel { get; set; } = 0.95;
+    public string ModelType { get; set; } = "SSA";
     public List<PredictionDto> Predictions { get; set; } = new();
     public List<SpatialPredictionDto> SpatialPredictions { get; set; } = new();
     public List<SeasonalPredictionDto> SeasonalPredictions { get; set; } = new();

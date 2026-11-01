@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using espasyo.Domain.Enums;
 
 namespace espasyo_console;
@@ -15,26 +14,41 @@ namespace espasyo_console;
 
     private static readonly Dictionary<CrimeTypeEnum, List<MotiveEnum>> ValidMotives = new()
     {
-        [CrimeTypeEnum.Arson] = new() { MotiveEnum.Anger, MotiveEnum.Revenge, MotiveEnum.Terrorism, MotiveEnum.Unknown, MotiveEnum.Other },
-        [CrimeTypeEnum.Assault] = new() { MotiveEnum.Anger, MotiveEnum.Jealousy, MotiveEnum.Revenge, MotiveEnum.Unknown, MotiveEnum.Other },
-        [CrimeTypeEnum.Burglary] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
-        [CrimeTypeEnum.Corruption] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Political, MotiveEnum.Unknown },
-        [CrimeTypeEnum.Counterfeiting] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
-        [CrimeTypeEnum.CyberCrime] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Revenge, MotiveEnum.Terrorism, MotiveEnum.Unknown },
-        [CrimeTypeEnum.DomesticViolence] = new() { MotiveEnum.Anger, MotiveEnum.Jealousy, MotiveEnum.Unknown, MotiveEnum.Other },
-        [CrimeTypeEnum.DrugTrafficking] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
-        [CrimeTypeEnum.Embezzlement] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
-        [CrimeTypeEnum.Extortion] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
-        [CrimeTypeEnum.Fraud] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
-        [CrimeTypeEnum.HumanTrafficking] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
-        [CrimeTypeEnum.Homicide] = new() { MotiveEnum.Anger, MotiveEnum.Jealousy, MotiveEnum.Revenge, MotiveEnum.Unknown },
-        [CrimeTypeEnum.IllegalPossessionOfFirearms] = new() { MotiveEnum.PersonalGain, MotiveEnum.Terrorism, MotiveEnum.Unknown },
-        [CrimeTypeEnum.Kidnapping] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Revenge, MotiveEnum.Political, MotiveEnum.Terrorism, MotiveEnum.Unknown },
-        [CrimeTypeEnum.Murder] = new() { MotiveEnum.Anger, MotiveEnum.Jealousy, MotiveEnum.Revenge, MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
-        [CrimeTypeEnum.Rape] = new() { MotiveEnum.Anger, MotiveEnum.Revenge, MotiveEnum.Unknown, MotiveEnum.Other },
-        [CrimeTypeEnum.Robbery] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
-        [CrimeTypeEnum.Theft] = new() { MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown },
-        [CrimeTypeEnum.Vandalism] = new() { MotiveEnum.Anger, MotiveEnum.Revenge, MotiveEnum.Terrorism, MotiveEnum.Unknown, MotiveEnum.Other },
+        [CrimeTypeEnum.Arson] =
+            [MotiveEnum.Anger, MotiveEnum.Revenge, MotiveEnum.Terrorism, MotiveEnum.Unknown, MotiveEnum.Other],
+        [CrimeTypeEnum.Assault] =
+            [MotiveEnum.Anger, MotiveEnum.Jealousy, MotiveEnum.Revenge, MotiveEnum.Unknown, MotiveEnum.Other],
+        [CrimeTypeEnum.Burglary] = [MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown],
+        [CrimeTypeEnum.Corruption] =
+            [MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Political, MotiveEnum.Unknown],
+        [CrimeTypeEnum.Counterfeiting] = [MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown],
+        [CrimeTypeEnum.CyberCrime] =
+            [MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Revenge, MotiveEnum.Terrorism, MotiveEnum.Unknown],
+        [CrimeTypeEnum.DomesticViolence] =
+            [MotiveEnum.Anger, MotiveEnum.Jealousy, MotiveEnum.Unknown, MotiveEnum.Other],
+        [CrimeTypeEnum.DrugTrafficking] = [MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown],
+        [CrimeTypeEnum.Embezzlement] = [MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown],
+        [CrimeTypeEnum.Extortion] = [MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown],
+        [CrimeTypeEnum.Fraud] = [MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown],
+        [CrimeTypeEnum.HumanTrafficking] = [MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown],
+        [CrimeTypeEnum.Homicide] = [MotiveEnum.Anger, MotiveEnum.Jealousy, MotiveEnum.Revenge, MotiveEnum.Unknown],
+        [CrimeTypeEnum.IllegalPossessionOfFirearms] =
+            [MotiveEnum.PersonalGain, MotiveEnum.Terrorism, MotiveEnum.Unknown],
+        [CrimeTypeEnum.Kidnapping] =
+        [
+            MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Revenge, MotiveEnum.Political, MotiveEnum.Terrorism,
+            MotiveEnum.Unknown
+        ],
+        [CrimeTypeEnum.Murder] =
+        [
+            MotiveEnum.Anger, MotiveEnum.Jealousy, MotiveEnum.Revenge, MotiveEnum.Greed, MotiveEnum.PersonalGain,
+            MotiveEnum.Unknown
+        ],
+        [CrimeTypeEnum.Rape] = [MotiveEnum.Anger, MotiveEnum.Revenge, MotiveEnum.Unknown, MotiveEnum.Other],
+        [CrimeTypeEnum.Robbery] = [MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown],
+        [CrimeTypeEnum.Theft] = [MotiveEnum.Greed, MotiveEnum.PersonalGain, MotiveEnum.Unknown],
+        [CrimeTypeEnum.Vandalism] =
+            [MotiveEnum.Anger, MotiveEnum.Revenge, MotiveEnum.Terrorism, MotiveEnum.Unknown, MotiveEnum.Other],
     };
 
     private static readonly Dictionary<CrimeTypeEnum, SeverityEnum> MinimumSeverity = new()
@@ -392,7 +406,7 @@ namespace espasyo_console;
 
     private static MotiveEnum GetRandomMotive(CrimeTypeEnum crimeType)
     {
-        var motives = ValidMotives.GetValueOrDefault(crimeType, new() { MotiveEnum.Unknown });
+        var motives = ValidMotives.GetValueOrDefault(crimeType, [MotiveEnum.Unknown]);
         return motives[Rng.Next(motives.Count)];
     }
 

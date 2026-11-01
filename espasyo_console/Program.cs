@@ -1,6 +1,4 @@
-﻿using System.Text;
-using System.Text.Json;
-using espasyo.Domain.Enums;
+﻿using espasyo.Domain.Enums;
 using static System.Console;
 
 namespace espasyo_console;

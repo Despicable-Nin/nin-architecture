@@ -26,7 +26,7 @@ public class SaveForecastSnapshotCommandHandler(
             precinctId,
             request.ForecastPeriod,
             request.ConfidenceLevel,
-            ForecastModelTypeEnum.SSA,
+            ParseModelType(request.ModelType),
             request.GeneratedById,
             request.Name);
 
@@ -94,6 +94,19 @@ public class SaveForecastSnapshotCommandHandler(
                     result.Month,
                     result.PredictedValue,
                     result.RiskLevel)))
+        };
+    }
+
+    private static ForecastModelTypeEnum ParseModelType(string modelType)
+    {
+        return modelType?.Trim() switch
+        {
+            null or "" => ForecastModelTypeEnum.SSA,
+            var value when value.Equals("ssa", StringComparison.OrdinalIgnoreCase) => ForecastModelTypeEnum.SSA,
+            var value when value.Equals("linear", StringComparison.OrdinalIgnoreCase) => ForecastModelTypeEnum.Linear,
+            var value when value.Equals("seasonal", StringComparison.OrdinalIgnoreCase) => ForecastModelTypeEnum.Seasonal,
+            var value when value.Equals("ensemble", StringComparison.OrdinalIgnoreCase) => ForecastModelTypeEnum.Ensemble,
+            _ => ForecastModelTypeEnum.SSA
         };
     }
 }

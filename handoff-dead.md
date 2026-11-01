@@ -8,5 +8,6 @@
 **Reopened item:** F-05 — Backend `GeocodingController` endpoint exists, but no frontend geocoding client or page exists. See TODO status: todo.
 **Archived item:** F-06 — Frontend time-of-day distribution chart (see espasyo/ handoff-dead.md for details)  
 **Archived item:** F-08 — Temporal preprocessing visualization now matches the backend monthly aggregation and zero-filled series preview (see espasyo/ handoff-dead.md for details).
+**Archived item:** F-09 — Dedicated hotspot risk summary and prevention recommendations screen; empty predictions return a neutral summary. Fixed source-cluster lookup null reference by matching forecasts to source incidents by precinct/crime type. Hotspot prediction and empty-result regression tests pass; full-suite failures are outside F-09 (see espasyo/ handoff-dead.md for details).
 **Convention:** When an active task is complete, its entry is moved here from `handoff-active.md`, and `handoff-active.md` is reset to "none" (or the next task). TODO.md status is updated to "done".  
 **Mirrored at:** workspace root, `espasyo/`, `nin-architecture/`

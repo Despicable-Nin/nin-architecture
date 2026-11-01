@@ -73,6 +73,26 @@ public class PredictHotspotsCommandHandler(
         var dominantRiskLevel = criticalCount > 0 ? "critical" :
                                 highCount > totalFeatures / 2 ? "high" : "medium";
 
+        if (totalFeatures == 0)
+        {
+            return new ForecastSummary
+            {
+                TotalForecasts = 0,
+                HighRiskPredictions = 0,
+                CriticalRiskPredictions = 0,
+                OverallTrend = "stable",
+                DominantRiskLevel = "none",
+                AverageConfidence = 0,
+                KeyInsight = "No forecast hotspot polygons were generated from this analysis.",
+                RecommendedActions =
+                [
+                    "Review the analysis data coverage and rerun hotspot prediction with a suitable date range."
+                ],
+                AverageCompositeRiskScore = 0,
+                MaxCompositeRiskScore = 0
+            };
+        }
+
         // Compute trend from features
         var increasingCount = features.Features.Count(f => f.Properties?.ContainsKey("trend") == true &&
             f.Properties?.TryGetValue("trend", out var trend) == true &&
@@ -111,17 +131,6 @@ public class PredictHotspotsCommandHandler(
         }
 
         // Compute key metrics
-        var totalPredicted = features.Features.Sum(f =>
-        {
-            if (f.Properties?.ContainsKey("totalPredicted") == true &&
-                f.Properties.TryGetValue("totalPredicted", out var tp) == true &&
-                tp is double total)
-            {
-                return total;
-            }
-            return 0;
-        });
-
         var avgConfidence = features.Features.Average(f =>
         {
             if (f.Properties?.ContainsKey("confidence") == true &&

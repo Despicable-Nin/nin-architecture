@@ -559,10 +559,20 @@ public class MachineLearningService(
 
             if (totalPredicted < 1) continue;
 
-            var clusterGroup = clusterList.FirstOrDefault(c => c.ClusterId == series.ClusterId);
-            if (clusterGroup?.ClusterItems.Count == 0) continue;
+            var matchingClusters = clusterList
+                .Where(c => c.ClusterItems.Any(item =>
+                    (int)item.Precinct == series.Precinct &&
+                    (int)item.CrimeType == series.CrimeType))
+                .ToList();
+            if (matchingClusters.Count == 0) continue;
 
-            var points = clusterGroup!.ClusterItems
+            var matchingItems = matchingClusters
+                .SelectMany(c => c.ClusterItems)
+                .Where(item =>
+                    (int)item.Precinct == series.Precinct &&
+                    (int)item.CrimeType == series.CrimeType)
+                .ToList();
+            var points = matchingItems
                 .Select(i => (i.Longitude, i.Latitude))
                 .Distinct()
                 .ToList();
@@ -594,7 +604,8 @@ public class MachineLearningService(
                 {
                     ["precinct"] = ((Barangay)series.Precinct).ToString(),
                     ["crimeType"] = ((CrimeTypeEnum)series.CrimeType).ToString(),
-                    ["clusterId"] = (int)series.ClusterId,
+                    ["clusterId"] = matchingClusters.Count == 1 ? (int)matchingClusters[0].ClusterId : 0,
+                    ["clusterIds"] = matchingClusters.Select(c => (int)c.ClusterId).Distinct().ToArray(),
                     ["totalPredicted"] = Math.Round(totalPredicted, 1),
                     ["confidence"] = Math.Round(avgConfidence, 2),
                     ["severity"] = severity,
@@ -866,4 +877,3 @@ public class MachineLearningService(
         }).ToList();
     }
 }
-

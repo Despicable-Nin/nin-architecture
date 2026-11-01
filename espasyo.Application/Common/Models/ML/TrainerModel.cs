@@ -181,6 +181,7 @@ public record ForecastResponse
 {
     public List<ForecastSeries> Series { get; init; } = new();
     public List<ForecastRow> Forecasts { get; init; } = new();
+    public List<MonthlyForecastRiskPeriod> MonthlyRiskPeriods { get; init; } = new();
     public List<SpatialForecastRow> Spatial { get; init; } = new();
     public ForecastMetrics Metrics { get; init; } = new();
     public DateTime GeneratedAt { get; init; } = DateTime.UtcNow;
@@ -190,6 +191,80 @@ public record ForecastResponse
     public ThresholdCalculationResult DynamicThresholds { get; init; } = new();
     public TemporalPatterns? TemporalPatterns { get; init; }
     public List<SeasonalPredictionRow> SeasonalPredictions { get; init; } = new();
+}
+
+public record MonthlyForecastRiskPeriod
+{
+    public int Year { get; init; }
+    public int Month { get; init; }
+    public double ProjectedIncidents { get; init; }
+    public ForecastVolumeByRiskLevel ForecastByRiskLevel { get; init; } = new();
+}
+
+public record ForecastVolumeByRiskLevel
+{
+    public double Low { get; init; }
+    public double Medium { get; init; }
+    public double High { get; init; }
+    public double Critical { get; init; }
+}
+
+public readonly record struct ForecastRiskObservation(
+    int Year,
+    int Month,
+    double ProjectedValue,
+    string RiskLevel);
+
+public static class MonthlyForecastRiskAggregator
+{
+    public static List<MonthlyForecastRiskPeriod> Aggregate(IEnumerable<ForecastRiskObservation> observations)
+    {
+        var months = new Dictionary<(int Year, int Month), double[]>();
+
+        foreach (var observation in observations)
+        {
+            if (observation.Year is < 1 or > 9999 || observation.Month is < 1 or > 12)
+                throw new ArgumentOutOfRangeException(nameof(observations), "Forecast period must have a valid year and month.");
+            if (!double.IsFinite(observation.ProjectedValue) || observation.ProjectedValue < 0)
+                throw new ArgumentOutOfRangeException(nameof(observations), "Projected values must be finite and non-negative.");
+
+            var riskLevelIndex = observation.RiskLevel.Trim().ToLowerInvariant() switch
+            {
+                "low" => 0,
+                "medium" => 1,
+                "high" => 2,
+                "critical" => 3,
+                _ => throw new ArgumentException($"Unknown forecast risk level: '{observation.RiskLevel}'.", nameof(observations))
+            };
+
+            var key = (observation.Year, observation.Month);
+            if (!months.TryGetValue(key, out var volumes))
+            {
+                volumes = new double[4];
+                months.Add(key, volumes);
+            }
+
+            volumes[riskLevelIndex] += observation.ProjectedValue;
+        }
+
+        return months
+            .OrderBy(month => month.Key.Year)
+            .ThenBy(month => month.Key.Month)
+            .Select(month => new MonthlyForecastRiskPeriod
+            {
+                Year = month.Key.Year,
+                Month = month.Key.Month,
+                ProjectedIncidents = month.Value.Sum(),
+                ForecastByRiskLevel = new ForecastVolumeByRiskLevel
+                {
+                    Low = month.Value[0],
+                    Medium = month.Value[1],
+                    High = month.Value[2],
+                    Critical = month.Value[3]
+                }
+            })
+            .ToList();
+    }
 }
 
 public record ForecastMetrics

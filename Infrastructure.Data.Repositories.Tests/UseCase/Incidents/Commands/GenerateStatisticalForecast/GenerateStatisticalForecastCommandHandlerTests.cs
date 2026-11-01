@@ -306,6 +306,9 @@ public class GenerateStatisticalForecastCommandHandlerTests
         result.Forecasts[0].Forecast.ShouldBeLessThan(9);
         result.Forecasts[2].Forecast.ShouldBeGreaterThan(0);
         result.Forecasts[2].Forecast.ShouldBeLessThan(9);
+        result.MonthlyRiskPeriods.Count.ShouldBe(1);
+        result.MonthlyRiskPeriods[0].ProjectedIncidents.ShouldBe(9);
+        result.MonthlyRiskPeriods[0].ForecastByRiskLevel.Low.ShouldBe(9);
     }
 
     // ── CompositeRiskScore ───────────────────────────────────────────

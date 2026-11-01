@@ -1,3 +1,4 @@
+using espasyo.Application.Common.Models.ML;
 using MediatR;
 
 namespace espasyo.Application.UseCase.ForecastRuns.Commands.SaveForecastSnapshot;
@@ -62,4 +63,5 @@ public class SaveForecastSnapshotResponse
     public string Name { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public int TotalPredictions { get; set; }
+    public List<MonthlyForecastRiskPeriod> MonthlyRiskPeriods { get; set; } = new();
 }

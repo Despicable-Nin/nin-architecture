@@ -10,8 +10,8 @@ namespace espasyo_console;
         // Seeded once per run (from --seed, default 42). All fixture randomness flows through
         // this instance so the same seed reproduces the same incidents, coordinates, and manpower.
         private static Random Rng = new();
-    private static readonly DateTime MaxSeedDate = new(2025, 12, 31, 23, 59, 59, DateTimeKind.Utc);
-    private static readonly DateTime MinSeedDate = MaxSeedDate.AddYears(-5);
+    private static readonly DateTime MaxSeedDate = new(DateTime.Today.Year, DateTime.Today.AddMonths(-7).Month, 28, 23, 59, 59, DateTimeKind.Utc);
+    private static readonly DateTime MinSeedDate = MaxSeedDate.AddYears(-5).AddMonths(-7);
 
     private static readonly Dictionary<CrimeTypeEnum, List<MotiveEnum>> ValidMotives = new()
     {

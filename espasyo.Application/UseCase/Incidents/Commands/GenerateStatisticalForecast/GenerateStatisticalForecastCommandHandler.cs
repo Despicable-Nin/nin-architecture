@@ -1,5 +1,6 @@
 using espasyo.Application.Common.Models.ML;
 using espasyo.Application.Interfaces;
+using espasyo.Domain.Enums;
 using MediatR;
 
 namespace espasyo.Application.UseCase.Incidents.Commands.GenerateStatisticalForecast;
@@ -47,6 +48,20 @@ public class GenerateStatisticalForecastCommandHandler(
             var forecast = await machineLearningService.GenerateStatisticalForecast(request.ClusterData, parameters);
 
             var flatForecasts = FlattenTemporalSeries(forecast.Series, parameters.IncludeTimeOfDay ? request.ClusterData : null);
+            var riskScoringConfig = parameters.RiskScoringConfig ?? new RiskScoringConfig();
+            var heinousCrimeTypeIds = riskScoringConfig.GetHeinousCrimeTypeIds();
+            var heinousCrimeTypesInScope = GetCrimeTypeIdsInScope(request)
+                .Any(heinousCrimeTypeIds.Contains);
+            flatForecasts = flatForecasts
+                .Select(row => row with
+                {
+                    CompositeRiskScore = CalculateCompositeRiskScore(
+                        row,
+                        riskScoringConfig,
+                        heinousCrimeTypeIds,
+                        heinousCrimeTypesInScope)
+                })
+                .ToList();
 
             // Spatial
             var spatialRows = await spatialForecastService.DistributeForecast(
@@ -58,6 +73,13 @@ public class GenerateStatisticalForecastCommandHandler(
             forecast = forecast with
             {
                 Forecasts = flatForecasts,
+                MonthlyRiskPeriods = MonthlyForecastRiskAggregator.Aggregate(
+                    forecast.Series.SelectMany(series => series.Forecasts.Select(point =>
+                        new ForecastRiskObservation(
+                            point.Timestamp.Year,
+                            point.Timestamp.Month,
+                            point.Forecast,
+                            point.RiskLevel)))),
                 Spatial = spatialRows ?? [],
                 SeasonalPredictions = seasonalPredictions ?? []
             };
@@ -142,9 +164,53 @@ public class GenerateStatisticalForecastCommandHandler(
             AverageConfidence = allForecasts.Average(f => f.Confidence),
             KeyInsight = keyInsight,
             RecommendedActions = actions,
-            AverageCompositeRiskScore = 0,
-            MaxCompositeRiskScore = 0
+            AverageCompositeRiskScore = allForecasts.Average(f => f.CompositeRiskScore),
+            MaxCompositeRiskScore = allForecasts.Max(f => f.CompositeRiskScore)
         };
+    }
+
+    private static double CalculateCompositeRiskScore(
+        ForecastRow forecast,
+        RiskScoringConfig config,
+        IReadOnlyCollection<int> heinousCrimeTypeIds,
+        bool heinousCrimeTypesInScope)
+    {
+        if (forecast.CrimeType is not int crimeTypeId)
+            return 0;
+
+        var isHeinous = heinousCrimeTypeIds.Contains(crimeTypeId);
+        var heinousMultiplier = !heinousCrimeTypesInScope
+            ? 1.0
+            : isHeinous
+                ? config.HeinousBoostFactor
+                : config.HeinousPresenceFactor;
+
+        return config.GetSeverityScore(crimeTypeId) / 10.0
+            * config.GetPrecinctRiskFactor(forecast.Precinct)
+            * heinousMultiplier;
+    }
+
+    private static IEnumerable<int> GetCrimeTypeIdsInScope(GenerateStatisticalForecastCommand request)
+    {
+        if (request.CrimeTypeFilter is not null)
+        {
+            return request.CrimeTypeFilter
+                .Select(value =>
+                {
+                    if (int.TryParse(value, out var numericValue))
+                        return numericValue;
+
+                    return Enum.TryParse<CrimeTypeEnum>(value, true, out var crimeType)
+                        ? (int?)crimeType
+                        : null;
+                })
+                .Where(value => value.HasValue)
+                .Select(value => value!.Value);
+        }
+
+        return request.ClusterData
+            .SelectMany(group => group.ClusterItems)
+            .Select(item => (int)item.CrimeType);
     }
     
     private ForecastExplanation GenerateForecastExplanation(string modelType, ForecastMetrics metrics, int dataPoints)

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using espasyo.Application.Common.Models.ML;
 using espasyo.Application.Interfaces;
 using espasyo.Domain.Entities;
 using espasyo.Domain.Enums;
@@ -86,7 +87,13 @@ public class SaveForecastSnapshotCommandHandler(
             Id = run.Id.ToString(),
             Name = request.Name,
             CreatedAt = run.RunAt.UtcDateTime,
-            TotalPredictions = results.Count
+            TotalPredictions = results.Count,
+            MonthlyRiskPeriods = MonthlyForecastRiskAggregator.Aggregate(results.Select(result =>
+                new ForecastRiskObservation(
+                    result.Year,
+                    result.Month,
+                    result.PredictedValue,
+                    result.RiskLevel)))
         };
     }
 }

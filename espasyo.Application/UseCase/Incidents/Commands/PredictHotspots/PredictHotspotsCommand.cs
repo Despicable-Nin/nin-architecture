@@ -3,7 +3,11 @@ using MediatR;
 
 namespace espasyo.Application.UseCase.Incidents.Commands.PredictHotspots;
 
-public record PredictHotspotsCommand : IRequest<GeoJsonFeatureCollection>
+/// <summary>
+/// Command to predict crime hotspots using K-Means clustering, returning both spatial features
+/// and a forecast summary with risk-based prevention recommendations.
+/// </summary>
+public record PredictHotspotsCommand : IRequest<HotspotPredictionResponse>
 {
     public IEnumerable<ClusterGroup> ClusterData { get; init; } = [];
     public int Horizon { get; init; } = 6;

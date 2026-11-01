@@ -5,7 +5,7 @@
 **Archived item:** F-01 - Session JWT attached by `forecastApi.ts` and `manpowerApi.ts` when available.
 **Partial item:** F-02 - Stale API fallbacks corrected; explicit reporting when `NEXT_PUBLIC_API_URL` is unset remains incomplete.
 **Archived item:** F-03 / F-04 — Frontend forecast model identity fix + localStorage fallback removal (see espasyo/ handoff-dead.md for details)  
-**Reopened item:** F-05 — Backend `GeocodingController` endpoint exists, but no frontend geocoding client or page exists. See TODO status: todo.
+**Archived item:** F-05 — The backend endpoint is consumed by a typed frontend client, authenticated lookup page, and incident-entry validation. Verified coordinates are submitted on create. Frontend ESLint and production build pass; no backend changes were required.
 **Archived item:** F-06 — Frontend time-of-day distribution chart (see espasyo/ handoff-dead.md for details)  
 **Archived item:** F-08 — Temporal preprocessing visualization now matches the backend monthly aggregation and zero-filled series preview (see espasyo/ handoff-dead.md for details).
 **Archived item:** F-09 — Dedicated hotspot risk summary and prevention recommendations screen; empty predictions return a neutral summary. Fixed source-cluster lookup null reference by matching forecasts to source incidents by precinct/crime type. Hotspot prediction and empty-result regression tests pass; full-suite failures are outside F-09 (see espasyo/ handoff-dead.md for details).

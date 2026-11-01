@@ -4,6 +4,7 @@ using espasyo.Application.UseCase.ForecastRuns.Commands.DeleteForecastRun;
 using espasyo.Application.UseCase.ForecastRuns.Queries.GetForecastResults;
 using espasyo.Application.UseCase.ForecastRuns.Queries.GetForecastRiskPeriods;
 using espasyo.Application.UseCase.ForecastRuns.Queries.GetForecastRuns;
+using espasyo.Application.UseCase.ForecastRuns.Queries.GetForecastHistoricalData;
 using espasyo.Application.UseCase.ForecastRuns.Queries.EvaluateForecastRun;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -94,6 +95,25 @@ public class ForecastRunController : ControllerBase
             return NotFound($"No results found for forecast run {id}");
 
         return Ok(periods);
+    }
+
+    [HttpGet("{id:guid}/historical-data")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetHistoricalData(Guid id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var historicalData = await _mediator.Send(
+                new GetForecastHistoricalDataQuery { ForecastRunId = id },
+                cancellationToken);
+
+            return Ok(historicalData);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound($"No historical data found for forecast run {id}");
+        }
     }
 
     [HttpGet("{id:guid}/evaluate")]

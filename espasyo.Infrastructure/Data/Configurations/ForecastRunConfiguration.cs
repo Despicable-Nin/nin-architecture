@@ -16,6 +16,10 @@ public class ForecastRunConfiguration : IEntityTypeConfiguration<ForecastRun>
         builder.Property(f => f.Horizon).IsRequired();
         builder.Property(f => f.ConfidenceLevel).IsRequired().HasColumnType("float");
         builder.Property(f => f.ModelType).IsRequired().HasConversion<int>();
+        builder.Property(f => f.RequestedModelType).HasMaxLength(50).HasDefaultValue("");
+        builder.Property(f => f.EffectiveModelType).HasMaxLength(50).HasDefaultValue("");
+        builder.Property(f => f.ModelFallbackReason).HasMaxLength(500);
+        builder.Property(f => f.HistoricalDataJson).HasDefaultValue("");
         builder.Property(f => f.Status).IsRequired().HasConversion<int>();
         builder.Property(f => f.TotalSeries).IsRequired().HasDefaultValue(0);
         builder.Property(f => f.GeneratedById).IsRequired().HasMaxLength(450);

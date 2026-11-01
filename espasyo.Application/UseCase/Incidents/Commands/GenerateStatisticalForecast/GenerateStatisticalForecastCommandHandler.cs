@@ -22,8 +22,8 @@ public class GenerateStatisticalForecastCommandHandler(
             if (request.ClusterData == null || !request.ClusterData.Any())
                 throw new ArgumentException("Cluster data is required for forecasting");
 
-            if (request.Horizon < 6 || request.Horizon > 24)
-                throw new ArgumentException("Forecast horizon must be between 6 and 24 months");
+            if (request.Horizon < 1 || request.Horizon > 24)
+                throw new ArgumentException("Forecast horizon must be between 1 and 24 months");
 
             if (request.ConfidenceLevel <= 0 || request.ConfidenceLevel >= 1)
                 throw new ArgumentException("Confidence level must be between 0 and 1");
@@ -46,6 +46,33 @@ public class GenerateStatisticalForecastCommandHandler(
 
             // Temporal (always runs — base forecast)
             var forecast = await machineLearningService.GenerateStatisticalForecast(request.ClusterData, parameters);
+
+            var historicalLookup = ForecastYearOverYearComparison.BuildLookup(
+                request.ClusterData
+                    .SelectMany(group => group.ClusterItems)
+                    .Select(item => new ForecastHistoricalObservation(
+                        (int)item.Precinct,
+                        (int)item.CrimeType,
+                        item.Year,
+                        item.Month,
+                        1)));
+            var seriesWithComparison = forecast.Series
+                .Select(series => series with
+                {
+                    Forecasts = series.Forecasts
+                        .Select(point => point with
+                        {
+                            LastYearActual = ForecastYearOverYearComparison.GetPriorYearActual(
+                                historicalLookup,
+                                series.Precinct,
+                                series.CrimeType,
+                                point.Timestamp.Year,
+                                point.Timestamp.Month)
+                        })
+                        .ToList()
+                })
+                .ToList();
+            forecast = forecast with { Series = seriesWithComparison };
 
             var flatForecasts = FlattenTemporalSeries(forecast.Series, parameters.IncludeTimeOfDay ? request.ClusterData : null);
             var riskScoringConfig = parameters.RiskScoringConfig ?? new RiskScoringConfig();

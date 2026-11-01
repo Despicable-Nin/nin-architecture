@@ -22,13 +22,20 @@ public class SaveForecastSnapshotCommandHandler(
                 precinctId = precinct.Id;
         }
 
+        var requestedModelType = request.RequestedModelType ?? request.ModelType;
+        var effectiveModelType = request.EffectiveModelType ?? request.ModelType;
+        var effectiveModelEnum = ParseModelType(effectiveModelType);
         var run = new ForecastRun(
             precinctId,
             request.ForecastPeriod,
             request.ConfidenceLevel,
-            ParseModelType(request.ModelType),
+            effectiveModelEnum,
             request.GeneratedById,
-            request.Name);
+            request.Name,
+            historicalDataJson: System.Text.Json.JsonSerializer.Serialize(request.HistoricalData),
+            requestedModelType: requestedModelType,
+            effectiveModelType: effectiveModelType,
+            modelFallbackReason: request.ModelFallbackReason);
 
         run.MarkCompleted(request.Predictions.Count);
 
@@ -88,12 +95,16 @@ public class SaveForecastSnapshotCommandHandler(
             Name = request.Name,
             CreatedAt = run.RunAt.UtcDateTime,
             TotalPredictions = results.Count,
+            RequestedModelType = run.RequestedModelType,
+            EffectiveModelType = run.EffectiveModelType,
+            ModelFallbackReason = run.ModelFallbackReason,
             MonthlyRiskPeriods = MonthlyForecastRiskAggregator.Aggregate(results.Select(result =>
                 new ForecastRiskObservation(
                     result.Year,
                     result.Month,
                     result.PredictedValue,
-                    result.RiskLevel)))
+                    result.RiskLevel))),
+            HistoricalData = request.HistoricalData
         };
     }
 

@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="ab0e3a62-b8d2-488a-a42f-b9f54db3f92a" name="ninal@ISTK 2026-11-01 23:26:30" runUser="ISTK\ninal" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-11-01T23:26:30.6147633+08:00" queuing="2026-11-01T23:26:30.6147637+08:00" start="2026-11-01T23:26:29.8075021+08:00" finish="2026-11-01T23:26:30.6184470+08:00" />
+  <TestSettings name="default" id="50713935-98b3-4340-b9b8-73762603500a">
+    <Deployment runDeploymentRoot="ninal_ISTK_2026-11-01_23_26_30" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="c8302008-4635-4b40-8fb6-b9080a5eeaea" testId="c9173e75-1910-b04a-21cc-48fe92903b8a" testName="Infrastructure.Tests.MachineLearning.TemporalForecastServiceTests.GenerateForecast_AllModels_BoundsAreSane(modelType: &quot;ssa&quot;)" computerName="ISTK" duration="00:00:00.0323473" startTime="2026-11-01T23:26:30.4922191+08:00" endTime="2026-11-01T23:26:30.5262167+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c8302008-4635-4b40-8fb6-b9080a5eeaea">
+      <Output>
+        <ErrorInfo>
+          <Message>Shouldly.ShouldAssertException : fp.LowerBound&#xD;
+    should be less than or equal to&#xD;
+33d&#xD;
+    but was&#xD;
+33.99998474121094d</Message>
+          <StackTrace>   at Infrastructure.Tests.MachineLearning.TemporalForecastServiceTests.GenerateForecast_AllModels_BoundsAreSane(String modelType) in D:\loa\sir_regie\nin-architecture\Infrastructure.Data.Repositories.Tests\MachineLearning\TemporalForecastServiceTests.cs:line 273&#xD;
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()&#xD;
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)&#xD;
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)&#xD;
+--- End of stack trace from previous location ---&#xD;
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()&#xD;
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)&#xD;
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)&#xD;
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()&#xD;
+   at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)&#xD;
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="bd77ad96-2a35-485d-8a9b-94c7c71435f6" testId="9a22c836-c874-4c29-57cb-333d2bcc884a" testName="Infrastructure.Tests.MachineLearning.TemporalForecastServiceTests.GenerateForecast_AllModels_BoundsAreSane(modelType: &quot;linear&quot;)" computerName="ISTK" duration="00:00:00.0021896" startTime="2026-11-01T23:26:30.4915916+08:00" endTime="2026-11-01T23:26:30.4916528+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="bd77ad96-2a35-485d-8a9b-94c7c71435f6" />
+    <UnitTestResult executionId="bb4a902f-1ac8-469d-b04a-0bd953570b85" testId="cf6ba534-79f1-f0e4-7177-4f4596c1c2e5" testName="Infrastructure.Tests.MachineLearning.TemporalForecastServiceTests.GenerateForecast_AllModels_BoundsAreSane(modelType: &quot;ensemble&quot;)" computerName="ISTK" duration="00:00:00.1779019" startTime="2026-11-01T23:26:30.2991410+08:00" endTime="2026-11-01T23:26:30.4845440+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="bb4a902f-1ac8-469d-b04a-0bd953570b85" />
+    <UnitTestResult executionId="4301075c-6d25-45d5-868e-094f99fc9230" testId="0cfa0b8f-efc3-2eda-7bb5-fd2cfa33908e" testName="Infrastructure.Tests.MachineLearning.TemporalForecastServiceTests.GenerateForecast_AllModels_BoundsAreSane(modelType: &quot;seasonal&quot;)" computerName="ISTK" duration="00:00:00.0016954" startTime="2026-11-01T23:26:30.4921267+08:00" endTime="2026-11-01T23:26:30.4921578+08:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="4301075c-6d25-45d5-868e-094f99fc9230" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="Infrastructure.Tests.MachineLearning.TemporalForecastServiceTests.GenerateForecast_AllModels_BoundsAreSane(modelType: &quot;linear&quot;)" storage="d:\loa\sir_regie\nin-architecture\infrastructure.data.repositories.tests\bin\debug\net10.0\infrastructure.tests.dll" id="9a22c836-c874-4c29-57cb-333d2bcc884a">
+      <Execution id="bd77ad96-2a35-485d-8a9b-94c7c71435f6" />
+      <TestMethod codeBase="D:\loa\sir_regie\nin-architecture\Infrastructure.Data.Repositories.Tests\bin\Debug\net10.0\Infrastructure.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Infrastructure.Tests.MachineLearning.TemporalForecastServiceTests" name="GenerateForecast_AllModels_BoundsAreSane" />
+    </UnitTest>
+    <UnitTest name="Infrastructure.Tests.MachineLearning.TemporalForecastServiceTests.GenerateForecast_AllModels_BoundsAreSane(modelType: &quot;ssa&quot;)" storage="d:\loa\sir_regie\nin-architecture\infrastructure.data.repositories.tests\bin\debug\net10.0\infrastructure.tests.dll" id="c9173e75-1910-b04a-21cc-48fe92903b8a">
+      <Execution id="c8302008-4635-4b40-8fb6-b9080a5eeaea" />
+      <TestMethod codeBase="D:\loa\sir_regie\nin-architecture\Infrastructure.Data.Repositories.Tests\bin\Debug\net10.0\Infrastructure.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Infrastructure.Tests.MachineLearning.TemporalForecastServiceTests" name="GenerateForecast_AllModels_BoundsAreSane" />
+    </UnitTest>
+    <UnitTest name="Infrastructure.Tests.MachineLearning.TemporalForecastServiceTests.GenerateForecast_AllModels_BoundsAreSane(modelType: &quot;ensemble&quot;)" storage="d:\loa\sir_regie\nin-architecture\infrastructure.data.repositories.tests\bin\debug\net10.0\infrastructure.tests.dll" id="cf6ba534-79f1-f0e4-7177-4f4596c1c2e5">
+      <Execution id="bb4a902f-1ac8-469d-b04a-0bd953570b85" />
+      <TestMethod codeBase="D:\loa\sir_regie\nin-architecture\Infrastructure.Data.Repositories.Tests\bin\Debug\net10.0\Infrastructure.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Infrastructure.Tests.MachineLearning.TemporalForecastServiceTests" name="GenerateForecast_AllModels_BoundsAreSane" />
+    </UnitTest>
+    <UnitTest name="Infrastructure.Tests.MachineLearning.TemporalForecastServiceTests.GenerateForecast_AllModels_BoundsAreSane(modelType: &quot;seasonal&quot;)" storage="d:\loa\sir_regie\nin-architecture\infrastructure.data.repositories.tests\bin\debug\net10.0\infrastructure.tests.dll" id="0cfa0b8f-efc3-2eda-7bb5-fd2cfa33908e">
+      <Execution id="4301075c-6d25-45d5-868e-094f99fc9230" />
+      <TestMethod codeBase="D:\loa\sir_regie\nin-architecture\Infrastructure.Data.Repositories.Tests\bin\Debug\net10.0\Infrastructure.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Infrastructure.Tests.MachineLearning.TemporalForecastServiceTests" name="GenerateForecast_AllModels_BoundsAreSane" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="c9173e75-1910-b04a-21cc-48fe92903b8a" executionId="c8302008-4635-4b40-8fb6-b9080a5eeaea" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="9a22c836-c874-4c29-57cb-333d2bcc884a" executionId="bd77ad96-2a35-485d-8a9b-94c7c71435f6" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="cf6ba534-79f1-f0e4-7177-4f4596c1c2e5" executionId="bb4a902f-1ac8-469d-b04a-0bd953570b85" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="0cfa0b8f-efc3-2eda-7bb5-fd2cfa33908e" executionId="4301075c-6d25-45d5-868e-094f99fc9230" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="4" executed="4" passed="3" failed="1" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v3.0.2+dd36e86129 (64-bit .NET 10.0.12)&#xD;
+[xUnit.net 00:00:00.06]   Discovering: Infrastructure.Tests&#xD;
+[xUnit.net 00:00:00.10]   Discovered:  Infrastructure.Tests&#xD;
+[xUnit.net 00:00:00.12]   Starting:    Infrastructure.Tests&#xD;
+[xUnit.net 00:00:00.37]       Shouldly.ShouldAssertException : fp.LowerBound&#xD;
+[xUnit.net 00:00:00.37]           should be less than or equal to&#xD;
+[xUnit.net 00:00:00.37]       33d&#xD;
+[xUnit.net 00:00:00.37]           but was&#xD;
+[xUnit.net 00:00:00.37]       33.99998474121094d&#xD;
+[xUnit.net 00:00:00.37]       Stack Trace:&#xD;
+[xUnit.net 00:00:00.37]         D:\loa\sir_regie\nin-architecture\Infrastructure.Data.Repositories.Tests\MachineLearning\TemporalForecastServiceTests.cs(273,0): at Infrastructure.Tests.MachineLearning.TemporalForecastServiceTests.GenerateForecast_AllModels_BoundsAreSane(String modelType)&#xD;
+[xUnit.net 00:00:00.37]            at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()&#xD;
+[xUnit.net 00:00:00.37]            at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)&#xD;
+[xUnit.net 00:00:00.37]            at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)&#xD;
+[xUnit.net 00:00:00.37]         --- End of stack trace from previous location ---&#xD;
+[xUnit.net 00:00:00.37]            at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()&#xD;
+[xUnit.net 00:00:00.37]            at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)&#xD;
+[xUnit.net 00:00:00.37]            at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)&#xD;
+[xUnit.net 00:00:00.37]            at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()&#xD;
+[xUnit.net 00:00:00.37]            at System.Runtime.CompilerServices.TaskAwaiter.ThrowForNonSuccess(Task task)&#xD;
+[xUnit.net 00:00:00.37]            at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task, ConfigureAwaitOptions options)&#xD;
+[xUnit.net 00:00:00.37]   Finished:    Infrastructure.Tests&#xD;
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="ISTK" outcome="Error" timestamp="2026-11-01T23:26:30.5282596+08:00">
+        <Text>[xUnit.net 00:00:00.37]     Infrastructure.Tests.MachineLearning.TemporalForecastServiceTests.GenerateForecast_AllModels_BoundsAreSane(modelType: "ssa") [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>

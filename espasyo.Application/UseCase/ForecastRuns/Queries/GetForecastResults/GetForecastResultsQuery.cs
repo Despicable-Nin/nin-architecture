@@ -1,4 +1,7 @@
+using System.Text.Json;
+using espasyo.Application.Common.Models.ML;
 using espasyo.Application.Interfaces;
+using espasyo.Application.UseCase.ForecastRuns.Commands.SaveForecastSnapshot;
 using MediatR;
 
 namespace espasyo.Application.UseCase.ForecastRuns.Queries.GetForecastResults;
@@ -18,6 +21,7 @@ public record ForecastResultDto
     public int Month { get; init; }
     public int Year { get; init; }
     public double PredictedValue { get; init; }
+    public double? LastYearActual { get; init; }
     public double LowerBound { get; init; }
     public double UpperBound { get; init; }
     public double Confidence { get; init; }
@@ -31,6 +35,17 @@ public class GetForecastResultsQueryHandler(IForecastRepository forecastReposito
     public async Task<IEnumerable<ForecastResultDto>> Handle(GetForecastResultsQuery request, CancellationToken cancellationToken)
     {
         var results = await forecastRepository.GetForecastResultsAsync(request.ForecastRunId);
+        var run = await forecastRepository.GetForecastRunByIdAsync(request.ForecastRunId);
+        var historicalData = string.IsNullOrWhiteSpace(run?.HistoricalDataJson)
+            ? []
+            : JsonSerializer.Deserialize<List<HistoricalDataPointDto>>(run.HistoricalDataJson) ?? [];
+        var historicalLookup = ForecastYearOverYearComparison.BuildLookup(
+            historicalData.Select(point => new ForecastHistoricalObservation(
+                point.Precinct,
+                point.CrimeType,
+                point.Year,
+                point.Month,
+                point.Count)));
 
         return results.Select(r => new ForecastResultDto
         {
@@ -42,6 +57,12 @@ public class GetForecastResultsQueryHandler(IForecastRepository forecastReposito
             Month = r.Month,
             Year = r.Year,
             PredictedValue = r.PredictedValue,
+            LastYearActual = ForecastYearOverYearComparison.GetPriorYearActual(
+                historicalLookup,
+                (int)r.Precinct,
+                (int)r.CrimeType,
+                r.Year,
+                r.Month),
             LowerBound = r.LowerBound,
             UpperBound = r.UpperBound,
             Confidence = r.Confidence,

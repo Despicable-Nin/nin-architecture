@@ -32,7 +32,7 @@ public class TemporalForecastService(
             foreach (var ((precinct, crimeType), timeSeriesData) in groupedData)
             {
                 // Delegate to the model-specific generator (linear / seasonal / ssa / ensemble).
-                var forecasts = await GenerateForecastForSeries(timeSeriesData, parameters, clusterDataList, precinct);
+                var seriesResult = await GenerateForecastForSeries(timeSeriesData, parameters, clusterDataList, precinct);
 
                 forecastSeries.Add(new ForecastSeries
                 {
@@ -40,11 +40,17 @@ public class TemporalForecastService(
                     CrimeType = crimeType,
                     Shift = null,
                     ClusterId = 0,
-                    Forecasts = forecasts,
+                    RequestedModel = seriesResult.RequestedModel,
+                    EffectiveModel = seriesResult.EffectiveModel,
+                    FallbackReason = seriesResult.FallbackReason,
+                    Forecasts = seriesResult.Forecasts,
                     Metadata = new Dictionary<string, object>
                     {
                         { "HistoricalDataPoints", timeSeriesData.Count },
-                        { "ModelUsed", parameters.ModelType }
+                        { "RequestedModel", seriesResult.RequestedModel },
+                        { "ModelUsed", seriesResult.EffectiveModel },
+                        { "EffectiveModel", seriesResult.EffectiveModel },
+                        { "FallbackReason", seriesResult.FallbackReason ?? string.Empty }
                     }
                 });
             }
@@ -67,11 +73,21 @@ public class TemporalForecastService(
                 }
                 : new ThresholdCalculationResult();
 
+            var effectiveModel = forecastSeries
+                .Select(s => s.EffectiveModel)
+                .FirstOrDefault(m => !string.IsNullOrWhiteSpace(m)) ?? parameters.ModelType;
+            var fallbackReason = forecastSeries
+                .Select(s => s.FallbackReason)
+                .FirstOrDefault(reason => !string.IsNullOrWhiteSpace(reason));
+
             return new ForecastResponse
             {
                 Series = forecastSeries,
                 Metrics = metrics,
-                ModelUsed = parameters.ModelType,
+                RequestedModel = parameters.ModelType,
+                EffectiveModel = effectiveModel,
+                ModelUsed = effectiveModel,
+                FallbackReason = fallbackReason,
                 GeneratedAt = DateTime.UtcNow,
                 DynamicThresholds = dynamicThresholds
             };
@@ -113,7 +129,7 @@ public class TemporalForecastService(
                 var testParameters = parameters with { Horizon = 6 };
                 var predictions = await GenerateForecastForSeries(trainData, testParameters, clusterData);
 
-                var metrics = CalculateValidationMetrics(testData, predictions);
+                var metrics = CalculateValidationMetrics(testData, predictions.Forecasts);
                 allMetrics.Add(metrics);
             }
 
@@ -232,22 +248,41 @@ public class TemporalForecastService(
         return result;
     }
 
+    private sealed record ForecastSeriesGenerationResult(
+        List<ForecastPoint> Forecasts,
+        string RequestedModel,
+        string EffectiveModel,
+        string? FallbackReason);
+
     // Dispatches to the model-specific generator based on parameters.ModelType.
     // Runs on a background thread via Task.Run because ML.NET forecasting can be CPU-heavy.
     // If the chosen model throws, falls back to the linear trend model as a safe default.
-    private async Task<List<ForecastPoint>> GenerateForecastForSeries(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData, int? precinct = null)
+    private async Task<ForecastSeriesGenerationResult> GenerateForecastForSeries(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData, int? precinct = null)
     {
         return await Task.Run(() =>
         {
-            var forecasts = new List<ForecastPoint>();
-
             try
             {
-                forecasts = parameters.ModelType.ToLower() switch
+                var requestedModel = parameters.ModelType.Trim();
+                var modelMatch = requestedModel.ToLower();
+
+                return modelMatch switch
                 {
-                    "linear" => GenerateLinearTrendForecast(data, parameters, clusterData, precinct),
-                    "seasonal" => GenerateSeasonalForecast(data, parameters, clusterData, precinct),
-                    "ensemble" => GenerateEnsembleForecast(data, parameters, clusterData, precinct),
+                    "linear" => new ForecastSeriesGenerationResult(
+                        GenerateLinearTrendForecast(data, parameters, clusterData, precinct),
+                        requestedModel,
+                        "linear",
+                        null),
+                    "seasonal" => new ForecastSeriesGenerationResult(
+                        GenerateSeasonalForecast(data, parameters, clusterData, precinct),
+                        requestedModel,
+                        "seasonal",
+                        null),
+                    "ensemble" => new ForecastSeriesGenerationResult(
+                        GenerateEnsembleForecast(data, parameters, clusterData, precinct),
+                        requestedModel,
+                        "ensemble",
+                        null),
                     "ssa" or _ => GenerateSSAForecast(data, parameters, clusterData, precinct)
                 };
             }
@@ -255,51 +290,76 @@ public class TemporalForecastService(
             {
                 logger.LogWarning(ex, "{ModelType} forecasting failed, falling back to simple linear trend", parameters.ModelType);
 
-                forecasts = GenerateLinearTrendForecast(data, parameters, clusterData, precinct);
+                return new ForecastSeriesGenerationResult(
+                    GenerateLinearTrendForecast(data, parameters, clusterData, precinct),
+                    parameters.ModelType,
+                    "linear",
+                    $"{parameters.ModelType} forecasting failed and fell back to linear trend");
             }
-
-            return forecasts;
         });
     }
 
-    // Uses ordinary least squares (simple linear regression) on the last 12 months of data
-    // to fit a trend line, then projects it forward for the requested horizon months.
+    private readonly record struct RecencyWeightedTrend(
+        double Slope,
+        double Intercept,
+        double WeightedAverage);
+
+    private static RecencyWeightedTrend FitRecencyWeightedTrend(
+        IReadOnlyList<TimeSeriesData> data,
+        bool weightRecentData)
+    {
+        var firstDate = data[0].Date;
+        var weightedPoints = data.Select((point, index) =>
+        {
+            var x = (point.Date.Year - firstDate.Year) * 12 + point.Date.Month - firstDate.Month + 1;
+            return (X: (double)x, point.Value, Weight: GetRecencyWeight(data, index, weightRecentData));
+        }).ToList();
+
+        var totalWeight = weightedPoints.Sum(point => point.Weight);
+        var meanX = weightedPoints.Sum(point => point.X * point.Weight) / totalWeight;
+        var meanY = weightedPoints.Sum(point => point.Value * point.Weight) / totalWeight;
+        var denominator = weightedPoints.Sum(point => point.Weight * Math.Pow(point.X - meanX, 2));
+        var slope = denominator == 0
+            ? 0
+            : weightedPoints.Sum(point => point.Weight * (point.X - meanX) * (point.Value - meanY)) / denominator;
+
+        return new RecencyWeightedTrend(slope, meanY - slope * meanX, meanY);
+    }
+
+    private static double GetRecencyWeight(
+        IReadOnlyList<TimeSeriesData> data,
+        int index,
+        bool weightRecentData)
+    {
+        if (!weightRecentData)
+            return 1;
+
+        var pointDate = data[index].Date;
+        var latestDate = data[^1].Date;
+        var ageInMonths = (latestDate.Year - pointDate.Year) * 12 + latestDate.Month - pointDate.Month;
+        return Math.Pow(0.5, ageInMonths / 12d);
+    }
+
+    // Fits a recency-weighted trend over all analysis months and projects it forward.
     private List<ForecastPoint> GenerateLinearTrendForecast(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData, int? precinct = null)
     {
         var forecasts = new List<ForecastPoint>();
 
-        // Only the most recent 12 data points are used so that recent patterns dictate the trend,
-        // and older, potentially obsolete patterns don't skew the forecast.
         var recent = data.TakeLast(Math.Min(12, data.Count)).ToList();
+        var fit = FitRecencyWeightedTrend(data, parameters.WeightRecentData);
+        var n = data.Count;
+        var recentTotal = recent.Sum(d => d.Value);
 
-        // OLS closed‑form: y = slope * x + intercept
-        // x values are just 1‑based indices into `recent`, so all sums can be computed
-        // directly from n without iterating a second time for sumX and sumXX.
-        var n = recent.Count;
-        var sumX = n * (n + 1) / 2;                                              // Σx  (1 + 2 + … + n)
-        var sumY = recent.Sum(d => d.Value);                                     // Σy
-        var sumXY = recent.Select((d, i) => (i + 1) * d.Value).Sum();           // Σxy
-        var sumXX = n * (n + 1) * (2 * n + 1) / 6;                              // Σx² (1² + 2² + … + n²)
-
-        var slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);       // Δy per time step
-        var intercept = (sumY - slope * sumX) / n;                               // y at x = 0
-
-        // For sparse series (≤6 incidents in 12 months), the OLS slope is dominated
+        // For sparse series (≤6 incidents in the recent 12 months), the slope is dominated
         // by noise rather than signal.  Summing hundreds of noisy upward slopes across
         // (precinct × crimeType) combos inflates the aggregated total.  Fall back to
-        // the series' own average so sparse combos contribute their historical mean
-        // instead of a noise-driven extrapolation.
-        var useAverageFallback = sumY <= 6;
+        // the recency-weighted average across the complete analysis history.
+        var useAverageFallback = recentTotal <= 6;
 
-        // The first forecast month should be the later of: the month after the last
-        // historical data point, or the current calendar month.  This avoids predicting
-        // months that have already passed.
-        // 14‑day rule: within the first 14 days the current month is included; after
-        // that the forecast begins from the next month.
+        // Begin at the next full calendar month. This avoids projecting months that are
+        // already elapsed and ensures the first forecast point matches the next monthly bucket.
         var lastDate = data.Max(d => d.Date);
-        var today = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
-        var baseDate = DateTime.UtcNow.Day <= 14 ? today.AddMonths(-1) : today;
-        var startDate = lastDate > baseDate ? lastDate : baseDate;
+        var startDate = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(1);
         var gapMonths = (startDate.Year - lastDate.Year) * 12 + (startDate.Month - lastDate.Month);
         var recentAverage = recent.Average(d => d.Value);
         var historicalAverage = data.Average(d => d.Value);
@@ -308,16 +368,16 @@ public class TemporalForecastService(
         // a runaway trend, and the forecast should stay within a sane multiple
         // of the series' long-term average.
         var maxSlope = Math.Max(0.1, recentAverage * 0.15);
-        var cappedSlope = Math.Max(-maxSlope, Math.Min(maxSlope, slope));
+        var cappedSlope = Math.Max(-maxSlope, Math.Min(maxSlope, fit.Slope));
         var maxForecast = Math.Max(historicalAverage * 2.0, 1.0);
 
         var runningConfidence = parameters.ConfidenceLevel * 0.8;
         for (int i = 0; i < parameters.Horizon; i++)
         {
-            var stepsAhead = gapMonths + i + 1;
+            var stepsAhead = gapMonths + i;
             var forecastValue = useAverageFallback
-                ? sumY / (double)n
-                : Math.Max(0, intercept + cappedSlope * (n + stepsAhead));
+                ? fit.WeightedAverage
+                : Math.Max(0, fit.Intercept + cappedSlope * (n + stepsAhead));
             forecastValue = Math.Min(forecastValue, maxForecast);
 
             // Error margin widens with each future step to reflect growing uncertainty.
@@ -334,7 +394,7 @@ public class TemporalForecastService(
 
             forecasts.Add(new ForecastPoint
             {
-                Timestamp = startDate.AddMonths(i + 1),
+                Timestamp = startDate.AddMonths(i),
                 Forecast = forecastValue,
                 LowerBound = Math.Max(0, forecastValue - errorMargin * (1 + i * 0.1)),
                 UpperBound = forecastValue + errorMargin * (1 + i * 0.1),
@@ -353,7 +413,7 @@ public class TemporalForecastService(
     // to at most 12 and at most half the series length to satisfy SSA's internal invariants.
     // ML.NET SSA natively outputs confidence intervals; when they are missing (unlikely),
     // sensible fallback bounds (±20 %) are used instead.
-    private List<ForecastPoint> GenerateSSAForecast(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData, int? precinct = null)
+    private ForecastSeriesGenerationResult GenerateSSAForecast(List<TimeSeriesData> data, ForecastParameters parameters, IEnumerable<ClusterGroup> clusterData, int? precinct = null)
     {
         var forecasts = new List<ForecastPoint>();
         var dataView = mlContext.Data.LoadFromEnumerable(data);
@@ -361,20 +421,18 @@ public class TemporalForecastService(
         // SSA requires trainSize > 2 * windowSize; cap conservatively.
         var windowSize = Math.Min(12, Math.Max(1, (data.Count - 1) / 2));
 
-        // Project the next n months from the current calendar month, even if the
-        // last data point is older. SSA has a horizon limit; if the gap pushes us
-        // past it, fall back to the capped linear trend.
-        var lastDate = data.Max(d => d.Date);
+        // Begin at the next full calendar month, regardless of the current day-of-month.
         var today = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
-        var baseDate = DateTime.UtcNow.Day <= 14 ? today.AddMonths(-1) : today;
-        var startDate = lastDate > baseDate ? lastDate : baseDate;
+        var startDate = today.AddMonths(1);
+        var lastDate = data.Max(d => d.Date);
         var gapMonths = (startDate.Year - lastDate.Year) * 12 + (startDate.Month - lastDate.Month);
         var effectiveHorizon = parameters.Horizon + gapMonths;
         var maxSSAHorizon = Math.Max(1, data.Count - windowSize);
         if (effectiveHorizon > maxSSAHorizon)
         {
             logger.LogWarning("SSA horizon {EffectiveHorizon} exceeds limit {MaxSSAHorizon} for precinct {Precinct}; falling back to linear trend", effectiveHorizon, maxSSAHorizon, precinct);
-            return GenerateLinearTrendForecast(data, parameters, clusterData, precinct);
+            var fallbackForecasts = GenerateLinearTrendForecast(data, parameters, clusterData, precinct);
+            return new ForecastSeriesGenerationResult(fallbackForecasts, parameters.ModelType, "linear", $"SSA horizon {effectiveHorizon} exceeded limit {maxSSAHorizon}; used linear fallback");
         }
 
         var pipeline = mlContext.Forecasting.ForecastBySsa(
@@ -400,14 +458,33 @@ public class TemporalForecastService(
         for (int i = gapMonths; i < effectiveHorizon; i++)
         {
             var outputIndex = i - gapMonths;
-            var forecastDate = startDate.AddMonths(outputIndex + 1);
+            var forecastDate = startDate.AddMonths(outputIndex);
             var rawForecastValue = forecast.ForecastedValues[i];
             var forecastValue = Math.Min(Math.Max(0, rawForecastValue), maxForecast);
             // Fallback bounds: if ML.NET didn't produce them, use ±20 % of the point forecast.
             var lowerBound = forecast.LowerBoundValues?[i] ?? forecastValue * 0.8f;
             var upperBound = forecast.UpperBoundValues?[i] ?? forecastValue * 1.2f;
-            lowerBound = Math.Min(lowerBound, (float)maxForecast);
-            upperBound = Math.Min(upperBound, (float)maxForecast);
+
+            var delta = Math.Max(0.1f, (float)(forecastValue * 0.1));
+
+            if (lowerBound > forecastValue)
+            {
+                lowerBound = Math.Max(0f, forecastValue - delta);
+            }
+
+            if (upperBound < forecastValue)
+            {
+                upperBound = forecastValue + delta;
+            }
+
+            if (upperBound <= lowerBound)
+            {
+                lowerBound = Math.Max(0f, forecastValue - delta);
+                upperBound = forecastValue + delta;
+            }
+
+            lowerBound = Math.Max(0f, lowerBound);
+            upperBound = Math.Max(upperBound, lowerBound + 0.1f);
 
             var (trend, riskLevel) = AnalyzeForecastTrend(forecastValue, recentAverage, clusterData, parameters, precinct);
 
@@ -428,13 +505,12 @@ public class TemporalForecastService(
             });
         }
 
-        return forecasts;
+        return new ForecastSeriesGenerationResult(forecasts, parameters.ModelType, "ssa", null);
     }
 
     // Hybrid seasonal + linear trend model.
-    // 1. Fits an OLS trend line on the last 12 months (same as GenerateLinearTrendForecast).
-    // 2. Computes a per-month seasonal multiplier from the full history
-    //    (e.g. January average / overall average).
+    // 1. Fits a recency-weighted trend over the full analysis history.
+    // 2. Computes recency-weighted month-of-year averages from the full history.
     // 3. Multiplies the trend projection by the corresponding seasonal multiplier.
     // This captures recurring yearly patterns (e.g. holiday spikes, monsoon lulls)
     // that a pure linear model would miss.
@@ -442,51 +518,48 @@ public class TemporalForecastService(
     {
         var forecasts = new List<ForecastPoint>();
         var recent = data.TakeLast(Math.Min(12, data.Count)).ToList();
+        var fit = FitRecencyWeightedTrend(data, parameters.WeightRecentData);
+        var n = data.Count;
+        var recentTotal = recent.Sum(d => d.Value);
 
-        // OLS on the last 12 months for the underlying trend.
-        var n = recent.Count;
-        var sumX = n * (n + 1) / 2;
-        var sumY = recent.Sum(d => d.Value);
-        var sumXY = recent.Select((d, i) => (i + 1) * d.Value).Sum();
-        var sumXX = n * (n + 1) * (2 * n + 1) / 6;
+        // For sparse series (≤6 incidents in 12 months), use the weighted average
+        // across the complete analysis history rather than a noisy extrapolation.
+        var useAverageFallback = recentTotal <= 6;
 
-        var slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
-        var intercept = (sumY - slope * sumX) / n;
+        var weightedMonths = data.Select((point, index) => new
+        {
+            point.Date,
+            point.Value,
+            Weight = GetRecencyWeight(data, index, parameters.WeightRecentData)
+        });
+        var monthlyAverages = weightedMonths
+            .GroupBy(point => point.Date.Month)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Sum(point => point.Value * point.Weight) / group.Sum(point => point.Weight));
 
-        // For sparse series (≤6 incidents in 12 months), fall back to the historical
-        // average to avoid noise-driven slope inflation when aggregated across combos.
-        var useAverageFallback = sumY <= 6;
-
-        // Build a lookup of the average count for each calendar month (1-12).
-        // This captures seasonal patterns across all historical years.
-        var monthlyAverages = data
-            .GroupBy(d => d.Date.Month)
-            .ToDictionary(g => g.Key, g => g.Average(d => d.Value));
-
-        // Project the next n months from the current calendar month (or include the
-        // current month within the first 14 days), even if the last data point is older.
+        // Start at the next full calendar month so that the forecast window excludes
+        // already-passed months and aligns with the observed monthly buckets.
         var lastDate = data.Max(d => d.Date);
-        var today = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
-        var baseDate = DateTime.UtcNow.Day <= 14 ? today.AddMonths(-1) : today;
-        var startDate = lastDate > baseDate ? lastDate : baseDate;
+        var startDate = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(1);
         var gapMonths = (startDate.Year - lastDate.Year) * 12 + (startDate.Month - lastDate.Month);
         var recentAverage = recent.Average(d => d.Value);
-        var overallAverage = data.Average(d => d.Value);
+        var overallAverage = fit.WeightedAverage;
 
         // Cap extreme extrapolation to keep seasonal forecasts from running away
         // on noisy/sparse series.
         var maxSlope = Math.Max(0.1, recentAverage * 0.15);
-        var cappedSlope = Math.Max(-maxSlope, Math.Min(maxSlope, slope));
+        var cappedSlope = Math.Max(-maxSlope, Math.Min(maxSlope, fit.Slope));
         var maxForecast = Math.Max(overallAverage * 2.0, 1.0);
 
         var runningConfidence = parameters.ConfidenceLevel * 0.9;
         for (int i = 0; i < parameters.Horizon; i++)
         {
-            var forecastDate = startDate.AddMonths(i + 1);
-            var stepsAhead = gapMonths + i + 1;
+            var forecastDate = startDate.AddMonths(i);
+            var stepsAhead = gapMonths + i;
             var trendValue = useAverageFallback
-                ? sumY / (double)n
-                : intercept + cappedSlope * (n + stepsAhead);
+                ? fit.WeightedAverage
+                : fit.Intercept + cappedSlope * (n + stepsAhead);
 
             // seasonalMultiplier > 1 means this month is historically busier than the
             // overall monthly average (across all years), and < 1 means quieter.
@@ -544,7 +617,7 @@ public class TemporalForecastService(
                 var modelParams = parameters with { ModelType = modelType };
                 allResults[modelType] = modelType switch
                 {
-                    "ssa" => GenerateSSAForecast(data, modelParams, clusterData, precinct),
+                    "ssa" => GenerateSSAForecast(data, modelParams, clusterData, precinct).Forecasts,
                     "seasonal" => GenerateSeasonalForecast(data, modelParams, clusterData, precinct),
                     "linear" => GenerateLinearTrendForecast(data, modelParams, clusterData, precinct),
                     _ => throw new InvalidOperationException($"Unknown model type: {modelType}")
@@ -912,9 +985,9 @@ public class TemporalForecastService(
                 var holdoutParams = parameters with { Horizon = HoldoutMonths };
                 var predictions = await GenerateForecastForSeries(trainData, holdoutParams, Enumerable.Empty<ClusterGroup>());
 
-                if (predictions.Count == testData.Count)
+                if (predictions.Forecasts.Count == testData.Count)
                 {
-                    var m = CalculateValidationMetrics(testData, predictions);
+                    var m = CalculateValidationMetrics(testData, predictions.Forecasts);
                     allMetrics.Add(m);
                 }
             }
@@ -979,4 +1052,3 @@ public class TemporalForecastService(
         };
     }
 }
-

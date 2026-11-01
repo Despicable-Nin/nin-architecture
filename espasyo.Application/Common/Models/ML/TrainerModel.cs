@@ -99,6 +99,7 @@ public record ForecastPoint
 {
     public DateTime Timestamp { get; init; }
     public double Forecast { get; init; }
+    public double? LastYearActual { get; init; }
     public double LowerBound { get; init; }
     public double UpperBound { get; init; }
     public double Confidence { get; init; }
@@ -112,6 +113,9 @@ public record ForecastSeries
     public int CrimeType { get; init; }
     public string? Shift { get; init; }
     public uint ClusterId { get; init; }
+    public string RequestedModel { get; init; } = string.Empty;
+    public string EffectiveModel { get; init; } = string.Empty;
+    public string? FallbackReason { get; init; }
     public List<ForecastPoint> Forecasts { get; init; } = new();
     public Dictionary<string, object> Metadata { get; init; } = new();
 }
@@ -139,6 +143,44 @@ public record ForecastRow
     /// Populated by GenerateStatisticalForecastCommandHandler after the temporal forecast is flattened.
     /// </summary>
     public double CompositeRiskScore { get; init; }
+}
+
+public readonly record struct ForecastHistoricalObservation(
+    int Precinct,
+    int CrimeType,
+    int Year,
+    int Month,
+    double Count);
+
+public static class ForecastYearOverYearComparison
+{
+    public static Dictionary<(int Precinct, int CrimeType, int Year, int Month), double> BuildLookup(
+        IEnumerable<ForecastHistoricalObservation> observations)
+    {
+        return observations
+            .GroupBy(observation => (
+                observation.Precinct,
+                observation.CrimeType,
+                observation.Year,
+                observation.Month))
+            .ToDictionary(group => group.Key, group => group.Sum(observation => observation.Count));
+    }
+
+    public static double? GetPriorYearActual(
+        IReadOnlyDictionary<(int Precinct, int CrimeType, int Year, int Month), double> lookup,
+        int precinct,
+        int crimeType,
+        int forecastYear,
+        int forecastMonth)
+    {
+        var priorYear = forecastYear - 1;
+        if (priorYear < 1)
+            return null;
+
+        return lookup.TryGetValue((precinct, crimeType, priorYear, forecastMonth), out var actual)
+            ? actual
+            : null;
+    }
 }
 
 public record SeasonalPredictionRow
@@ -185,7 +227,10 @@ public record ForecastResponse
     public List<SpatialForecastRow> Spatial { get; init; } = new();
     public ForecastMetrics Metrics { get; init; } = new();
     public DateTime GeneratedAt { get; init; } = DateTime.UtcNow;
+    public string RequestedModel { get; init; } = string.Empty;
+    public string EffectiveModel { get; init; } = string.Empty;
     public string ModelUsed { get; init; } = string.Empty;
+    public string? FallbackReason { get; init; }
     public ForecastSummary Summary { get; init; } = new();
     public ForecastExplanation Explanation { get; init; } = new();
     public ThresholdCalculationResult DynamicThresholds { get; init; } = new();

@@ -66,6 +66,17 @@ public class ForecastRepository : IForecastRepository
             .ToListAsync();
     }
 
+    public async Task<IEnumerable<SpatialForecastResult>> GetSpatialForecastResultsAsync(Guid forecastRunId)
+    {
+        return await _context.SpatialForecastResults
+            .Where(r => r.ForecastRunId == forecastRunId)
+            .OrderBy(r => r.Year)
+            .ThenBy(r => r.Month)
+            .ThenBy(r => r.Precinct)
+            .ThenBy(r => r.ClusterId)
+            .ToListAsync();
+    }
+
     public async Task<bool> DeleteForecastRunAsync(Guid id)
     {
         var run = await _context.ForecastRuns.FindAsync(id);

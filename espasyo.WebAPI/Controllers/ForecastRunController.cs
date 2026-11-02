@@ -2,6 +2,8 @@ using espasyo.Application.UseCase.ForecastRuns.Commands.SaveForecastRun;
 using espasyo.Application.UseCase.ForecastRuns.Commands.SaveForecastSnapshot;
 using espasyo.Application.UseCase.ForecastRuns.Commands.DeleteForecastRun;
 using espasyo.Application.UseCase.ForecastRuns.Queries.GetForecastResults;
+using espasyo.Application.UseCase.ForecastRuns.Queries.GetForecastSpatialData;
+using espasyo.Application.UseCase.ForecastRuns.Queries.GetForecastTimeOfDayData;
 using espasyo.Application.UseCase.ForecastRuns.Queries.GetForecastRiskPeriods;
 using espasyo.Application.UseCase.ForecastRuns.Queries.GetForecastRuns;
 using espasyo.Application.UseCase.ForecastRuns.Queries.GetForecastHistoricalData;
@@ -80,6 +82,36 @@ public class ForecastRunController : ControllerBase
             return NotFound($"No results found for forecast run {id}");
 
         return Ok(results);
+    }
+
+    [HttpGet("{id:guid}/spatial-data")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSpatialData(Guid id, CancellationToken cancellationToken)
+    {
+        var spatialData = await _mediator.Send(
+            new GetForecastSpatialDataQuery { ForecastRunId = id },
+            cancellationToken);
+
+        return Ok(spatialData);
+    }
+
+    [HttpGet("{id:guid}/time-of-day-data")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetTimeOfDayData(Guid id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var timeOfDayData = await _mediator.Send(
+                new GetForecastTimeOfDayDataQuery { ForecastRunId = id },
+                cancellationToken);
+
+            return Ok(timeOfDayData);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound($"Forecast run {id} was not found");
+        }
     }
 
     [HttpGet("{id:guid}/monthly-risk-periods")]

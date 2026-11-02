@@ -32,7 +32,11 @@ public class SaveForecastSnapshotCommandHandler(
             effectiveModelEnum,
             request.GeneratedById,
             request.Name,
-            historicalDataJson: System.Text.Json.JsonSerializer.Serialize(request.HistoricalData),
+            historicalDataJson: JsonSerializer.Serialize(new ForecastRunSnapshotData
+            {
+                HistoricalData = request.HistoricalData,
+                TimeOfDayPredictions = request.TimeOfDayPredictions
+            }),
             requestedModelType: requestedModelType,
             effectiveModelType: effectiveModelType,
             modelFallbackReason: request.ModelFallbackReason);

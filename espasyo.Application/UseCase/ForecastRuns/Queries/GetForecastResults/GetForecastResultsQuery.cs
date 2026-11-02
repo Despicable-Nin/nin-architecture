@@ -38,7 +38,7 @@ public class GetForecastResultsQueryHandler(IForecastRepository forecastReposito
         var run = await forecastRepository.GetForecastRunByIdAsync(request.ForecastRunId);
         var historicalData = string.IsNullOrWhiteSpace(run?.HistoricalDataJson)
             ? []
-            : JsonSerializer.Deserialize<List<HistoricalDataPointDto>>(run.HistoricalDataJson) ?? [];
+            : ForecastRunSnapshotData.Deserialize(run.HistoricalDataJson).HistoricalData;
         var historicalLookup = ForecastYearOverYearComparison.BuildLookup(
             historicalData.Select(point => new ForecastHistoricalObservation(
                 point.Precinct,

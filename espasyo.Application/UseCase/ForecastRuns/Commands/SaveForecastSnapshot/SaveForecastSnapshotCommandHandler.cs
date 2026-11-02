@@ -1,4 +1,5 @@
 using System.Text.Json;
+using espasyo.Application.Common.Models.ML;
 using espasyo.Application.Interfaces;
 using espasyo.Domain.Entities;
 using espasyo.Domain.Enums;
@@ -21,13 +22,20 @@ public class SaveForecastSnapshotCommandHandler(
                 precinctId = precinct.Id;
         }
 
+        var requestedModelType = request.RequestedModelType ?? request.ModelType;
+        var effectiveModelType = request.EffectiveModelType ?? request.ModelType;
+        var effectiveModelEnum = ParseModelType(effectiveModelType);
         var run = new ForecastRun(
             precinctId,
             request.ForecastPeriod,
             request.ConfidenceLevel,
-            ForecastModelTypeEnum.SSA,
+            effectiveModelEnum,
             request.GeneratedById,
-            request.Name);
+            request.Name,
+            historicalDataJson: System.Text.Json.JsonSerializer.Serialize(request.HistoricalData),
+            requestedModelType: requestedModelType,
+            effectiveModelType: effectiveModelType,
+            modelFallbackReason: request.ModelFallbackReason);
 
         run.MarkCompleted(request.Predictions.Count);
 
@@ -86,7 +94,30 @@ public class SaveForecastSnapshotCommandHandler(
             Id = run.Id.ToString(),
             Name = request.Name,
             CreatedAt = run.RunAt.UtcDateTime,
-            TotalPredictions = results.Count
+            TotalPredictions = results.Count,
+            RequestedModelType = run.RequestedModelType,
+            EffectiveModelType = run.EffectiveModelType,
+            ModelFallbackReason = run.ModelFallbackReason,
+            MonthlyRiskPeriods = MonthlyForecastRiskAggregator.Aggregate(results.Select(result =>
+                new ForecastRiskObservation(
+                    result.Year,
+                    result.Month,
+                    result.PredictedValue,
+                    result.RiskLevel))),
+            HistoricalData = request.HistoricalData
+        };
+    }
+
+    private static ForecastModelTypeEnum ParseModelType(string modelType)
+    {
+        return modelType?.Trim() switch
+        {
+            null or "" => ForecastModelTypeEnum.SSA,
+            var value when value.Equals("ssa", StringComparison.OrdinalIgnoreCase) => ForecastModelTypeEnum.SSA,
+            var value when value.Equals("linear", StringComparison.OrdinalIgnoreCase) => ForecastModelTypeEnum.Linear,
+            var value when value.Equals("seasonal", StringComparison.OrdinalIgnoreCase) => ForecastModelTypeEnum.Seasonal,
+            var value when value.Equals("ensemble", StringComparison.OrdinalIgnoreCase) => ForecastModelTypeEnum.Ensemble,
+            _ => ForecastModelTypeEnum.SSA
         };
     }
 }

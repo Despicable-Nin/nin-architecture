@@ -5,7 +5,10 @@ namespace espasyo_console;
 
 public static class AddressGenerator
 {
-    private static readonly Random Random = new();
+    // Seeded per run via SetSeed so addresses are reproducible.
+    private static Random Random = new();
+
+    public static void SetSeed(int seed) => Random = new Random(seed);
 
     // Dictionary mapping barangays to their suburbs/streets
     private static readonly Dictionary<Barangay, string[]> BarangaySuburbs;
@@ -96,7 +99,7 @@ public static class AddressGenerator
         var barangayEnum = (Barangay)barangay;
         
         // Select a random suburb/street from the chosen barangay
-        var suburb = BarangaySuburbs[barangayEnum][new Random().Next(0, BarangaySuburbs[barangayEnum].Length - 1)];
+        var suburb = BarangaySuburbs[barangayEnum][Random.Next(0, BarangaySuburbs[barangayEnum].Length - 1)];
 
         // Generate a random house number
         var houseNumber = Random.Next(1, 999);

@@ -82,6 +82,73 @@ public class TemporalForecastServiceTests
     }
 
     [Fact]
+    public async Task GenerateForecast_StartsAtNextFullCalendarMonth()
+    {
+        var data = CreateIncreasingData(months: 12, incidentsPerMonth: 3);
+        var expectedStart = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(1);
+
+        var result = await _service.GenerateForecast(data, new ForecastParameters
+        {
+            Horizon = 6,
+            ModelType = "linear",
+        });
+
+        foreach (var series in result.Series)
+        {
+            series.Forecasts.ShouldNotBeEmpty();
+            series.Forecasts.First().Timestamp.ShouldBe(expectedStart);
+        }
+    }
+
+    [Theory]
+    [InlineData("linear")]
+    [InlineData("seasonal")]
+    public async Task GenerateForecast_UsesFullHistoryWithMoreWeightOnRecentData(string modelType)
+    {
+        var data = CreateStepChangeData();
+
+        var weighted = await _service.GenerateForecast(data, new ForecastParameters
+        {
+            Horizon = 1,
+            ModelType = modelType,
+            WeightRecentData = true,
+        });
+        var equallyWeighted = await _service.GenerateForecast(data, new ForecastParameters
+        {
+            Horizon = 1,
+            ModelType = modelType,
+            WeightRecentData = false,
+        });
+
+        var weightedForecast = weighted.Series.Single().Forecasts.Single().Forecast;
+        var equallyWeightedForecast = equallyWeighted.Series.Single().Forecasts.Single().Forecast;
+
+        if (modelType == "linear")
+            weightedForecast.ShouldBeGreaterThan(equallyWeightedForecast);
+        else
+            weightedForecast.ShouldNotBe(equallyWeightedForecast);
+    }
+
+    [Fact]
+    public async Task GenerateForecast_SsaFallback_RecordsEffectiveModelAndReason()
+    {
+        var data = CreateConstantData(months: 12, incidentsPerMonth: 1);
+
+        var result = await _service.GenerateForecast(data, new ForecastParameters
+        {
+            Horizon = 12,
+            ModelType = "ssa",
+        });
+
+        foreach (var series in result.Series)
+        {
+            series.EffectiveModel.ShouldBe("linear");
+            series.FallbackReason.ShouldContain("linear");
+            series.Metadata["ModelUsed"].ShouldBe("linear");
+        }
+    }
+
+    [Fact]
     public async Task GenerateForecast_LinearModel_UphillData_ProducesIncreasingTrend()
     {
         var data = CreateIncreasingData(months: 24, incidentsPerMonth: 1, increment: 2);
@@ -227,6 +294,11 @@ public class TemporalForecastServiceTests
         {
             foreach (var fp in series.Forecasts)
             {
+                if (fp.UpperBound - fp.LowerBound <= 0)
+                {
+                    Console.WriteLine($"Bounds invalid: model={series.EffectiveModel}, ts={fp.Timestamp:yyyy-MM-dd}, forecast={fp.Forecast}, lower={fp.LowerBound}, upper={fp.UpperBound}");
+                }
+
                 fp.LowerBound.ShouldBeLessThanOrEqualTo(fp.Forecast);
                 fp.UpperBound.ShouldBeGreaterThanOrEqualTo(fp.Forecast);
                 (fp.UpperBound - fp.LowerBound).ShouldBeGreaterThan(0,
@@ -245,14 +317,15 @@ public class TemporalForecastServiceTests
 
     private static List<ClusterGroup> CreateIncreasingData(int months, int incidentsPerMonth, int increment = 1)
     {
+        var start = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(-(months - 1));
         var items = new List<ClusterItem>();
         for (int i = 0; i < months; i++)
         {
-            var (y, m) = OffsetMonth(2023, 1, i);
+            var current = start.AddMonths(i);
             var count = incidentsPerMonth + i * increment;
             for (int j = 0; j < count; j++)
             {
-                items.Add(MakeItem(y, m, Barangay.Alabang, CrimeTypeEnum.Theft));
+                items.Add(MakeItem(current.Year, current.Month, Barangay.Alabang, CrimeTypeEnum.Theft));
             }
         }
         return [new ClusterGroup { ClusterId = 0, ClusterItems = items }];
@@ -260,21 +333,41 @@ public class TemporalForecastServiceTests
 
     private static List<ClusterGroup> CreateConstantData(int months, int incidentsPerMonth)
     {
+        var start = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(-(months - 1));
         var items = new List<ClusterItem>();
         for (int i = 0; i < months; i++)
         {
-            var (y, m) = OffsetMonth(2023, 1, i);
+            var current = start.AddMonths(i);
             for (int j = 0; j < incidentsPerMonth; j++)
             {
-                items.Add(MakeItem(y, m, Barangay.Alabang, CrimeTypeEnum.Theft));
+                items.Add(MakeItem(current.Year, current.Month, Barangay.Alabang, CrimeTypeEnum.Theft));
             }
         }
+        return [new ClusterGroup { ClusterId = 0, ClusterItems = items }];
+    }
+
+    private static List<ClusterGroup> CreateStepChangeData()
+    {
+        const int months = 36;
+        var start = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(-(months - 1));
+        var items = new List<ClusterItem>();
+        for (var monthIndex = 0; monthIndex < months; monthIndex++)
+        {
+            var current = start.AddMonths(monthIndex);
+            var incidentsPerMonth = monthIndex < 24 ? 10 : 10 + monthIndex - 24;
+            for (var incidentIndex = 0; incidentIndex < incidentsPerMonth; incidentIndex++)
+            {
+                items.Add(MakeItem(current.Year, current.Month, Barangay.Alabang, CrimeTypeEnum.Theft));
+            }
+        }
+
         return [new ClusterGroup { ClusterId = 0, ClusterItems = items }];
     }
 
     private static List<ClusterGroup> CreateCrossProductData(
         Barangay[] precincts, CrimeTypeEnum[] crimeTypes, int months, int incidentsPerMonth)
     {
+        var start = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1).AddMonths(-(months - 1));
         var groups = new List<ClusterGroup>();
         uint cid = 0;
         foreach (var precinct in precincts)
@@ -284,10 +377,10 @@ public class TemporalForecastServiceTests
                 var items = new List<ClusterItem>();
                 for (int i = 0; i < months; i++)
                 {
-                    var (y, m) = OffsetMonth(2023, 1, i);
+                    var current = start.AddMonths(i);
                     for (int j = 0; j < incidentsPerMonth; j++)
                     {
-                        items.Add(MakeItem(y, m, precinct, crimeType));
+                        items.Add(MakeItem(current.Year, current.Month, precinct, crimeType));
                     }
                 }
                 groups.Add(new ClusterGroup { ClusterId = cid++, ClusterItems = items });

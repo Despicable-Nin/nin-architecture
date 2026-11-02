@@ -104,7 +104,6 @@ public class GenerateStatisticalForecastCommandHandlerTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(5)]
     [InlineData(25)]
     [InlineData(100)]
     public async Task Handle_ShouldThrow_WhenHorizonOutOfRange(int horizon)
@@ -150,7 +149,7 @@ public class GenerateStatisticalForecastCommandHandlerTests
 
         _mlServiceMock.Setup(x => x.GenerateStatisticalForecast(cmd.ClusterData, It.IsAny<ForecastParameters>()))
             .ReturnsAsync(new ForecastResponse { Series = series, Metrics = new ForecastMetrics { ModelAccuracy = 0.85 }, ModelUsed = "ssa" });
-        _spatialServiceMock.Setup(x => x.DistributeForecast(cmd.ClusterData, It.IsAny<ForecastParameters>(), series))
+        _spatialServiceMock.Setup(x => x.DistributeForecast(cmd.ClusterData, It.IsAny<ForecastParameters>(), It.IsAny<List<ForecastSeries>>()))
             .ReturnsAsync(spatial);
         _seasonalServiceMock.Setup(x => x.PredictSeasonal(cmd.ClusterData, It.IsAny<ForecastParameters>()))
             .ReturnsAsync(seasonal);
@@ -158,7 +157,9 @@ public class GenerateStatisticalForecastCommandHandlerTests
         var result = await _handler.Handle(cmd, default);
 
         result.ShouldNotBeNull();
-        result.Series.ShouldBe(series);
+        result.Series.Count.ShouldBe(series.Count);
+        result.Series.Select(s => (s.Precinct, s.CrimeType, s.Forecasts.Count))
+            .ShouldBe(series.Select(s => (s.Precinct, s.CrimeType, s.Forecasts.Count)));
         result.Spatial.ShouldBe(spatial);
         result.SeasonalPredictions.ShouldBe(seasonal);
         result.ModelUsed.ShouldBe("ssa");
@@ -167,8 +168,57 @@ public class GenerateStatisticalForecastCommandHandlerTests
         result.Explanation.ShouldNotBeNull();
 
         _mlServiceMock.Verify(x => x.GenerateStatisticalForecast(cmd.ClusterData, It.IsAny<ForecastParameters>()), Times.Once);
-        _spatialServiceMock.Verify(x => x.DistributeForecast(cmd.ClusterData, It.IsAny<ForecastParameters>(), series), Times.Once);
+        _spatialServiceMock.Verify(x => x.DistributeForecast(cmd.ClusterData, It.IsAny<ForecastParameters>(), It.IsAny<List<ForecastSeries>>()), Times.Once);
         _seasonalServiceMock.Verify(x => x.PredictSeasonal(cmd.ClusterData, It.IsAny<ForecastParameters>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_AttachesMatchingPriorYearActualsAcrossYearBoundary()
+    {
+        var clusterData = new List<ClusterGroup>
+        {
+            new()
+            {
+                ClusterItems =
+                [
+                    new() { Year = 2025, Month = 12, Precinct = Barangay.Bayanan, CrimeType = CrimeTypeEnum.Robbery },
+                    new() { Year = 2026, Month = 1, Precinct = Barangay.Bayanan, CrimeType = CrimeTypeEnum.Robbery },
+                    new() { Year = 2026, Month = 1, Precinct = Barangay.Bayanan, CrimeType = CrimeTypeEnum.Robbery },
+                ]
+            }
+        };
+        var series = new ForecastSeries
+        {
+            Precinct = (int)Barangay.Bayanan,
+            CrimeType = (int)CrimeTypeEnum.Robbery,
+            Forecasts =
+            [
+                new() { Timestamp = new DateTime(2026, 12, 1) },
+                new() { Timestamp = new DateTime(2027, 1, 1) },
+                new() { Timestamp = new DateTime(2027, 2, 1) }
+            ]
+        };
+        _mlServiceMock
+            .Setup(service => service.GenerateStatisticalForecast(clusterData, It.IsAny<ForecastParameters>()))
+            .ReturnsAsync(new ForecastResponse { Series = [series] });
+        _spatialServiceMock
+            .Setup(service => service.DistributeForecast(clusterData, It.IsAny<ForecastParameters>(), It.IsAny<List<ForecastSeries>>()))
+            .ReturnsAsync([]);
+        _seasonalServiceMock
+            .Setup(service => service.PredictSeasonal(clusterData, It.IsAny<ForecastParameters>()))
+            .ReturnsAsync([]);
+
+        var result = await _handler.Handle(new GenerateStatisticalForecastCommand
+        {
+            ClusterData = clusterData,
+            Horizon = 3,
+            ConfidenceLevel = 0.95,
+            ModelType = "linear"
+        }, default);
+
+        result.Series[0].Forecasts[0].LastYearActual.ShouldBe(1);
+        result.Series[0].Forecasts[1].LastYearActual.ShouldBe(2);
+        result.Series[0].Forecasts[2].LastYearActual.ShouldBeNull();
     }
 
     [Fact]
@@ -306,6 +356,9 @@ public class GenerateStatisticalForecastCommandHandlerTests
         result.Forecasts[0].Forecast.ShouldBeLessThan(9);
         result.Forecasts[2].Forecast.ShouldBeGreaterThan(0);
         result.Forecasts[2].Forecast.ShouldBeLessThan(9);
+        result.MonthlyRiskPeriods.Count.ShouldBe(1);
+        result.MonthlyRiskPeriods[0].ProjectedIncidents.ShouldBe(9);
+        result.MonthlyRiskPeriods[0].ForecastByRiskLevel.Low.ShouldBe(9);
     }
 
     // ── CompositeRiskScore ───────────────────────────────────────────

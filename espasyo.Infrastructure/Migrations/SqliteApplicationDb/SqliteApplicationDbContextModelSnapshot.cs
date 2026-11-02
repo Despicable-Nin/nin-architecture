@@ -316,13 +316,30 @@ namespace espasyo.Infrastructure.Migrations.SqliteApplicationDb
                     b.Property<double>("ConfidenceLevel")
                         .HasColumnType("float");
 
+                    b.Property<string>("EffectiveModelType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("");
+
                     b.Property<string>("GeneratedById")
                         .IsRequired()
                         .HasMaxLength(450)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("HistoricalDataJson")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("");
+
                     b.Property<int>("Horizon")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("ModelFallbackReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("ModelType")
                         .HasColumnType("INTEGER");
@@ -336,6 +353,13 @@ namespace espasyo.Infrastructure.Migrations.SqliteApplicationDb
 
                     b.Property<Guid>("PrecinctId")
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestedModelType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("");
 
                     b.Property<string>("RunAt")
                         .IsRequired()

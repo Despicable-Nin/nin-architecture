@@ -113,12 +113,24 @@ public class MachineLearningService(
     /// <param name="numberOfClusters">Number of clusters to create.</param>
     /// <param name="runs">Number of training runs for selecting the best model.</param>
     /// <returns>An enumerable of ClusterResponse objects with the desired structure.</returns>
+    /// <inheritdoc/>
     public GroupedClusterResponse PerformKMeansAndGetGroupedClusters(IEnumerable<TrainerModel> data, string[]? features, int numberOfClusters = 3, int runs = 10)
     {
-        return PerformKMeansAndGetGroupedClusters(data, features, numberOfClusters, runs, autoSelectK: false, seed: null);
+        return PerformKMeansAndGetGroupedClusters(data, features, numberOfClusters, runs, false, null, null, null);
     }
 
-    public GroupedClusterResponse PerformKMeansAndGetGroupedClusters(IEnumerable<TrainerModel> data, string[]? features, int numberOfClusters, int runs, bool autoSelectK, int? seed)
+    /// <inheritdoc/>
+    public GroupedClusterResponse PerformKMeansAndGetGroupedClusters(IEnumerable<TrainerModel> data, string[]? features, int numberOfClusters, int runs, bool autoSelectK, int? seed = null)
+    {
+        return PerformKMeansAndGetGroupedClusters(data, features, numberOfClusters, runs, autoSelectK, seed, null, null);
+    }
+
+    public GroupedClusterResponse PerformKMeansAndGetGroupedClusters(IEnumerable<TrainerModel> data, string[]? features, int numberOfClusters = 3, int runs = 10, int? approvedNumberOfClusters = null, int? approvedRuns = null)
+    {
+        return PerformKMeansAndGetGroupedClusters(data, features, numberOfClusters, runs, false, null, approvedNumberOfClusters, approvedRuns);
+    }
+
+    public GroupedClusterResponse PerformKMeansAndGetGroupedClusters(IEnumerable<TrainerModel> data, string[]? features, int numberOfClusters, int runs, bool autoSelectK, int? seed, int? approvedNumberOfClusters = null, int? approvedRuns = null)
     {
         try
         {
@@ -134,18 +146,21 @@ public class MachineLearningService(
             var trainerModels = data as TrainerModel[] ?? data.ToArray();
             logger.LogInformation("Total input records: {Count}", trainerModels.Length);
 
+            var effectiveNumberOfClusters = approvedNumberOfClusters ?? numberOfClusters;
+            var effectiveRuns = approvedRuns ?? runs;
+
             // Auto-select optimal k if requested
-            if (autoSelectK || numberOfClusters < 2)
+            if (autoSelectK || effectiveNumberOfClusters < 2)
             {
-                numberOfClusters = FindOptimalK(trainerModels, features, seed);
-                logger.LogInformation("Auto-selected optimal k: {OptimalK}", numberOfClusters);
+                effectiveNumberOfClusters = FindOptimalK(trainerModels, features, seed);
+                logger.LogInformation("Auto-selected optimal k: {OptimalK}", effectiveNumberOfClusters);
             }
 
             // Run final clustering with the selected k
-            var (clusterGroups, clusterPredictions) = RunKMeans(trainerModels, features!, numberOfClusters, runs, null);
+            var (clusterGroups, clusterPredictions) = RunKMeans(trainerModels, features!, effectiveNumberOfClusters, effectiveRuns, null);
 
             // Compute quality metrics
-            var qualityMetrics = ComputeQualityMetrics(trainerModels, features!, clusterPredictions, numberOfClusters);
+            var qualityMetrics = ComputeQualityMetrics(trainerModels, features!, clusterPredictions, effectiveNumberOfClusters);
 
             return new GroupedClusterResponse
             {
@@ -544,10 +559,20 @@ public class MachineLearningService(
 
             if (totalPredicted < 1) continue;
 
-            var clusterGroup = clusterList.FirstOrDefault(c => c.ClusterId == series.ClusterId);
-            if (clusterGroup?.ClusterItems.Count == 0) continue;
+            var matchingClusters = clusterList
+                .Where(c => c.ClusterItems.Any(item =>
+                    (int)item.Precinct == series.Precinct &&
+                    (int)item.CrimeType == series.CrimeType))
+                .ToList();
+            if (matchingClusters.Count == 0) continue;
 
-            var points = clusterGroup!.ClusterItems
+            var matchingItems = matchingClusters
+                .SelectMany(c => c.ClusterItems)
+                .Where(item =>
+                    (int)item.Precinct == series.Precinct &&
+                    (int)item.CrimeType == series.CrimeType)
+                .ToList();
+            var points = matchingItems
                 .Select(i => (i.Longitude, i.Latitude))
                 .Distinct()
                 .ToList();
@@ -579,7 +604,8 @@ public class MachineLearningService(
                 {
                     ["precinct"] = ((Barangay)series.Precinct).ToString(),
                     ["crimeType"] = ((CrimeTypeEnum)series.CrimeType).ToString(),
-                    ["clusterId"] = (int)series.ClusterId,
+                    ["clusterId"] = matchingClusters.Count == 1 ? (int)matchingClusters[0].ClusterId : 0,
+                    ["clusterIds"] = matchingClusters.Select(c => (int)c.ClusterId).Distinct().ToArray(),
                     ["totalPredicted"] = Math.Round(totalPredicted, 1),
                     ["confidence"] = Math.Round(avgConfidence, 2),
                     ["severity"] = severity,

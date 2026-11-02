@@ -99,6 +99,7 @@ public record ForecastPoint
 {
     public DateTime Timestamp { get; init; }
     public double Forecast { get; init; }
+    public double? LastYearActual { get; init; }
     public double LowerBound { get; init; }
     public double UpperBound { get; init; }
     public double Confidence { get; init; }
@@ -112,6 +113,9 @@ public record ForecastSeries
     public int CrimeType { get; init; }
     public string? Shift { get; init; }
     public uint ClusterId { get; init; }
+    public string RequestedModel { get; init; } = string.Empty;
+    public string EffectiveModel { get; init; } = string.Empty;
+    public string? FallbackReason { get; init; }
     public List<ForecastPoint> Forecasts { get; init; } = new();
     public Dictionary<string, object> Metadata { get; init; } = new();
 }
@@ -139,6 +143,44 @@ public record ForecastRow
     /// Populated by GenerateStatisticalForecastCommandHandler after the temporal forecast is flattened.
     /// </summary>
     public double CompositeRiskScore { get; init; }
+}
+
+public readonly record struct ForecastHistoricalObservation(
+    int Precinct,
+    int CrimeType,
+    int Year,
+    int Month,
+    double Count);
+
+public static class ForecastYearOverYearComparison
+{
+    public static Dictionary<(int Precinct, int CrimeType, int Year, int Month), double> BuildLookup(
+        IEnumerable<ForecastHistoricalObservation> observations)
+    {
+        return observations
+            .GroupBy(observation => (
+                observation.Precinct,
+                observation.CrimeType,
+                observation.Year,
+                observation.Month))
+            .ToDictionary(group => group.Key, group => group.Sum(observation => observation.Count));
+    }
+
+    public static double? GetPriorYearActual(
+        IReadOnlyDictionary<(int Precinct, int CrimeType, int Year, int Month), double> lookup,
+        int precinct,
+        int crimeType,
+        int forecastYear,
+        int forecastMonth)
+    {
+        var priorYear = forecastYear - 1;
+        if (priorYear < 1)
+            return null;
+
+        return lookup.TryGetValue((precinct, crimeType, priorYear, forecastMonth), out var actual)
+            ? actual
+            : null;
+    }
 }
 
 public record SeasonalPredictionRow
@@ -181,15 +223,93 @@ public record ForecastResponse
 {
     public List<ForecastSeries> Series { get; init; } = new();
     public List<ForecastRow> Forecasts { get; init; } = new();
+    public List<MonthlyForecastRiskPeriod> MonthlyRiskPeriods { get; init; } = new();
     public List<SpatialForecastRow> Spatial { get; init; } = new();
     public ForecastMetrics Metrics { get; init; } = new();
     public DateTime GeneratedAt { get; init; } = DateTime.UtcNow;
+    public string RequestedModel { get; init; } = string.Empty;
+    public string EffectiveModel { get; init; } = string.Empty;
     public string ModelUsed { get; init; } = string.Empty;
+    public string? FallbackReason { get; init; }
     public ForecastSummary Summary { get; init; } = new();
     public ForecastExplanation Explanation { get; init; } = new();
     public ThresholdCalculationResult DynamicThresholds { get; init; } = new();
     public TemporalPatterns? TemporalPatterns { get; init; }
     public List<SeasonalPredictionRow> SeasonalPredictions { get; init; } = new();
+}
+
+public record MonthlyForecastRiskPeriod
+{
+    public int Year { get; init; }
+    public int Month { get; init; }
+    public double ProjectedIncidents { get; init; }
+    public ForecastVolumeByRiskLevel ForecastByRiskLevel { get; init; } = new();
+}
+
+public record ForecastVolumeByRiskLevel
+{
+    public double Low { get; init; }
+    public double Medium { get; init; }
+    public double High { get; init; }
+    public double Critical { get; init; }
+}
+
+public readonly record struct ForecastRiskObservation(
+    int Year,
+    int Month,
+    double ProjectedValue,
+    string RiskLevel);
+
+public static class MonthlyForecastRiskAggregator
+{
+    public static List<MonthlyForecastRiskPeriod> Aggregate(IEnumerable<ForecastRiskObservation> observations)
+    {
+        var months = new Dictionary<(int Year, int Month), double[]>();
+
+        foreach (var observation in observations)
+        {
+            if (observation.Year is < 1 or > 9999 || observation.Month is < 1 or > 12)
+                throw new ArgumentOutOfRangeException(nameof(observations), "Forecast period must have a valid year and month.");
+            if (!double.IsFinite(observation.ProjectedValue) || observation.ProjectedValue < 0)
+                throw new ArgumentOutOfRangeException(nameof(observations), "Projected values must be finite and non-negative.");
+
+            var riskLevelIndex = observation.RiskLevel.Trim().ToLowerInvariant() switch
+            {
+                "low" => 0,
+                "medium" => 1,
+                "high" => 2,
+                "critical" => 3,
+                _ => throw new ArgumentException($"Unknown forecast risk level: '{observation.RiskLevel}'.", nameof(observations))
+            };
+
+            var key = (observation.Year, observation.Month);
+            if (!months.TryGetValue(key, out var volumes))
+            {
+                volumes = new double[4];
+                months.Add(key, volumes);
+            }
+
+            volumes[riskLevelIndex] += observation.ProjectedValue;
+        }
+
+        return months
+            .OrderBy(month => month.Key.Year)
+            .ThenBy(month => month.Key.Month)
+            .Select(month => new MonthlyForecastRiskPeriod
+            {
+                Year = month.Key.Year,
+                Month = month.Key.Month,
+                ProjectedIncidents = month.Value.Sum(),
+                ForecastByRiskLevel = new ForecastVolumeByRiskLevel
+                {
+                    Low = month.Value[0],
+                    Medium = month.Value[1],
+                    High = month.Value[2],
+                    Critical = month.Value[3]
+                }
+            })
+            .ToList();
+    }
 }
 
 public record ForecastMetrics

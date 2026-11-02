@@ -18,6 +18,9 @@ public record ForecastRunResult
     public DateTimeOffset RunAt { get; init; }
     public int Horizon { get; init; }
     public string ModelType { get; init; } = string.Empty;
+    public string RequestedModelType { get; init; } = string.Empty;
+    public string EffectiveModelType { get; init; } = string.Empty;
+    public string? ModelFallbackReason { get; init; }
     public string Status { get; init; } = string.Empty;
     public int TotalSeries { get; init; }
     public string GeneratedById { get; init; } = string.Empty;
@@ -46,7 +49,10 @@ public class GetForecastRunsQueryHandler(IForecastRepository forecastRepository)
             PrecinctCode = r.Precinct?.Code ?? "",
             RunAt = r.RunAt,
             Horizon = r.Horizon,
-            ModelType = r.ModelType.ToString(),
+            ModelType = r.EffectiveModelType.Length > 0 ? r.EffectiveModelType : r.ModelType.ToString(),
+            RequestedModelType = r.RequestedModelType,
+            EffectiveModelType = r.EffectiveModelType.Length > 0 ? r.EffectiveModelType : r.ModelType.ToString(),
+            ModelFallbackReason = r.ModelFallbackReason,
             Status = r.Status.ToString(),
             TotalSeries = r.TotalSeries,
             GeneratedById = r.GeneratedById,

@@ -13,7 +13,11 @@ public class ForecastRun
         ForecastModelTypeEnum modelType,
         string generatedById,
         string name = "",
-        ForecastStatusEnum status = ForecastStatusEnum.Draft)
+        ForecastStatusEnum status = ForecastStatusEnum.Draft,
+        string? historicalDataJson = null,
+        string? requestedModelType = null,
+        string? effectiveModelType = null,
+        string? modelFallbackReason = null)
     {
         Id = Guid.NewGuid();
         PrecinctId = precinctId;
@@ -25,6 +29,10 @@ public class ForecastRun
         GeneratedById = generatedById;
         Name = name;
         TotalSeries = 0;
+        HistoricalDataJson = historicalDataJson ?? string.Empty;
+        RequestedModelType = requestedModelType ?? modelType.ToString();
+        EffectiveModelType = effectiveModelType ?? modelType.ToString();
+        ModelFallbackReason = modelFallbackReason;
     }
 
     public Guid Id { get; private set; }
@@ -34,6 +42,10 @@ public class ForecastRun
     public int Horizon { get; private set; }
     public double ConfidenceLevel { get; private set; }
     public ForecastModelTypeEnum ModelType { get; private set; }
+    public string RequestedModelType { get; private set; } = string.Empty;
+    public string EffectiveModelType { get; private set; } = string.Empty;
+    public string? ModelFallbackReason { get; private set; }
+    public string HistoricalDataJson { get; private set; } = string.Empty;
     public ForecastStatusEnum Status { get; private set; }
     public int TotalSeries { get; private set; }
     public string GeneratedById { get; private set; } = string.Empty;

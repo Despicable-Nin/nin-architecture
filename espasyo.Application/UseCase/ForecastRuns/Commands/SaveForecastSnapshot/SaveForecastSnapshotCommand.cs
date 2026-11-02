@@ -1,3 +1,4 @@
+using espasyo.Application.Common.Models.ML;
 using MediatR;
 
 namespace espasyo.Application.UseCase.ForecastRuns.Commands.SaveForecastSnapshot;
@@ -7,10 +8,26 @@ public class SaveForecastSnapshotCommand : IRequest<SaveForecastSnapshotResponse
     public string Name { get; set; } = string.Empty;
     public int ForecastPeriod { get; set; }
     public double ConfidenceLevel { get; set; } = 0.95;
+    public string ModelType { get; set; } = "SSA";
+    public string? RequestedModelType { get; set; }
+    public string? EffectiveModelType { get; set; }
+    public string? ModelFallbackReason { get; set; }
+    public List<HistoricalDataPointDto> HistoricalData { get; set; } = new();
     public List<PredictionDto> Predictions { get; set; } = new();
     public List<SpatialPredictionDto> SpatialPredictions { get; set; } = new();
     public List<SeasonalPredictionDto> SeasonalPredictions { get; set; } = new();
     public string GeneratedById { get; set; } = string.Empty;
+}
+
+public class HistoricalDataPointDto
+{
+    public int Precinct { get; set; }
+    public int CrimeType { get; set; }
+    public int Month { get; set; }
+    public int Year { get; set; }
+    public int Count { get; set; }
+    public string TimeOfDay { get; set; } = string.Empty;
+    public uint? ClusterId { get; set; }
 }
 
 public class PredictionDto
@@ -62,4 +79,9 @@ public class SaveForecastSnapshotResponse
     public string Name { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public int TotalPredictions { get; set; }
+    public string RequestedModelType { get; set; } = string.Empty;
+    public string EffectiveModelType { get; set; } = string.Empty;
+    public string? ModelFallbackReason { get; set; }
+    public List<MonthlyForecastRiskPeriod> MonthlyRiskPeriods { get; set; } = new();
+    public List<HistoricalDataPointDto> HistoricalData { get; set; } = new();
 }

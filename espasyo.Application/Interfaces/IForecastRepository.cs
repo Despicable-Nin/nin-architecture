@@ -11,5 +11,6 @@ public interface IForecastRepository
     Task<ForecastRun?> GetForecastRunByIdAsync(Guid id);
     Task<IEnumerable<ForecastRun>> GetForecastRunsAsync(int page = 1, int pageSize = 20);
     Task<IEnumerable<ForecastResult>> GetForecastResultsAsync(Guid forecastRunId);
+    Task<IEnumerable<SpatialForecastResult>> GetSpatialForecastResultsAsync(Guid forecastRunId);
     Task<bool> DeleteForecastRunAsync(Guid id);
 }

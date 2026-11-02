@@ -1,4 +1,3 @@
-using System.Text.Json;
 using espasyo.Application.Interfaces;
 using espasyo.Application.UseCase.ForecastRuns.Commands.SaveForecastSnapshot;
 using MediatR;
@@ -28,10 +27,9 @@ public class GetForecastHistoricalDataQueryHandler(IForecastRepository forecastR
 
         try
         {
-            var parsed = JsonSerializer.Deserialize<List<HistoricalDataPointDto>>(run.HistoricalDataJson);
-            return parsed ?? new List<HistoricalDataPointDto>();
+            return ForecastRunSnapshotData.Deserialize(run.HistoricalDataJson).HistoricalData;
         }
-        catch (JsonException)
+        catch (System.Text.Json.JsonException)
         {
             return new List<HistoricalDataPointDto>();
         }

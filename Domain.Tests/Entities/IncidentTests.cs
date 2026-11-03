@@ -50,7 +50,7 @@ namespace espasyo.Domain.Entities.Tests
         [TestMethod()]
         public void GetYearTest()
         {
-            Assert.AreEqual(2025, incident.GetYear());
+            Assert.AreEqual(DateTimeOffset.Now.Year, incident.GetYear());
         }
 
         [TestMethod()]

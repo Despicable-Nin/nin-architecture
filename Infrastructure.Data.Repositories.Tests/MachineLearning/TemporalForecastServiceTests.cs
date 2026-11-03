@@ -275,6 +275,51 @@ public class TemporalForecastServiceTests
         result.Metrics.ShouldNotBeNull();
     }
 
+    [Fact]
+    public void CalculateValidationMetrics_ReturnsCorrectMetrics()
+    {
+        // Given: actual [10, 20, 30] vs predicted [12, 18, 28]
+        // MAE = 2.0, RMSE = 2.0, MAPE ≈ 12.22%, Accuracy ≈ 0.88
+        var actual = new List<TimeSeriesData>
+        {
+            new() { Date = new DateTime(2026, 1, 1), Value = 10f },
+            new() { Date = new DateTime(2026, 2, 1), Value = 20f },
+            new() { Date = new DateTime(2026, 3, 1), Value = 30f },
+        };
+        var predicted = new List<ForecastPoint>
+        {
+            new() { Timestamp = new DateTime(2026, 4, 1), Forecast = 12 },
+            new() { Timestamp = new DateTime(2026, 5, 1), Forecast = 18 },
+            new() { Timestamp = new DateTime(2026, 6, 1), Forecast = 28 },
+        };
+
+        // When
+        var metrics = TemporalForecastService.CalculateValidationMetrics(actual, predicted);
+
+        // Then
+        metrics.MeanAbsoluteError.ShouldBe(2.0);
+        metrics.RootMeanSquareError.ShouldBe(2.0);
+        metrics.MeanAbsolutePercentageError.ShouldBeInRange(12.2, 12.3, "MAPE should be ≈ 12.22%");
+        metrics.ModelAccuracy.ShouldBeInRange(0.87, 0.88, "Accuracy should be ≈ 0.88");
+    }
+
+    [Fact]
+    public void AverageMetrics_AveragesAcrossSeries()
+    {
+        var metrics = new List<ForecastMetrics>
+        {
+            new() { MeanAbsoluteError = 2.0, RootMeanSquareError = 2.0, MeanAbsolutePercentageError = 12.22, ModelAccuracy = 0.88 },
+            new() { MeanAbsoluteError = 4.0, RootMeanSquareError = 6.0, MeanAbsolutePercentageError = 20.0, ModelAccuracy = 0.80 },
+        };
+
+        var result = TemporalForecastService.AverageMetrics(metrics);
+
+        result.MeanAbsoluteError.ShouldBe(3.0);
+        result.RootMeanSquareError.ShouldBe(4.0);
+        result.MeanAbsolutePercentageError.ShouldBeInRange(16.1, 16.2, "MAPE should be ≈ 16.11");
+        result.ModelAccuracy.ShouldBeInRange(0.84, 0.85, "Accuracy should be ≈ 0.84");
+    }
+
     [Theory]
     [InlineData("linear")]
     [InlineData("seasonal")]

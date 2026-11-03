@@ -1018,7 +1018,7 @@ public class TemporalForecastService(
         return result;
     }
 
-    private static ForecastMetrics CalculateValidationMetrics(List<TimeSeriesData> actual, List<ForecastPoint> predicted)
+    internal static ForecastMetrics CalculateValidationMetrics(List<TimeSeriesData> actual, List<ForecastPoint> predicted)
     {
         if (actual.Count != predicted.Count)
             throw new ArgumentException("Actual and predicted data must have same length");
@@ -1041,7 +1041,7 @@ public class TemporalForecastService(
         };
     }
 
-    private static ForecastMetrics AverageMetrics(List<ForecastMetrics> metrics)
+    internal static ForecastMetrics AverageMetrics(List<ForecastMetrics> metrics)
     {
         return new ForecastMetrics
         {

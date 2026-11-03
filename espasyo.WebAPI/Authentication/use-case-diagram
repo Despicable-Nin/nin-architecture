@@ -1,0 +1,32 @@
+%%{init: {'theme':'base', 'themeVariables': { 'fontSize': '14px'}}}%%
+```mermaid
+usecaseDiagram
+    actor U1["User"] as User
+
+    package "Authentication System" {
+        usecase UC1["Login"] as Login
+        usecase UC2["Authenticate Request"] as AuthReq
+        usecase UC3["Refresh Token"] as RefreshT
+        usecase UC4["Seed Admin User"] as SeedAdmin
+
+        participant WC["UserController"]
+        participant JWSvc["JwtBearerAuthenticationHandler"]
+        participant JWTSvc["JwtSecurityTokenHandler"]
+        participant UserManager["UserManager<IdentityUser>"]
+        participant ClaimsPrinc["ClaimsPrincipal"]
+        participant TokenManager["TokenManager"]
+
+        User --> WC
+        WC --> UC1
+        UC1 --> JWSvc
+        JWSvc --> UC2
+        UC2 --> JWTSvc
+        JWTSvc --> ClaimsPrinc
+        UC3 --> WC
+        WC --> UC4
+    }
+
+    User --> UC1
+    User --> UC2
+    User --> UC3
+```
